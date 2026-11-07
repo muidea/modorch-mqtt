@@ -1,0 +1,11 @@
+[package]
+name = "standalone-broker"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+modorch.workspace = true
+modorch-mqtt.workspace = true
+tokio.workspace = true

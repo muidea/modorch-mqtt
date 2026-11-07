@@ -1,0 +1,16 @@
+[package]
+name = "modorch-mqtt"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+modorch.workspace = true
+modorch-mqtt-api.workspace = true
+modorch-mqtt-core.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+bytes.workspace = true
+rumqttc = { version = "0.25", default-features = false }
