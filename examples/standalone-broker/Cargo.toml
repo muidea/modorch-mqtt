@@ -7,5 +7,5 @@ license.workspace = true
 
 [dependencies]
 modorch.workspace = true
-modorch-mqtt.workspace = true
+modorch-mqtt = { workspace = true, features = ["toml"] }
 tokio.workspace = true

@@ -1,12 +1,14 @@
 # modorch-mqtt：基于 Modorch-RS 的可嵌入式 MQTT Broker 库完整架构与实现设计
 
-> 文档状态：**待实施的设计方案，不是当前已实现的功能说明**  
+> 当前功能实施状态以[§30](#30-功能路径收口2026-11-08)为准；历史章节保留当轮验证边界。
+
+> 文档状态：**完整目标设计，已部分实施；当前实现范围见 §18–§29**
 > 日期：2026-11-07（评审修订）｜项目建议名：`modorch-mqtt`｜实现语言：Rust 2024\
 > 基础框架：[`muidea/modorch-rs`](https://github.com/muidea/modorch-rs)，**0.0.3 Candidate**；本次核对 `master` commit [`336ba20196044e1b81fb2ca297a18b5e258a5800`](https://github.com/muidea/modorch-rs/commit/336ba20196044e1b81fb2ca297a18b5e258a5800)  
 > 框架契约：Contract **1.2.0**；Skill **1.0.7**；Rust **>=1.85 / Edition 2024**  
 > 前置框架增强：**已由 Modorch-RS 0.0.3 实现并在其仓库的本地验收范围内验证**，不再阻断本库开发  
 > 文档定位：针对 0.0.3 的 **实现设计/工作分解**，不是 `modorch-mqtt` 已经实现或通过测试的声明  
-> 当前实施进度：已启动 F0–F3 的 `0.1.0-alpha.1` QoS0/1 内存实验实现；实际能力以 [README](../README.md)、[当前契约](../contracts/README.md)及[本轮验证记录](validation/2026-11-07-f0-f3/README.md)为准。本设计其余 DTO、配置及后续阶段仍为目标。
+> 当前实施进度：`0.1.0-alpha.1` 已实现 F0–F3 的 QoS0/1 内存实验子集、F4 EventHub 集成及 F5 安全/运维和 SQLite 持久化实验子集，并补齐 F6 双向 QoS2及部分规范场景（具体化见 §18–§23）；实际能力以 [README](../README.md)、[当前契约](../contracts/README.md)、[F4 验证记录](validation/2026-11-07-f4/README.md)、[安全运维验证](validation/2026-11-07-f5-security-ops/README.md)、[Storage 验证](validation/2026-11-07-f5-storage/README.md)及[QoS2 验证](validation/2026-11-07-f6-qos2/README.md)为准。Core TOML配置、逐义务发布门禁及出站故障回归见§27–§29；完整符合性和后续阶段仍为目标。
 > 规范性协议来源：[MQTT 3.1.1 OASIS Standard](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html)、[MQTT 5.0 OASIS Standard](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html)
 
 ## 0. 执行摘要与决策记录
@@ -105,7 +107,7 @@
 │       ├── MemoryStore 或 Storage Module 请求代理                                       │
 │       └── EventHubAdapter（单向 Inbound Event + 显式 Outbound Request）                 │
 └───────────────────────────────┬──────────────────────────────────────────────────────┘
-                                │ MQTT TCP（可选 TLS 后续）
+                                │ MQTT TCP（可选 TLS）
                        External MQTT Clients
 ```
 
@@ -258,7 +260,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-注意：`MqttBrokerBundle`、`MqttBrokerConfig`、`module_ids()` 和 `loopback_development()` 已在 F0–F3 实验实现中提供；`MyBusinessFactory` 是宿主自己的组件；`tokio::signal` 需由宿主启用对应 Tokio Feature。可执行宿主示例位于 `examples/existing-modorch-server`；后续扩展配置仍未实现。
+注意：`MqttBrokerBundle`、`MqttBrokerConfig`、`module_ids()` 和 `loopback_development()` 已在 F0–F3 实验实现中提供；`MyBusinessFactory` 是宿主自己的组件；`tokio::signal` 需由宿主启用对应 Tokio Feature。可执行宿主示例位于 `examples/existing-modorch-server`；Auth/TLS/Admin/Metrics 的实际装配见 `examples/secure-modorch-server`；Storage 等仍待实现。
 
 ### 4.3 生命周期与网络入口
 
@@ -690,13 +692,13 @@ Application 最终终止后停止所有能力，待 Factory/状态所有者的�
 
 ## 9. 配置体系、资源预算和安全默认
 
-拟议 TOML（宿主可自行装载，Bundle 负责强校验）：
+Core TOML接入已实现，API与严格字段表见[toml.md](toml.md)，当前实施边界见§27。宿主有界读取独立配置，调用Facade的 `MqttTomlConfig::parse`，注册引用的Provider，再显式选择返回的组件ID；Bundle仍负责Core强校验。下面为匿名回环配置；Provider自己的账号/ACL、数据库/磁盘预算、Admin/Metrics策略仍属于宿主配置：
 
 ```toml
 [mqtt.core]
 enabled = true
 name = "mqtt-broker"
-protocols = ["3.1.1"]        # 仅声明已实现且验收的版本
+protocols = ["3.1.1"]        # 已实现的实验协议；完整符合性仍Partial
 listener = "127.0.0.1:1883"
 max_connections = 500
 max_sessions = 2000            # 含离线 Session，不能仅用连接数限制会话总量
@@ -717,7 +719,7 @@ reliable_overflow_policy = "reject_publish"  # 首期唯一可靠溢出策略，
 [mqtt.security]
 anonymous_access = true         # 开发用：仅回环地址
 allow_public_listener_without_tls = false
-reserved_internal_prefix = "$modorch/mqtt/"
+reserved_internal_prefix = "$modorch/"
 session_owner_policy = "same_principal"      # 启用 Auth 时强制；匿名模式的限制见 §7.3.1
 
 [mqtt.eventhub]
@@ -729,14 +731,15 @@ allow_implicit_outbound = false
 [mqtt.auth]
 enabled = false
 
+[mqtt.tls]
+enabled = false
+
 [mqtt.storage]
 enabled = false
 mode = "memory"
-recovery_timeout_ms = 30000
-recovery_page_max_records = 128
-recovery_page_max_bytes = 4194304  # 含响应封装开销，必须适配 Host 的 HubLimits
-# 持久模式启用时显式配置该值，并验证后端物理存储/WAL 上限与预留空间
-# disk_budget_bytes = 1073741824
+# 启用时 mode="external"、component 指向宿主注册的Provider，另行注入capability。
+# max_snapshot_bytes / recovery_page_bytes / timeout_ms / recovery_timeout_ms 为Core参数。
+# 数据库路径、disk_budget_bytes及Provider订阅ID由宿主配置并强校验。
 
 [mqtt.admin]
 enabled = false
@@ -1019,4 +1022,314 @@ cargo run -p standalone-broker --locked
 5. 对 Auth/Storage Module 的超时、背压、错误与数据持久边界制定独立契约，不滥用 EventHub Request 的返回作为磁盘持久化证明。
 6. 用 §12.2 的五组新增用例落实会话归属、CONNECT Will 授权、离线分页恢复、MemoryStore 跨代际保留与可靠发布饱和接纳；设计修订不替代这些实现和执行证据。
 
-**说明**：本设计于 2026-11-06 依据 Modorch-RS **0.0.3 Candidate** / `master` commit `336ba20196044e1b81fb2ca297a18b5e258a5800` 核对，并于 2026-11-07 根据五项评审意见修订，框架基线不变。后续同日按用户确认的 F0–F3 范围开展 QoS0/1 内存实验实现；本库执行证据单独维护在本轮验证记录中，不继承上游 Verified 状态，也不代表完整 MQTT 3.1.1 或后续 Auth/Storage/MQTT5 已验收。
+**说明**：本设计于 2026-11-06 依据 Modorch-RS **0.0.3 Candidate** / `master` commit `336ba20196044e1b81fb2ca297a18b5e258a5800` 核对，并于 2026-11-07 根据五项评审意见修订，框架基线不变。后续同日按用户确认的 F0–F3 范围开展 QoS0/1 内存实验实现；本库执行证据单独维护在本轮验证记录中，不继承上游 Verified 状态，也不代表完整 MQTT 3.1.1 或完整 F5 Storage/MQTT5 已验收。
+
+
+## 18. F4 实验实现进度（2026-11-07）
+
+在 F0–F3 QoS0/1 内存子集上，已实现同宿主 EventHub 的入站观察、显式出站 Request、MemoryOnly 业务回执及来源隔离的幂等与查询。本节记录 F4 时点实现对 §5–§6 的具体化；后续持久化行为以 §20 为准，不代表完整设计或生产发布通过。
+
+- `MqttInbound` 仅由网络 PUBLISH 成功接纳后产生，携带 broker、generation、connection_id、可信连接 ClientID 和原始报文元数据；原 MQTT Topic / Broadcast / `external()`。独立 best effort，失败/部分投递计数，业务执行不参与 PUBACK。Will 与内部发布不生成此类网络事件。已进入 Hub 的旧代际观察不会因重建撤回。
+- `$modorch/mqtt/control/publish` 只执行直接寻址 Core 的类型化 Request。来源取框架 `MessageEnvelope.source`；当前框架只有 Handler 子调用带此来源。无来源、任意 Header、普通 Event/Command 不能发布。生命周期钩子及受管后台任务可先向宿主业务 Handler 提交，再由 Handler 明确发起 Core Request。该规则是内部来源隔离，尚非 Auth ACL。
+- `MqttPublishResult = Result<MqttAcceptReceipt, MqttPublishRejection>`，成功仅 `MemoryOnly`；不提供未实现的 DurableCommitted 成功值。Core 校验 request_id、Topic、保留命名空间、完整 MQTT 包长度、QoS0/1、活跃代际，复用网络发布相同的原子路由/Retained/背压路径。
+- 幂等键为 `(source ComponentRef, request_id)`；完整内容相同返回原结果，不重匹配、不重投递；不同内容返回 IdConflict。账本完成预留后的路由成功/拒绝终态均保留；前置校验或账本预留失败不创建记录。已提交目标集合由原交付状态承载，重复请求不重新解析订阅。
+- 通过 `$modorch/mqtt/control/publish/query` 的 `MqttPublishQuery` 查询同源终态，`None` 不否定并发排队的原请求。Indeterminate 不能解释为回滚；同源同 ID 同内容重试受账本保护。
+- `max_publish_records` 默认 10000，记录计入全局内存、跨 Factory 内的 Core 重建保留且不淘汰。满额拒绝新 ID，旧记录仍可读；无 TTL/清空接口，新 Factory/进程丢失记录。此保守实验策略后续可由明确的持久 epoch/保留合同替代。
+- Modorch 订阅 ID 是 Application 全局唯一；宿主通过 `control_subscription_ids`（默认 `[1,2,3]`）统一分配，多个 Broker 使用不同 ID。控制 Topic 相同仍用 Destination 选择具体 Broker。
+
+可运行示例为 `existing-modorch-server`，接入说明见 [eventhub.md](eventhub.md)，执行证据见 [F4 验证记录](validation/2026-11-07-f4/README.md)。本节证据记录 F4 时点；后续安全/运维具体化见 §19，Storage 见 §20；可选 Bridge、QoS2、MQTT5 及生产容量门禁仍待开发/验收。
+
+
+## 19. F5 安全与运维子集（2026-11-07）
+
+本节记录安全/运维子集的历史实施时点：Auth、Admin、Metrics 为独立可选 Module，并提供 TLS 与按 IP 的握手准入。当时状态与幂等限同 Factory 的内存生命周期；后续已增加 §20 的 SQLite Storage 与 DurableCommitted。**F5 仍未整体完成生产验收**，历史验证记录不追溯扩大范围。
+
+- Auth 的类型化 Request 契约位于 API crate，Core 仅使用定向 EventHub Adapter；密码 Provider 使用宿主 CPU Scheduler 验证有成本上限的 Argon2id PHC。失败、满额、超时不回退匿名；账号表与策略不可变，权限默认拒绝。
+- Principal 使用稳定域/主体键并带期限及策略版本；Core 强制 owner 相等，ClientID 使用策略、恢复订阅重新鉴权和 Session 版本 CAS 在接管前完成。未授权 Clean Session 不清除他人状态。
+- Will 在成功 CONNACK/接管前取得参数及策略绑定的 Grant 并保存；Core 独立拒绝保留命名空间。触发按已保存授权执行，策略热更新/撤销仍未提供。
+- TLS 在受管连接任务中执行，与 MQTT/Auth 共用绝对握手期限，使用显式 ring Provider、禁用 early data；非回环地址要求 Auth + TLS。连接/任务/内存/IP 桶先于握手准入，失败只关闭当前连接。
+- Admin 为显式启用的来源受限 Request 代理，支持有界分页的 Session/订阅查询、统计和按 expected_connection_id 断连；默认业务来源白名单为空，不创建 HTTP 入口。审计为有界内存元数据环，不是持久审计。
+- Metrics 用一个受管周期任务拉取状态，提供采样时间/失败计数和固定名字 Prometheus 文本，无 ClientID/Topic 标签，无默认 HTTP exporter。计数保留于 Factory，未采用逐消息 Hub 广播。
+- `scripts/benchmark.py` 提供1/10/100/500客户端 × QoS0/1 的 release loopback 基线，记录环境/配置/吞吐/PUB→SUB百分位及采样RSS；TLS/Auth/持久化性能和生产容量门禁仍待验证。
+
+真实接口与装配见 [安全与运维接入](security-and-operations.md)，执行命令、输出及范围见 [本轮验证](validation/2026-11-07-f5-security-ops/README.md)。完整需求状态如下，只有已列出的子集具有当前执行证据。
+
+| 阶段/需求 | 当前状态 | 剩余工作 |
+|---|---|---|
+| F0–F3 基础/协议/内存QoS0/1 | 实验子集已实现 | 不含完整3.1.1符合性 |
+| F4 EventHub | 已实现实验契约 | 跨进程可靠桥接不在当前承诺内 |
+| F5 Auth/TLS | 已实现本节范围 | 动态策略/证书更新、更多Provider为后续能力 |
+| F5 Admin/Metrics | 已实现内部接口 | 持久审计、宿主HTTP管理/指标出口未提供 |
+| F5 Storage | 已实现 §20 的实验子集 | FULL SQLite 全量 image、writer fencing/CAS、提交查询、预监听字节分页恢复及 SIGKILL/磁盘满测试；真实断电、生产性能和跨平台待验收 |
+| F6 完整 MQTT3.1.1 | 双向QoS2已实现 §21 范围；完整矩阵待验收 | 重复报文、重连阶段、持久化/故障、独立客户端已有证据；完整3.1.1符合性仍未完成 |
+| F7 MQTT5 | 待开发 | Properties/Reason Codes/Shared Subscription等及独立矩阵 |
+| 可选网络与桥接 | 待开发 | WebSocket、Bridge及防环/重连/交付边界 |
+| F8 发布准备 | 部分完成 | 生产负载与恢复性能、跨平台、独立Agent/完整MUST发布门禁及兼容矩阵 |
+
+
+## 20. F5 SQLite Storage 实验实现（2026-11-07）
+
+本轮具体化 §8.2/§8.2.1 和 MQTT-STATE-002/003 的 QoS0/1 子集。Facade 新增真实 `storage` Feature，Provider 为独立 `modorch-mqtt-storage` Module，Core 只依赖 API DTO，不创建第二 Hub、不直接访问 SQLite。完整装配和运行限制见 [storage.md](storage.md)，可运行示例为 [durable-broker](../examples/durable-broker/src/main.rs)。
+
+### 20.1 选定的事务与恢复形式
+
+- 采用 SQLite `synchronous=FULL`、DELETE rollback journal 和独占连接；本次未选 WAL。一个数据库只保存一个 Broker 的受限完整 JSON image，包含所有会话/订阅、owner、epoch/revision、Pending/Inflight/Packet ID/ever_sent、Retained、Will 授权/冻结目标、同源业务接纳终态和配额账本。无 QoS2 FSM，不把它视为完整协议快照。
+- Store 使用 `$modorch/mqtt/storage/v1` 的定向 Request，API 为 Begin/Page/Complete/Abort/Commit/Query。Core 负责加载、路由、删除和清理，再将结果作为全量 image 原子提交；不逐个实现 §6.2 拟议 Trait 的增量读写方法。
+- Commit 带稳定 operation_id、writer epoch、整个 image 的 expected_version CAS 及 SHA256。整个 image 事务比逐 Session CAS 更粗，所有 Session epoch/revision 一起受保护。回执为选定 FULL policy 下已提交；Hub Admission 或 Request 执行成功本身不等于磁盘保证。
+- Provider 仅保留最新 Store 操作回执；Core 串行提交并先消除不确定再发下一操作，旧操作不能越过 CAS 重复提交。业务发布幂等账本另随 image 完整持久保存且有界不淘汰，跨新 Application 仍返回原结果、不再次路由。
+- Begin 推进 epoch、冻结 image 并关闭写入；重复未完成的同一 recovery_id 幂等。Page 采用**字节 offset 和字节上限**，允许业务记录跨页，而不是 §8.2.1 拟议的业务记录 cursor；总 image 有界，所以不另设每页条目数。页校验 epoch/version/offset/进度/done/总长度/SHA256，随后核对配额及引用。恢复所有离线订阅后处理失去 TCP 的 Clean Session/Will，normalization 事务确认后才 listen。
+- Complete 同 epoch 幂等，Abort 不删除原 image、不重开旧 writer；迟到 Complete 不能复活已 Abort 的 epoch。恢复期间控制发布返回 Inactive，失败/预算不足保持无监听，不丢弃数据迁就新配置。
+
+### 20.2 来源、提交屏障与资源
+
+Modorch 生命周期/网络根没有 Handler source，宿主生成随机32字节 capability，只共享给 Core 与选定 Provider；所有 Store 请求均校验，Debug 脱敏且不保存到 image。它不是任意进程内代码的安全隔离，业务模块不得获得此能力。
+
+Core 的异步全局 gate 串行协调状态变更、下行选择、Will 和内部发布；同步 State mutex 不跨 await。编码/摘要走宿主 CPU Scheduler，SQL 走 blocking-I/O Scheduler，等待实际任务退出。先确认相关存储提交，再发送 CONNACK/SUBACK/PUBACK、下行或网络观察；Packet ID/ever_sent 先保存再写，重启以原 ID/DUP 重发。QoS0 队列仍为 best effort，不能从 DurableCommitted 推断其可恢复。
+
+Commit 超时/错误先 Query 同 ID/digest；Unknown 才重发同操作，仍不确定则关闭本代入口/连接并由监督恢复。成功内部回执为 DurableCommitted；未配置 Storage 时仍为 MemoryOnly。全量快照上限1KiB..64MiB，恢复页1..1MiB，预留四倍快照逻辑内存；连同现存状态/连接必须满足全局预算和 Hub 字节准入，不自动扩大额度。
+
+磁盘额度至少 `3 * (max_snapshot_bytes + 1MiB)`，Provider 校验4096字节页，按三倍主库页限加1MiB余量设置 `max_page_count`，涵盖主库与 rollback journal；不引入无界 WAL。拒绝内存/URI数据库、不相关数据库及非标准页。额度不预分配磁盘、不涵盖外部备份和文件系统快照，仍须处理文件系统先满。生产容量与全量序列化/提交吞吐尚无验收结论。
+
+### 20.3 停止边界与验收状态
+
+框架在停止阶段会取消新调度的 CPU/I/O 任务，不能在 quiesce/teardown 新建关键 durable promise。Core 关闭入口、等待已有连接退出，仅做本地收尾；磁盘中已提交的 armed Will 在下次启动时触发并在监听前落盘。因此 broker 停止导致的 Will **允许延迟到重启**，不是关闭时保证立即持久发布。运行期正常 DISCONNECT 在事务中持久清除 Will。Provider 等待现有 SQL job 结束再释放空闲 DELETE-journal 连接，不在 teardown 后 checkpoint/提交。
+
+新增固定指标为存储提交成功/失败数、耗时微秒总和和最大值，计时从获得 gate 到确定结果，不包括排队，也不是纯 fsync 延迟。Admin 审计仍限内存。
+
+[本轮验证记录](validation/2026-11-07-f5-storage/README.md)覆盖离线订阅在重连前恢复、Retained、Packet ID/DUP、持久 owner/Will Grant/幂等、回执延迟/丢失查询、失败无 ACK/下行、恢复错误/预算不足不开端口、真实 SQLite 页限 DiskFull、独占库与真实子进程 SIGKILL。SIGKILL 不是硬件断电或任意文件系统验证；历史内存性能基线不适用于存储模式。
+
+当前仍缺 F6 QoS2/完整3.1.1符合性、F7 MQTT5、WebSocket/Bridge、生产性能与故障恢复SLO、真实断电/跨平台及独立 Agent/发布门禁。完整需求状态为 Partial，不声明全部 MUST 或完整 F5 已验收。
+
+
+## 21. F6 双向 QoS2 实验实现（2026-11-07）
+
+本轮在 F5 Storage 基础上补齐 QoS2 的 PUBLISH/PUBREC/PUBREL/PUBCOMP 状态机。§18–§20 保留各阶段实施时点；其中“QoS2待开发”“快照无QoS2”由本节的当前范围替代。**完整3.1.1符合性和生产发布仍为 Partial**，不能仅以增加 QoS2 或测试数量推断全部 MQTT MUST 已通过。
+
+### 21.1 接纳与状态机
+
+接收端采用 MQTT3.1.1 §4.3.3 Method B：第一次 PUBLISH 在同一事务中预留接收状态及可靠目标/Retained，路由并记录 AwaitPubRel 后才 PUBREC。等待期间同 ID 的 QoS2 PUBLISH 忽略内容，只重发 PUBREC，不再次路由/修改Retained/观察。PUBREL 清除记录后回 PUBCOMP，重复/未知 PUBREL 仍回复 PUBCOMP；完成后可以复用该 ID。业务幂等 request_id 的异内容冲突语义不用于此处。
+
+发送端可靠队列增加 Release 阶段；PUBREC 推进并发出固定 flags=0010 的 PUBREL，不释放交付或 ID。重复 PUBREC 重发 PUBREL，正确阶段的 PUBCOMP 才释放。持久会话重连在原 Publish 阶段重发原 ID/DUP PUBLISH，在 Release 阶段只重发 PUBREL。错误 PUBACK、过早 PUBCOMP 和未知 ACK 不删除其他消息；上下行 ID 空间独立。PUBREL 控制帧优先收尾，避免可靠窗口已满时等待循环。
+
+网络订阅、内部发布、Retained回放和Will允许QoS2；ACL按原发布QoS校验，恢复/接管继续执行owner限制。SUBACK失败由显式无授权条目标记，不再把QoS2当作失败哨兵值。MqttInbound对第一次网络接纳生成一次best-effort观察，不承诺业务处理exactly-once。
+
+### 21.2 资源、持久化与兼容
+
+新增 `max_inbound_qos2_per_client`（默认128，1..65535）和 `max_inbound_qos2_bytes_per_client`（默认16MiB）；每条接收记录按 `256 + Topic字节 + payload字节` 独立计费，另受全局预算。满额在路由/PUBREC前拒绝，不淘汰已接纳记录；重传已有ID不新增记录。下行QoS1/2仍共用可靠队列额度，QoS2到PUBCOMP才释放。状态/固定名字指标增加接收端交换条数和字节，Metrics共36条。
+
+持久模式所有ACK/阶段推进遵守既有确认屏障，四类新状态写入分别有延迟/失败注入测试。快照format2新增接收端账本/配额及发送Release阶段；读取旧format1并在listen前升级，旧版拒绝format2，不支持直接降级。非法phase、ID、配额和缩小预算失败时不重置数据库。
+
+### 21.3 当前验收与剩余项
+
+执行证据见 [QoS2验证](validation/2026-11-07-f6-qos2/README.md)，接入细节见 [qos2.md](qos2.md)。覆盖双向重复报文、ID复用/占用、错误ACK、条数/字节限额、Will/Retained、顺序与窗口、同Factory监督重建、跨Application恢复、四阶段存储屏障/失败、旧快照升级、真实SIGKILL，以及独立rumqttc和Paho TCP/TLS/密码ACL。
+
+F6尚余完整MQTT3.1.1规范性符合性矩阵及更广协议互操作/故障验证；F7 MQTT5、WebSocket、Bridge、生产吞吐/恢复SLO、真实硬件断电、跨平台和独立Agent/发布门禁仍未完成。SQLite停止时的Will延迟恢复策略沿用§20，不扩大为停机立即持久发布。
+
+## 22. F6 规范符合性推进与顺序修复（2026-11-07）
+
+§18–§21 为各实施阶段记录；当前快照和验证状态由本节补充。完整设计/发布仍为 Partial。
+
+- 修复 MQTT-4.6.0-4：每个有效 PUBREC（包括重复）生成一个 PUBREL，持久提交后按到达顺序进入连接的有界控制 FIFO；写端背压不再按原 PUBLISH 队列重排或合并回复。控制队列满时暂停输入。未确认 PUBLISH 的相对顺序与原 Packet ID/DUP 重发语义保持。
+- format3 沿用 format2 image 字段，以可靠队列中 Release 的相对位置保存每个未完成 ID 最近一次 PUBREL 顺序。恢复在监听前确认 normalization；旧 format1 可升级，旧 format2 每持久 Session 至多一个 Release 可升级。多个 Release 缺失历史顺序时返回 `legacy QoS2 release order`，不监听、不重置数据库；需旧版先排空相关交换再升级。旧二进制不能读取 format3。
+- `max_client_id_bytes` 验证改为23..65535，保证配置不排除 MQTT-3.1.3-5 必须支持的1..23字节字母数字ID。低于23的历史配置需修正。
+- 新增连接拒绝后的流水数据隔离、malformed CONNECT 无 CONNACK、首包/二次CONNECT、非法固定标志/ID/UTF8/订阅负载的连接隔离、订阅替换重放Retained/精确取消订阅、入站PUBACK/PUBREC和含重复PUBREC的PUBREL顺序、BOM/Unicode不归一化，以及SQLite逆序确认重启恢复用例。
+- [受控规范清单](../contracts/mqtt311.json)记录官方URL/SHA256及140个编号，13组场景关联62个编号，其余78个仍NotRun。编号清单不含未编号规范性要求的完整审计；关联测试只产生限定场景的 `TargetedEvidence`，不能据此声明完整条款或完整MQTT3.1.1符合性通过。
+- `scripts/check.sh` 接入实际测试日志校验；缺失/ignored/失败不算通过，单独测试总数不算证据。说明见[符合性范围](mqtt311-conformance.md)，实际命令/日志及限制见[本轮验证](validation/2026-11-07-f6-conformance/README.md)。
+
+剩余：完整3.1.1规范矩阵（含未编号要求及Server/Client/可选传输适用性审计）、更广互操作/异常链路；F7 MQTT5；可选WebSocket/Bridge；生产吞吐/恢复SLO、真实断电、跨平台和独立Agent/发布门禁。SQLite停机Will延迟恢复边界不变。
+
+## 23. F6 发布/订阅和会话协议收口（2026-11-07）
+
+本节补充§22，完整设计/发布仍为Partial。最新执行见[协议收口验证](validation/2026-11-07-f6-protocol/README.md)，用例与限定范围见[规范清单](../contracts/mqtt311.json)。
+
+- CONNECT错误分类不再把所有未知错误兜底为Identifier rejected(2)。仅明确ClientID拒绝使用2；容量/存储不可用使用3；授权拒绝使用5；不匹配标准原因码的错误关闭且不发CONNACK。网络覆盖协议名、ID、Will授权及Session满；线帧分类测试覆盖存储和未知错误。
+- 新增九种发布/订阅QoS组合、二进制载荷与独立DUP标志、QoS0无ACK/ID；混合SUBACK输入顺序、原ID及重复过滤器按序替换；Retained的QoS2→0→1替换、live/replay标志、非Retain不改旧值和空Retain删除。
+- 补齐UNSUB后已发送QoS1/2继续完成、新消息停止路由；CleanSession接管清理订阅/双向QoS2但保留Retained；离线持久会话为新QoS1/2入队并重连按序交付。
+- 实际TCP覆盖16组Topic匹配、65535字节多字节UTF8 Topic和Filter、非法UTF8的各CONNECT/过滤器字段、密码/Will二进制载荷、Will六种QoS/retain组合，以及非法多过滤器报文不部分变更订阅。强制PacketID65535回绕跳过未完成QoS1/2，正确完成才复用；双向同时使用ID1互不干扰。
+- 受控清单现为31组场景、128个关联编号。未映射12个编号仍NotRun：7项客户端职责、4项可选WebSocket、1项条件性Bridge，各有适用性依据；门禁验证集合完整且类别有效。适用性不代表执行通过，128个编号也只标TargetedEvidence。
+
+尚余未编号规范性要求、表格/状态机的完整审计和更广故障/互操作验证，不能仅凭上述轨迹将完整3.1.1或F6标为Passed。F7 MQTT5、可选WebSocket/Bridge、生产吞吐/恢复SLO、真实断电、跨平台和独立Agent发布门禁尚未完成。format3升级和停机Will延迟恢复边界沿用§22/§20。
+
+
+## 24. 共享Topic向量与F8开发交付收口（2026-11-07）
+
+本轮不扩大协议版本或生产支持声明。最新执行证据见[共享Topic与开发门禁](validation/2026-11-07-f6-topic-release/README.md)，持续剩余项见[需求清单](remaining-work.md)。
+
+- `contracts/topic-vectors.json`保存固定Modorch-RS rev的39组独立预期，注明上游Rust来源及SHA256；上游没有JSON fixture。Core校验/匹配、Facade helper、真实Hub订阅/Handler及真实MQTT TCP共用此文件。magicCommon端尚无消费执行证据，MQTT5的共享订阅解析仍待开发。
+- F6矩阵增至32组限定场景，128个编号仍仅为TargetedEvidence；未编号义务、表格/FSM完整审计与更广异常链路尚未完成。新命令 `check-conformance.py --require-complete` 在Partial时返回非零，不因限定场景通过而批准完整F6。
+- 补齐§14的getting-started/architecture/api/operations文档与项目专用开发Skill；项目正式启用Modorch应用/模块Skill1.0.7，并完成当前0.0.3依赖源码指纹预检。MQTT Skill经skill-hub验证并归档本地技能库，未推送远端。
+- `check-project.py`和check.sh验证必需文档、Skill/CI入口及本地链接；Linux CI定义覆盖工作区检查、MSRV、空默认Feature及Paho TCP/TLS，保存执行工件。远端CI未执行，不计为平台验收。
+
+完整F8仍需所有MUST Contract的机器映射及独立Agent/兼容/安全/性能总门禁；F7 MQTT5、可选WebSocket/Bridge、生产负载/恢复SLO、真实断电和跨平台仍未完成。format3升级限制和停机Will延迟恢复策略保持§22/§20范围。
+
+
+## 25. F6 报文表、未编号候选与发送ACK转换审计（2026-11-08）
+
+本轮实际实现及执行见[报文审计验证](validation/2026-11-08-f6-packet-audit/README.md)，范围见[审计说明](mqtt311-audit.md)。完整设计/发布仍Partial。
+
+- 修复非法固定头和不可能Remaining Length必须等完整包体才拒绝的问题。现在首字节即可拒绝保留类型、错误方向或非法固定flags；长度解码后按报文布局检查固定/最小值，不等待声称的包体。私有decode必须是一个完整帧；连接层仍按流提帧，支持分片与合并。
+- 独立JSON报文表覆盖16种类型×16种flags、256 CONNECT flags、8个Remaining Length编码边界和所有接收端ID报文的0/1/65535。真实TCP覆盖响应、健康连接隔离、头部错误触发Will及持久Session/QoS2接收阶段保留。
+- 对固定来源正文执行未编号关键词候选提取并核对9段；3段实际为MQTT-4.3.2-1续文，其余区分定义/客户端/服务端与总体符合性。排除非规范附录B重复文本。此候选提取不代表覆盖全部隐含/跨段语义。
+- 审计清单单列8张规范相关表、7个非规范例表/图和完整FSM待办；QoS2发送端4状态×3ACK的12项转换用JSON独立预期验证阶段/ID/所有权和PUBREL回复。
+- 编号清单现35组场景，128编号仍仅TargetedEvidence。check-conformance.py同时验证审计测试；缺失、重复、与ignored矛盾或失败日志均不能通过。总体/完整FSM项不因限定测试通过而升级，完整规范模式继续阻断Partial。
+
+完整跨段语义、全部出站布局与CONNECT/Session/Will/订阅/QoS状态/故障/互操作总矩阵仍需继续；F7、可选Transport/Bridge、生产负载/恢复SLO、硬件断电/平台和独立Agent发布门禁保持未完成。SQLite format3迁移及停止时Will延迟恢复边界不变。
+
+
+## 26. F6 后端等待期间的连接期限与安全排空（2026-11-08）
+
+实际代码和故障记录见[连接期限验证](validation/2026-11-08-f6-deadlines/README.md)。本节补充§25，完整设计及发布仍为Partial。
+
+- 修复主协议循环等待Auth、存储gate/提交期间无法检查网络期限的缺口。同一个受管任务监督协议Future和期限更新，超时先关闭底层TCP/TLS并取消连接令牌，再等待已开始事务确定结果；没有增加独立后台任务、Runtime或Hub。
+- CONNECT期限从任务准入前计算，包含调度排队/TLS；KeepAlive在解析完整报文时刷新，0禁用。Principal按实际有效期计时，不将长有效期截为24小时；当前整帧写入期限不因输入PING或部分写入进度而重置。
+- Auth的可取消认证/授权与不可丢弃的持久事务分离。等待gate可以取消，获得事务后即使attach失败也必须完成提交，避免丢弃Transaction造成全Broker storage-poison。State额外检查连接取消令牌；detach保留仅按连接ID校验，确保关闭后仍可收尾。
+- 连接许可、内存和生命周期保留到任务实际退出；慢提交回执期间网络虽已关闭，已接纳QoS2仍可持久恢复，原ID重传不重复路由。已开始的CONNECT提交超时后仍排空并登记清理；尚未获得gate的CONNECT超时则不能迟到接管。
+- 故障验证覆盖Publish/Subscribe迟到授权、身份到期、TCP/TLS KeepAlive、CONNECT提交/gate等待、已连接发布等待gate、整帧写入背压及检查式停机排空。受控规范场景增至37组，编号仍为128项TargetedEvidence；新增期限FSM限定项不替代完整状态/故障总矩阵。
+
+期限依赖正常执行器调度，不保证硬实时；等待后端时不并发解析网络输入，尚未解析的PING不能刷新期限。Will的持久收尾需等待gate/提交，不能承诺与关网同时完成；停止时Will允许延迟到重启的边界继续沿用§20。完整跨段/出站/FSM规范审计、F7 MQTT5、WebSocket/Bridge、TOML、生产负载/恢复SLO、真实断电/平台与独立Agent发布门禁仍待完成。
+
+
+## 27. Core TOML配置接入与宿主显式装配（2026-11-08）
+
+本轮实现§9的Core配置入口，证据见[TOML验证](validation/2026-11-08-toml-config/README.md)，字段/边界见[toml.md](toml.md)。完整设计及发布仍Partial。
+
+- Facade新增默认关闭的 `toml` Feature及 `MqttTomlConfig`。输入限64KiB，仅接受独立 `[mqtt.*]` 文档；Core默认禁用，匿名访问必须显式确认。支持全部当前Core资源字段与毫秒期限，并复用Rust配置校验。
+- Auth/Storage/Admin/Metrics区块声明宿主已注册的组件引用，返回ID仍由宿主显式选择；TLS路径基于配置目录，Core受管IO负责加载。Storage capability由宿主单独注入，不读取TOML内密钥，不自动注册/启用任何Provider或扩展。
+- 固定拒绝未知字段、重复键/表、未实现协议/策略、不安全公网配置、歧义禁用参数和ID冲突。解析错误仅包含静态原因或行/字节列，不回显原文；Provider自己的账号/ACL、数据库与磁盘额度、审计/采样及出口继续由宿主管理。
+- `standalone-broker --config FILE [--once]`可运行；原地址/benchmark参数保留，与文件模式互斥。示例配置、真实TCP QoS1与子进程QoS2/Retained/停止测试接入门禁，完整Auth/TLS/Storage/Admin/Metrics组合另有显式宿主装配验证。
+- 同时修复§26超时监督遗漏的指标分类：排空中的连接取消不再覆盖KeepAlive/写入超时原因，继续计入timeouts/slow_writers，身份期限按Auth拒绝统计。补充持久提交超时后的计数断言。
+
+这里交付Core TOML映射和宿主引用配置，不支持Provider内部策略文件、热更新、环境插值或include/覆盖合并。完整MQTT3.1.1审计、F7 MQTT5、WebSocket/Bridge、生产负载/恢复SLO、真实断电/平台与完整发布门禁仍未完成。format3迁移、存储确认后ACK和停止Will延迟到重启的边界不变。
+
+
+## 28. 逐义务发布门禁与TLS/Auth/Storage/QoS2测量（2026-11-08）
+
+本轮将§15的21项MUST与Core TOML配置合同映射为[机器清单](../contracts/project-must.json)，开发检查逐项核对精确测试名。固定官方来源的117段编号正文/列表项保留原文并覆盖140编号；官方正文`MQTT-3.3.1.-1`显式映射到清单`MQTT-3.3.1-1`，不改写原文。未编号续文/结构/FSM仍与既有审计共同构成审查输入。
+
+[统一发布工具](../scripts/check-release.py)提供176项当前源码绑定的独立审查入口和真正完整通过路径：22项项目合同、128项适用规范编号、16项语义/表格/FSM、10类发布报告。UN-008总体符合性由具体义务推导，不能循环批准；12项客户端/可选WebSocket/Bridge保持范围排除。开发CI使用显式Partial模式，严格发布默认拒绝缺项。报告、日志、契约和新增/删除输入的摘要受检；评审身份与制品可信来源仍须由真实发布流程保证，摘要不是身份签名。
+
+`secure-modorch-server --demo --database PATH`可显式组合TLS/Auth/Admin/Metrics/SQLite；Storage Factory、capability及选择由宿主负责。`benchmark.py`增加TLS/Auth与TLS/Auth/SQLite组合和双向QoS2四阶段测量，记录连接耗时、PUB→SUB分位数、完整交换吞吐、原始采样/RSS、二进制摘要及空载检查式退出时间。默认TCP测量及安全示例原有参数兼容；组合实验保留32连接/IP、4MiB image、64MiB磁盘限额。测试凭据/证书仅用于本地实验。
+
+实测与剩余项见[本轮证据](validation/2026-11-08-release-gates/README.md)及[清单](remaining-work.md)。短loopback结果不能批准长期RSS、慢消费者、高负载退出/恢复或生产SLO。协议完整语义/FSM评审、独立Agent、magicCommon消费、远端CI、跨平台/真实断电等缺失证据仍阻断；MQTT5和可选扩展仍未实现。
+
+
+## 29. 服务端出站线帧与写中断/慢消费者故障收口（2026-11-08）
+
+本轮补齐§12编解码/QoS/限额中缺少的出站独立预期与具体故障轨迹，生产协议/API及持久格式不变。[mqtt311-outbound.json](../contracts/mqtt311-outbound.json)包含16个控制响应、14个PUBLISH向量、12个RL边界和7种CONNACK上下文；覆盖九类已实现Server输出，期望来自规范字节布局，不经过生产Codec生成/解码。5项测试核对编码器和真实TCP线帧，含live/retained/重连DUP、错阶段ACK与PUBREL恢复。
+
+新增一字节duplex部分PUBLISH写中断测试：本地写超时关闭连接后，QoS1/2仍保留原ID并以DUP重连，直至完整确认后才释放；QoS0重连不重发。新增真实TCP慢消费者故障：窗口1/可靠积压2在AwaitPubComp阶段满额，新QoS2 Retained发布在PUBREC前整体拒绝；健康目标无部分投递、旧Retained保留、无幽灵入站去重记录，容量释放后同ID重试成功且后续重复不再路由。
+
+[当前证据](validation/2026-11-08-f6-wire-fsm/README.md)对应40组限定场景、128项编号TargetedEvidence及17项限定审计；两个新增审计入口使发布独立评审项增至178。`FSM-COMPLETE`仍NotRun，完整跨段语义/故障/互操作组合仍需实审补测。这些是有限正确性回归，不替代真实TLS/持久写中断、长期RSS、代表性慢消费者、加载退出/恢复或生产SLO；后续清单见[remaining-work](remaining-work.md)。
+
+## 30. 功能路径收口（2026-11-08）
+
+本节替代§29及更早验证时点中“MQTT5/WebSocket/Bridge、动态更新、持久审计/HTTP、Tokio适配未实现”的当前状态判断；历史执行证据不改写。实际接入、资源边界与失败语义见[可选功能](optional-features.md)，当前剩余项见[清单](remaining-work.md)，本轮原始证据见[功能验证](validation/2026-11-08-functional/README.md)。
+
+| 功能项 | 实现入口 | 功能收口 |
+|---|---|---|
+| 普通Tokio宿主 | Facade `bootstrap` / `MqttBrokerHost` | 明确创建一个Application或使用给定Builder；复用调用方Runtime；检查式退出及StartupError清理信息 |
+| MQTT5 | Core `mqtt5` / `wire` / `mqtt5::Codec` | 属性、Reason Codes、Clean Start、Session/Message Expiry、协商窗口/大小、别名、订阅选项/标识、共享组、Will Delay、负PUBREC；沿用QoS0/1/2事务与format4恢复 |
+| WebSocket/WSS | Core `websocket` / Transport | 有界升级和Binary字节流；mqtt子协议、分片/合并、控制帧、TLS组合和取消/期限 |
+| 网络Bridge | `modorch-mqtt-bridge` 独立Module | 一/双向显式前缀映射、独立账号ACL、Origin/Hop过滤、受管重连、单在途及源端可靠积压 |
+| 动态Auth/TLS | `PasswordAuthHandle::replace` / `BrokerHandle::reload_tls` | revision/代际校验、完整校验后原子替换、失败保留原策略/证书、现存可靠交换与TLS会话边界 |
+| 持久审计 | Admin `audit` / SQLite | 操作intent先提交、结果outcome、拒绝记录、专库/排他writer、行/页上限和重启保留 |
+| HTTP管理/指标 | 独立 `HttpFactory` | 回环Bearer认证、有界请求/响应、可信Admin定向转发、分页、连接fencing、Metrics出口与退出 |
+
+Bridge 的业务侧仍要求可信 Handler 的类型化 `MqttPublishRequest`；网络 Broker 间的桥接使用独立 MQTT5 Client，不依赖 best-effort 的 MqttInbound 观察。Bridge当前采用TCP，两侧加密由宿主显式TLS代理提供。目标PUBACK后才确认源消息；跨进程崩溃可能重复，不承诺跨Broker exactly-once。
+
+资源与生命周期补充：accept与维护拆为两个Owner受管任务，维护等待持久gate不阻塞新连接握手；等待gate时响应取消，已开始提交保持确定结果后再退出。现有任务配额测试相应覆盖两个常驻任务加连接/扩展的实际额度。MQTT5别名与冻结目标的订阅标识纳入记账预算；超客户端报文上限的下行按目标丢弃并计数。
+
+持久格式当前为4，新增MQTT5属性、Session/订阅选项、延迟Will与时间字段；读取1/2/3后先归一化提交再开放入口，format2多Release歧义拒绝规则保留。在线Session崩溃恢复采用最后秒级快照作为失联起点，停机时间不重置过期；不能原地降级。
+
+本节完成已列出的实验功能实现，不升级完整规范/生产发布状态。Enhanced Authentication不属于当前认证机制；完整F6/F7规范审计、生产容量/恢复SLO、magicCommon跨实现消费、独立Agent、远端CI、跨平台和硬件断电仍须补齐真实验收证据。
+
+后续[遗留项复核](validation/2026-11-08-remaining-audit/README.md)确认上述实现仍有在线MQTT5会话接管、Bridge目标Session丢失后的重发、桥接属性上限兼容及幂等记录恢复预算四项功能缺陷。本节的“功能路径收口”记录主要路径已实现，不再作为全部功能正确的结论；当前修复清单见[剩余需求](remaining-work.md)。
+
+## 31. 遗留项代码修复（2026-11-08）
+
+按§30后续复核结果修复R-01–R-04，执行材料见[收口验证](validation/2026-11-08-remaining-fixes/README.md)：
+
+- MQTT5 Session Expiry=0在实际断开后结束Session；仍在线时Clean Start=false接管保留订阅、标识和双向QoS所有权，Clean Start仍明确重建。
+- Bridge目标Session丢失时重提应用持有消息；恢复时使用原客户端交换/Packet ID并设置DUP，保持每方向一个在途。双向poll不相互取消未完成握手/写入，已解析ACK不被后续EOF/重连遮蔽，成功PUBACK后才释放源所有权。
+- 普通User Properties限128项，Origin/Hops各有唯一保留条目；所有字节仍受包长和预算限制。126/127/128普通属性与新增/已有防环元数据由两个真实Broker的Bridge组合回归覆盖。
+- format4恢复幂等记录时，真实properties参与校验、包长和预算；原请求保持幂等，异属性冲突；非法属性、自带订阅标识、包长或预算不足均拒绝恢复。
+
+同步可选WebSocket/Bridge的契约范围说明，既定MQTT3.1.1 TCP/TLS/SQLite发布Profile不扩大。当前修复只关闭已确认反例，不替代完整F6/F7、安全/性能/平台和独立发布验收，整体发布继续Partial。
+
+## 32. 修复后的组合边界复核（2026-11-08）
+
+本轮未修改产品代码；原169项源码输入和30份修复验证材料在核对起点全部匹配。新材料见[后续复核](validation/2026-11-08-followup-audit/README.md)，当前待办见[剩余需求](remaining-work.md)。R-01–R-04的限定回归保持原记录，新发现三项问题：
+
+- R-05（P1）：MQTT5持久Session保留非默认订阅选项，随后以3.1.1成功接续。attach更新Session协议却保留选项，快照恢复拒绝该组合，导致下一次Core启动失败。必须明确跨协议策略并使接纳与恢复保持一致。
+- R-06（P1）：MQTT5混合监听下，恢复校验统一按5.0编码消息。合法8192字节的3.1.1 Retained PUBLISH已确认并持久化，恢复因额外Property Length字节而失败；8191字节对照成功。这是§31恢复校验改动后的组合回归，修复时须保留真实属性验证。
+- R-07（P2）：No Local实时路径生效，但Retained未保存发布ClientID，订阅回放未过滤自身来源，实际收到自身Retained PUBLISH。按MQTT5官方MQTT-3.8.3-3核对，需补齐来源、持久恢复及旧格式策略。
+
+本轮为定向反例核对，不是完整F6/F7审计；不把未复现的怀疑计作缺陷。两项恢复失败的启动补偿及原应用检查式退出均完成。完整规范、生产SLO、magicCommon消费、远端CI、平台/真实断电及独立评审仍待验收，整体状态继续Partial。
+
+
+## 33. 组合边界代码收口（2026-11-08）
+
+本节更新§32三项反例的当前状态，原反例和旧验证目录保留；执行材料见[修复验证](validation/2026-11-08-followup-fixes/README.md)，尚待外部验收见[剩余清单](remaining-work.md)。
+
+- R-05：Session按协议隔离恢复，不清理的跨3.1.1/5.0 CONNECT在分配ID、替换Session或撤销原连接之前拒绝，双向QoS所有权/订阅不变。显式Clean Session/Clean Start可以换协议重建，Session Present=0；相同协议恢复继续保留所有权。已有旧版不一致快照不自动推断修复，仍保留原库并拒绝开放入口。
+- R-06：快照消息包长按实际属性选择可表示的最小协议编码，避免为3.1.1空属性消息补算MQTT5 Property Length；真实属性仍验证、计费。目标附加的Subscription Identifiers不占源消息包长，实际下行继续按目标/协议包长限制处理。统一覆盖Retained、可靠Pending/入站QoS2、Will及内部幂等记录恢复。
+- R-07：Retained来源在接纳事务中与消息一起保存、原子替换，ClientID字节进入预算；No Local回放比较发布ClientID，适用于QoS0/1/2、3.1.1发布、Will与同ID的新连接。内部发布单独标记，不作为网络客户端自发消息。
+
+当前写format5、兼容读1/2/3/4，新增逐Retained Topic来源账本并校验引用及ClientID；恢复和normalization提交仍发生在listen前。format1–4没有来源身份，迁移为LegacyUnknown，普通订阅回放保持，No Local保守跳过未知来源；重新发布后采用新来源。旧Will缺失来源时沿用未知身份策略，不能凭空恢复历史来源。format2多Release歧义拒绝、禁止原地降级及停止Will允许重启收尾的边界不变。
+
+本轮关闭R-05–R-07限定反例，完整F6/F7符合性、生产负载/恢复SLO、magicCommon消费、远端CI、跨平台/真实断电及独立安全/性能/Agent评审仍待实际材料，整体发布保持Partial。
+
+## 34. format5后续遗留项复核（2026-11-08）
+
+本轮核对起点，上轮169项源码输入和37份验证材料全部匹配；没有产品代码变动。材料见[后续核对](validation/2026-11-08-post-format5-audit/README.md)，待办见[剩余清单](remaining-work.md)。
+
+R-08（P1）确认Topic Alias展开与持久恢复的大小约束仍不一致。MQTT5连接先绑定1000字节Topic到Alias=1，再以空Topic/同别名发送8191字节QoS1 Retained PUBLISH；收到PUBACK且Retained=1。检查式退出后，恢复使用展开后的完整Topic编码并按8192字节上限拒绝，整个Core不能启动。完整Topic、较小Payload的8188字节对照可恢复。§33的R-06关闭空属性/附加订阅标识的已测反例，不覆盖别名展开；后续修复必须统一线帧限额、展开消息预算及恢复校验，不能只删除真实属性校验。
+
+D-01（P3）为项目主Skill1.0.2仍记录format4/读1–3的说明滞后；当前源码写format5/读1–4，框架版本及指纹预检通过。后续按托管Skill流程刷新并校验，本轮不修改Skill。
+
+另核对Payload Format Indicator=0省略行为：官方§3.3.2.3.2明确其与不发送该属性等价，因此不作为MQTT-3.3.2-4违例；取值1和属性缺省对照均符合预期。首次探针的缺陷标签撤回，保留初始日志及最终排除依据。
+
+完整F6/F7规范、生产负载/恢复SLO、magicCommon消费、远端CI、跨平台/真实断电及独立评审仍未获新验收材料。上轮发布0/178批准保持历史状态，本轮不升级发布结论。
+
+
+## 35. Topic Alias恢复及Skill说明收口（2026-11-08）
+
+本节更新§34的R-08/D-01状态，原审计材料保留；新执行材料见[修复验证](validation/2026-11-08-alias-fixes/README.md)，剩余验收见[清单](remaining-work.md)。
+
+R-08区分网络入站线帧与展开后的存储消息。恢复允许完整Topic的最小源编码，或合法别名消息帧与独立绑定帧均能在max_packet_bytes内表示的消息；两种可行表示取较小所需上限，纳入真实属性、Property Length及Remaining Length宽度。存储始终保存完整Topic/真实属性并按实际逻辑预算计费，不持久化或跨连接复用别名。目标新增订阅标识仍不反向占用源线帧；真实属性验证、UTF-8、引用和预算检查保持。Will、内部幂等记录及已知Internal Retained不使用别名推断。
+
+当前继续写format5、兼容读1/2/3/4，不新增字段；旧版已确认并落盘的合法网络别名消息可直接恢复。SQLite覆盖原8191字节反例、带Content Type的8192字节帧、Retained和双向QoS2所有权恢复；超入站线帧、非法/未绑定/重连失效别名及预算不足在确认前拒绝，不产生部分Retained或入站QoS2记录。恢复预算边界与内部消息限制另有定向回归。
+
+MQTT5下行在编码前按完整Topic及目标/监听上限判限，超限按原策略丢弃计数并继续后续交付；不以恢复成功承诺超限交付。3.1.1保持原连接层超限拒绝；只有显式提高监听上限才能交付超原上限的完整Topic报文。
+
+D-01将项目主Skill更新为1.0.3，同步format5/读1–4、跨协议恢复、LegacyUnknown迁移和别名恢复边界；经托管Skill校验、feedback预览及本地归档同步，未执行远端推送。
+
+本轮只关闭已确认反例。完整F6/F7、生产负载/恢复SLO、magicCommon消费、远端CI、跨平台/真实断电及独立评审仍待真实材料，整体发布保持Partial。
+
+
+## 36. 别名修复后的源会话边界复核（2026-11-08）
+
+本轮核对起点，上轮172项源码/探针输入和45份验证材料摘要全部匹配，Modorch固定rev/指纹预检通过。没有修改产品代码。R-08的4项别名相关回归与Bridge既有4项网络回归均通过；完整执行及反例见[复核记录](validation/2026-11-08-post-alias-audit/README.md)，当前待办见[剩余清单](remaining-work.md)。
+
+R-09（P1）确认Bridge在源Session丢失时混用旧Transfer的Packet ID。Bridge已收到源QoS1 ID1消息并交给目标，目标暂未PUBACK；源断开后以Session Present=0重连，新Session合法发送另一条ID1消息。Bridge忽略源CONNACK的Session Present，持有旧Transfer期间仅比较Packet ID，因而将新消息当成旧消息重复。目标随后确认旧Transfer，Bridge向新源Session发送旧ID1的PUBACK，误确认尚未转发的新消息。目标继续收到下一条屏障消息，中间新消息确实缺失，已观察到数据丢失。
+
+修复必须将源Session身份/代际与Transfer及ACK绑定；源会话丢失后隔离旧ACK，保留仍在目标执行的旧交换，并保证新QoS1不被吞掉。回归须覆盖同/不同ID、源Session恢复与丢失、目标延迟确认、断线和后续进度。MQTT5官方§2.2.1明确Packet Identifier属于各Session，§3.2.2的MQTT-3.2.2-5要求收到Session Present=0时丢弃旧协议Session State；应用层继续持有的旧目标工作不能沿用新源Session的确认身份。
+
+源Session Present=1且DUP重发同一旧消息的对照通过。§31的R-02与现有Bridge回归覆盖目标会话丢失/恢复，不覆盖本次源侧情形；它们的历史限定证据保留。本轮探针退出0表示确认反例，不能写为产品验收通过。
+
+R-01–R-08/D-01已有对应修复，新R-09尚未收口。完整F6/F7规范、生产负载/恢复SLO、magicCommon消费、远端CI、跨平台/真实断电及独立评审仍待实际材料，整体发布保持Partial。
+
+
+## 37. Bridge源会话身份与确认边界收口（2026-11-08）
+
+本节更新§36的R-09状态，原反例和历史验证目录保留。材料见[源会话修复验证](validation/2026-11-08-source-session-fixes/README.md)，剩余验收见[清单](remaining-work.md)。
+
+每个Transfer保存源Session代际，源CONNACK Session Present=0递增代际，Session Present=1保持代际。旧目标交换不因源会话丢失而撤销或新建；完成时仅向同代际且已连接的源排ACK，其他代际只释放本地旧工作。源连接未收到CONNACK时不排ACK；源错误分支再次清理客户端请求队列，避免ACK在第三方poll已经清理后入队并跨重连发送。
+
+每方向继续只有一个Transfer。若新源Session已建立但旧目标工作未结束，延后订阅新Session，保持Keep Alive；旧工作完成后不发送旧ACK，建立新订阅再接纳新QoS1。同Session的重复PUBLISH沿用原交换；异常额外可靠投递通过断线留给源端重发，不静默计作QoS0丢弃。Session丢失后新订阅建立前的发布，不能依赖已丢失的订阅形成可靠积压；源业务需保留或重发。此边界不恢复源Broker丢失的旧状态，不承诺跨Broker exactly-once。
+
+新增真实Bridge/TCP回归覆盖新Session同/不同ID、源连续丢失、两端同时丢失、源Session恢复/DUP、源CONNECT等待CONNACK期间目标完成确认、新消息独立目标ACK及后续屏障。公开API探针按修复后预期复测原R-09轨迹：目标顺序为旧消息、新Session消息、屏障，新消息只在自己的目标确认后才获源PUBACK；恢复Session对照不重复提交旧目标工作。
+
+不改变公共API、Feature默认关闭、持久format5或既定MQTT3.1.1发布Profile。项目MQTT Skill更新至1.0.4，说明源代际/ACK和延后订阅边界，经托管Skill校验及本地归档同步；未推送远端。
+
+本轮关闭R-09限定反例，完整F6/F7规范、生产负载/恢复SLO、magicCommon消费、远端CI、跨平台/真实断电及独立评审仍待实际材料，整体发布保持Partial。

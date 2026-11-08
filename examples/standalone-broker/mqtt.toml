@@ -1,0 +1,38 @@
+# Explicit anonymous loopback development profile. TLS/Auth is required off loopback.
+[mqtt.core]
+enabled = true
+protocols = ["3.1.1"]
+name = "mqtt-broker"
+listener = "127.0.0.1:1883"
+max_connections = 8
+max_connections_per_ip = 8
+max_sessions = 32
+max_packet_bytes = 8192
+handshake_timeout_ms = 5000
+write_timeout_ms = 10000
+connection_idle_ms = 0
+reliable_overflow_policy = "reject_publish"
+
+[mqtt.security]
+anonymous_access = true
+allow_public_listener_without_tls = false
+reserved_internal_prefix = "$modorch/"
+session_owner_policy = "same_principal"
+
+[mqtt.eventhub]
+inbound_mode = "best_effort"
+inbound_topic_mode = "original"
+control_prefix = "$modorch/mqtt/control/"
+allow_implicit_outbound = false
+
+[mqtt.auth]
+enabled = false
+[mqtt.tls]
+enabled = false
+[mqtt.storage]
+enabled = false
+mode = "memory"
+[mqtt.admin]
+enabled = false
+[mqtt.metrics]
+enabled = false

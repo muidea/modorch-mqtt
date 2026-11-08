@@ -1,0 +1,75 @@
+{
+  "status": "Passed",
+  "commands": [
+    {
+      "command": [
+        "python3",
+        "scripts/check-project.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "scripts/check-release.py",
+        "--check-catalog"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        ".agents/skills/modorch-module-development/scripts/validate-report.py",
+        "docs/validation/2026-11-08-f6-wire-fsm/result.json"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "cargo",
+        "fmt",
+        "--all",
+        "--",
+        "--check"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "sh",
+        "-n",
+        "scripts/check.sh"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "python3",
+        "-m",
+        "py_compile",
+        "scripts/audit-mqtt311.py",
+        "scripts/benchmark.py",
+        "scripts/check-conformance.py",
+        "scripts/check-project.py",
+        "scripts/check-release.py",
+        "scripts/tests/test_audit.py",
+        "scripts/tests/test_conformance.py",
+        "scripts/tests/test_project.py",
+        "scripts/tests/test_release.py",
+        "scripts/verify-paho-tls.py",
+        "scripts/verify-paho.py",
+        "scripts/verify-storage.py",
+        "scripts/verify-toml.py"
+      ],
+      "exit_code": 0
+    },
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "exit_code": 0
+    }
+  ]
+}

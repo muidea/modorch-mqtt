@@ -1,0 +1,109 @@
+{
+  "result": {
+    "task": "继续设计实现 F4：同宿主 EventHub 入站观察、可信组件显式出站 Request、内存回执、幂等账本及结果查询",
+    "framework_version": "0.0.3 / 336ba20196044e1b81fb2ca297a18b5e258a5800 / Contract 1.2.0",
+    "skill": "modorch-module-development",
+    "skill_revision": "1.0.7",
+    "changed_files": [
+      "README.md",
+      "contracts/README.md",
+      "crates/modorch-mqtt-api/src/lib.rs",
+      "crates/modorch-mqtt-core/src/config.rs",
+      "crates/modorch-mqtt-core/src/connection.rs",
+      "crates/modorch-mqtt-core/src/lib.rs",
+      "crates/modorch-mqtt-core/src/state.rs",
+      "crates/modorch-mqtt-core/src/tests.rs",
+      "crates/modorch-mqtt-core/src/tests/eventhub.rs",
+      "crates/modorch-mqtt/src/lib.rs",
+      "docs/configuration.md",
+      "docs/eventhub.md",
+      "docs/modorch_mqtt_broker_full_design_0.0.3.md",
+      "docs/reliability.md",
+      "docs/validation/2026-11-07-f4/README.md",
+      "docs/validation/2026-11-07-f4/check.log",
+      "docs/validation/2026-11-07-f4/environment.json",
+      "docs/validation/2026-11-07-f4/framework-preflight.log",
+      "docs/validation/2026-11-07-f4/msrv.log",
+      "docs/validation/2026-11-07-f4/paho.log",
+      "docs/validation/2026-11-07-f4/report-validation.log",
+      "docs/validation/2026-11-07-f4/result.json",
+      "docs/validation/2026-11-07-f4/standalone-build.log",
+      "examples/existing-modorch-server/src/main.rs"
+    ],
+    "validation": [
+      {
+        "command": "CARGO_NET_OFFLINE=true ./scripts/check.sh",
+        "status": "Passed",
+        "evidence": "check.log: fmt/check/clippy, 29 Rust tests + 1 doctest, rustdoc, existing-host smoke"
+      },
+      {
+        "command": "cargo +1.85.0 check --workspace --all-targets --all-features --locked --offline",
+        "status": "Passed",
+        "evidence": "msrv.log"
+      },
+      {
+        "command": "python3 /home/rangh/aispace/modorch-rs/.agents/skills/modorch-module-development/scripts/preflight.py --manifest-path Cargo.toml",
+        "status": "Passed",
+        "evidence": "framework-preflight.log"
+      },
+      {
+        "command": "cargo build -p standalone-broker --locked --offline",
+        "status": "Passed",
+        "evidence": "standalone-build.log"
+      },
+      {
+        "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho.py",
+        "status": "Passed",
+        "evidence": "paho.log"
+      },
+      {
+        "command": "python3 /home/rangh/aispace/modorch-rs/.agents/skills/modorch-module-development/scripts/validate-report.py docs/validation/2026-11-07-f4/result.json",
+        "status": "Passed",
+        "evidence": "report-validation.log"
+      }
+    ],
+    "contract_checks": [
+      {
+        "rule_id": "MQTT-EVENT-001 / MQTT-ARCH-001",
+        "status": "Passed",
+        "evidence": "check.log: inbound_fans_out_typed_events_and_self_subscription_has_no_bridge_loop; outbound_receipts_idempotency_source_isolation_and_frozen_targets; existing-host example"
+      },
+      {
+        "rule_id": "MQTT-SEC-001 (internal component origin subset)",
+        "status": "Passed",
+        "evidence": "check.log: control_rejects_spoofed_source_invalid_dtos_and_non_requests_without_restart; existing reserved namespace regressions"
+      },
+      {
+        "rule_id": "MQTT-BOUND-001 / MQTT-BOUND-002 (memory subset)",
+        "status": "Passed",
+        "evidence": "check.log: ledger_is_bounded_and_atomic_routing_rejections_are_queryable; ledger_reservations_share_global_budget_and_do_not_mutate_on_exhaustion; observer backpressure and Hub byte rejection tests"
+      },
+      {
+        "rule_id": "MQTT-STATE-004 / MQTT-LIFE-003 / MSG-REQ-004 (F4)",
+        "status": "Passed",
+        "evidence": "check.log: publish_ledger_survives_reconstruction_and_stale_handler_cannot_mutate; caller_indeterminate_after_commit_resolves_with_same_source_query_and_retry"
+      },
+      {
+        "rule_id": "MQTT-STATE-001 (internal retained memory subset)",
+        "status": "Passed",
+        "evidence": "check.log: internal_retained_delete_and_retry_do_not_reapply_an_old_value"
+      },
+      {
+        "rule_id": "MQTT-COMPAT-001",
+        "status": "Passed",
+        "evidence": "framework-preflight.log; msrv.log; host_assigns_global_control_subscription_ids_to_multiple_brokers"
+      }
+    ],
+    "limitations": [
+      "Experimental MQTT 3.1.1 QoS0/1 memory subset, not full conformance or Release Ready.",
+      "Inbound observations are best effort and may be dropped or partially admitted; epochs describe acceptance, and admitted events are not retracted on reconstruction.",
+      "Only framework-generated Handler component sources may publish/query; lifecycle hooks and Scheduler tasks must enter a business Handler first. Host Handler ingress authorization remains the host responsibility.",
+      "Publication ledger is bounded and non-evicting, including terminal routing rejections; full ledger rejects new IDs. No TTL, online clearing or cross-process deduplication.",
+      "MemoryOnly receipts promise broker acceptance, not client receipt or acknowledgement; QoS0 targets may drop under pressure.",
+      "No Auth/TLS/persistent Storage/Admin/Metrics/optional Bridge, QoS2 or MQTT5 implementation.",
+      "Only local Linux x86_64 / WSL2 validation; no production performance/RSS, crash durability or cross-platform validation."
+    ],
+    "unresolved": [],
+    "overall_status": "Passed"
+  }
+}

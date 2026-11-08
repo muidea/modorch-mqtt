@@ -1,7 +1,12 @@
 //! A business module and the MQTT module share the host's sole EventHub.
 use modorch::{prelude::*, *};
-use modorch_mqtt::{BrokerStatus, MqttBrokerBundle, MqttBrokerConfig, STATUS_TOPIC};
-use std::time::Duration;
+use modorch_mqtt::{
+    BrokerStatus, MqttBrokerBundle, MqttBrokerConfig, MqttInbound, MqttPublishRequest,
+    MqttPublishResult, PUBLISH_TOPIC, Qos, STATUS_TOPIC,
+};
+use std::{sync::Arc, time::Duration};
+
+const BUSINESS_PUBLISH_TOPIC: &str = "$demo/business/publish";
 
 struct Business;
 impl ModuleFactory for Business {
@@ -23,6 +28,19 @@ impl Module for Business {
     fn descriptor(&self) -> ComponentDescriptor {
         ModuleFactory::descriptor(self)
     }
+    fn handlers(&mut self) -> FrameworkResult<Option<HandlerRegistration>> {
+        Ok(Some(HandlerRegistration::Serial {
+            handler: Box::new(Business),
+            subscriptions: vec![
+                SubscriptionSpec::new(
+                    100,
+                    ComponentRef::module("business"),
+                    BUSINESS_PUBLISH_TOPIC,
+                ),
+                SubscriptionSpec::new(101, ComponentRef::module("business"), "demo/device/+"),
+            ],
+        }))
+    }
     async fn activate_ingress(&mut self, ctx: &RuntimeContext) -> FrameworkResult<()> {
         let status = ctx
             .event_hub
@@ -39,7 +57,77 @@ impl Module for Business {
             "business -> MQTT Core request through host EventHub: generation {}",
             status.generation
         );
+        // Lifecycle hooks have no EventHub Handler source identity. Enter our
+        // business Handler, which explicitly requests a broker publication.
+        let result = ctx
+            .event_hub
+            .request::<_, MqttPublishResult>(
+                BUSINESS_PUBLISH_TOPIC,
+                Destination::Component(ComponentRef::module("business")),
+                MqttPublishRequest {
+                    request_id: "startup-ready-v1".into(),
+                    topic: "demo/business/ready".into(),
+                    payload: b"business ready".as_slice().into(),
+                    qos: Qos::AtLeastOnce,
+                    retain: true,
+                    properties: Default::default(),
+                },
+                MessageOptions {
+                    payload_bytes: Some(512),
+                    ..Default::default()
+                },
+            )?
+            .wait(Duration::from_secs(1))
+            .await?;
+        let receipt = result
+            .as_ref()
+            .as_ref()
+            .map_err(|error| FrameworkError::InvalidConfig(error.to_string()))?;
+        println!(
+            "business publication accepted: {} ({:?})",
+            receipt.request_id, receipt.durability
+        );
         Ok(())
+    }
+}
+
+#[async_trait]
+impl SerialHandler for Business {
+    async fn handle(
+        &mut self,
+        ctx: &HandlerContext,
+        message: MessageEnvelope,
+    ) -> FrameworkResult<HandlerReply> {
+        if message.kind == MessageKind::Event {
+            if let Ok(event) = message.payload::<MqttInbound>() {
+                println!(
+                    "MQTT inbound: client={} topic={} bytes={}",
+                    event.client_id,
+                    event.topic,
+                    event.payload.len()
+                );
+            }
+            return Ok(Arc::new(()));
+        }
+        let request = message.payload::<MqttPublishRequest>()?;
+        let result = ctx
+            .event_hub
+            .request::<_, MqttPublishResult>(
+                PUBLISH_TOPIC,
+                Destination::Component(ComponentRef::module("mqtt-broker")),
+                request.as_ref().clone(),
+                MessageOptions {
+                    payload_bytes: Some(
+                        256 + request.topic.len()
+                            + request.request_id.len()
+                            + request.payload.len(),
+                    ),
+                    ..Default::default()
+                },
+            )?
+            .wait(Duration::from_secs(1))
+            .await?;
+        Ok(result)
     }
 }
 
@@ -68,6 +156,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "MQTT subset listening on {}",
         mqtt.handle().local_addr().unwrap()
     );
+    assert_eq!(mqtt.handle().status().publish_records, 1);
+    assert_eq!(mqtt.handle().status().retained, 1);
     if !once {
         tokio::signal::ctrl_c().await?;
     }

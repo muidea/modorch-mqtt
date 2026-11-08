@@ -1,0 +1,6 @@
+Previous source-hashes.json: 169 hashes match
+Previous evidence-hashes.json: 89 hashes match
+Binary sha256: 8a7d10749331ffe5b6a7ef1efbb989f08b0f88f5a30d53b79b9b07a03ed3c7bf
+REPRODUCED R-01: active SessionExpiry=0, CleanStart=false takeover returns SessionPresent=0 and loses subscription
+REPRODUCED R-03 boundary: 128 User Properties accepted; 130 (after Bridge adds two) closes publisher without PUBACK
+Broker checked shutdown: exit 0

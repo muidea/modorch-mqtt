@@ -1,0 +1,84 @@
+{
+  "validation_status": "Passed",
+  "overall_status": "Partial",
+  "claim": "仅实验功能限定场景的执行证据；不是完整 MQTT5、WebSocket/Bridge 规范或生产发布批准。",
+  "scenarios": [
+    {
+      "id": "OPT-HOST",
+      "scope": "调用方Runtime中的独立Application、失败启动补偿与检查式退出",
+      "tests": [
+        "tokio_adapter_isolates_applications_and_releases_ports_on_checked_shutdown",
+        "tokio_adapter_preserves_failed_startup_cleanup_and_retry_handle"
+      ],
+      "status": "Passed",
+      "missing": []
+    },
+    {
+      "id": "OPT-WS",
+      "scope": "独立字节二进制QoS2、分片/合并、升级拒绝和退出",
+      "tests": [
+        "tests::websocket::websocket_binary_fragmented_mqtt_qos2_upgrade_isolation_and_shutdown"
+      ],
+      "status": "Passed",
+      "missing": []
+    },
+    {
+      "id": "OPT-MQTT5",
+      "scope": "混合3.1.1/5.0、属性/别名/选项/流控/过期/共享/负ACK及Will",
+      "tests": [
+        "tests::mqtt5::mqtt5_alias_metadata_subscription_options_window_unsubscribe_and_mixed311",
+        "tests::mqtt5::mqtt5_delayed_will_cancel_resume_session_expiry_and_message_expiry",
+        "tests::mqtt5::mqtt5_shared_groups_distribute_and_invalid_properties_close_only_offender",
+        "tests::mqtt5::mqtt5_negotiated_packet_limit_discards_oversized_delivery_without_blocking_session",
+        "tests::mqtt5::mqtt5_negative_pubrec_releases_ownership_and_disconnect_four_publishes_will",
+        "tests::storage::mqtt5_sqlite_restart_preserves_options_metadata_and_qos2_ownership"
+      ],
+      "status": "Passed",
+      "missing": []
+    },
+    {
+      "id": "OPT-BRIDGE",
+      "scope": "两个真实Broker、远端离线的源所有权、恢复、双向防环和退出",
+      "tests": [
+        "bridge_retains_source_ownership_until_remote_recovers_and_filters_bidirectional_loop",
+        "bridge_rejected_subscription_reconnects_with_backoff_and_recovers"
+      ],
+      "status": "Passed",
+      "missing": []
+    },
+    {
+      "id": "OPT-RELOAD",
+      "scope": "策略revision fencing、失败证书不替换、真实新证书及原TLS会话",
+      "tests": [
+        "policy_replacement_uses_new_revision_and_rejects_stale_or_changed_identity",
+        "tests::tls::tls_reload_is_atomic_failed_reload_preserves_certificate_and_existing_sessions"
+      ],
+      "status": "Passed",
+      "missing": []
+    },
+    {
+      "id": "OPT-HTTP-AUDIT",
+      "scope": "令牌验证、可信Admin转发、分页/指标、慢Header退出与跨应用审计数据库",
+      "tests": [
+        "http_authenticates_forwards_admin_exports_metrics_and_drains_slow_headers",
+        "persistent_audit_survives_application_restart_and_rejects_unrelated_database"
+      ],
+      "status": "Passed",
+      "missing": []
+    },
+    {
+      "id": "OPT-CONFIG",
+      "scope": "编译Feature与运行时启用分别校验",
+      "tests": [
+        "optional_network_features_require_compilation_and_explicit_configuration"
+      ],
+      "status": "Passed",
+      "missing": []
+    }
+  ],
+  "evidence": {
+    "path": "docs/validation/2026-11-08-functional/final-tests.log",
+    "sha256": "2759c644bd583951d1ce0ac67a64c1e50609ece81d688b1f741308fb3a19524e",
+    "catalog_sha256": "eb7b7a9eaef385cf767e5c48e9c8b4025b9ba2c1fb960de20ba9f7bdea01cbf6"
+  }
+}

@@ -1,0 +1,53 @@
+warning: skipping duplicate package `modorch v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch/Cargo.toml
+
+warning: skipping duplicate package `modorch-core v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-core/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-core/Cargo.toml
+
+warning: skipping duplicate package `modorch-eventhub v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-eventhub/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-eventhub/Cargo.toml
+
+warning: skipping duplicate package `modorch-observe v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-observe/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-observe/Cargo.toml
+
+warning: skipping duplicate package `modorch-registry v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-registry/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-registry/Cargo.toml
+
+warning: skipping duplicate package `modorch-runtime v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-runtime/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-runtime/Cargo.toml
+
+warning: skipping duplicate package `modorch-scheduler v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-scheduler/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-scheduler/Cargo.toml
+
+   Compiling modorch-mqtt-core v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt-core)
+   Compiling modorch-mqtt-bridge v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt-bridge)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 4.60s
+     Running unittests src/lib.rs (target/debug/deps/modorch_mqtt_bridge-ea74cbf4b5d47918)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/network.rs (target/debug/deps/network-a8541572b871527d)
+
+running 4 tests
+test bridge_rejected_subscription_reconnects_with_backoff_and_recovers ... ok
+test bridge_preserves_128_ordinary_properties_plus_reserved_metadata_end_to_end ... ok
+test bridge_retains_source_ownership_until_remote_recovers_and_filters_bidirectional_loop ... ok
+test bridge_target_session_loss_resubmits_and_resumed_session_replays_one_exchange ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+   Doc-tests modorch_mqtt_bridge
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

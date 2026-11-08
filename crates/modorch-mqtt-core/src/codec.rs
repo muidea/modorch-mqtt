@@ -5,12 +5,24 @@ use modorch_mqtt_api::{MqttError, MqttMessage, Qos};
 
 type Result<T> = std::result::Result<T, MqttError>;
 
-#[derive(Debug)]
 pub(crate) struct Connect {
     pub client_id: String,
     pub clean: bool,
     pub keep_alive: u16,
     pub will: Option<MqttMessage>,
+    pub username: Option<String>,
+    pub password: Option<Bytes>,
+    pub v5: Option<crate::wire::ConnectOptions>,
+}
+
+impl std::fmt::Debug for Connect {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Connect")
+            .field("client_id", &self.client_id)
+            .field("clean", &self.clean)
+            .field("credentials", &"[REDACTED]")
+            .finish()
+    }
 }
 
 #[derive(Debug)]
@@ -21,9 +33,12 @@ pub(crate) enum Packet {
         packet_id: Option<u16>,
     },
     PubAck(u16),
+    PubRec(u16),
+    PubRel(u16),
+    PubComp(u16),
     Subscribe {
         id: u16,
-        filters: Vec<(String, Qos)>,
+        filters: Vec<(String, Option<Qos>)>,
     },
     Unsubscribe {
         id: u16,
@@ -143,8 +158,60 @@ impl<'a> Cursor<'a> {
     }
 }
 
-/// Return a complete frame size without consuming partial bytes.
+// Tables 2.1/2.2: reject impossible client headers as soon as their first
+// byte arrives, rather than letting an invalid peer wait for a claimed body.
+pub(crate) fn validate_header(header: u8) -> Result<()> {
+    let required = match header >> 4 {
+        1 | 4 | 5 | 7 | 12 | 14 => 0,
+        6 | 8 | 10 => 2,
+        3 => {
+            let qos = Qos::try_from((header >> 1) & 3)?;
+            if qos == Qos::AtMostOnce && header & 8 != 0 {
+                return Err(error("QoS0 DUP flag"));
+            }
+            return Ok(());
+        }
+        _ => return Err(error("unexpected client control packet")),
+    };
+    if header & 15 != required {
+        return Err(error("invalid fixed header flags"));
+    }
+    Ok(())
+}
+
+fn validate_remaining(header: u8, remaining: usize) -> Result<()> {
+    let minimum = match header >> 4 {
+        1 => 12, // MQTT/level/flags/keepalive and the ClientID length prefix.
+        3 => {
+            if header & 6 == 0 {
+                3
+            } else {
+                5
+            }
+        }
+        4..=7 => 2,
+        8 => 6,  // ID, nonempty Filter and requested QoS.
+        10 => 5, // ID and nonempty Filter.
+        _ => 0,
+    };
+    if remaining < minimum || (matches!(header >> 4, 4..=7 | 12 | 14) && remaining != minimum) {
+        return Err(error("invalid Remaining Length for control packet"));
+    }
+    Ok(())
+}
+
+/// Return a complete frame size without consuming partial bytes. Invalid
+/// headers/lengths fail even when the rest of the claimed frame has not arrived.
 pub(crate) fn frame_len(buffer: &[u8], max: usize) -> Result<Option<usize>> {
+    frame_len_version(buffer, max, false)
+}
+pub(crate) fn frame_len_version(buffer: &[u8], max: usize, v5: bool) -> Result<Option<usize>> {
+    if let Some(&header) = buffer.first() {
+        if header == 0xf0 && v5 {
+        } else {
+            validate_header(header)?;
+        }
+    }
     if buffer.len() < 2 {
         return Ok(None);
     }
@@ -162,6 +229,11 @@ pub(crate) fn frame_len(buffer: &[u8], max: usize) -> Result<Option<usize>> {
             if index > 1 && value == 0 {
                 return Err(error("nonminimal Remaining Length"));
             }
+            if !v5 {
+                validate_remaining(buffer[0], remaining)?;
+            } else if buffer[0] == 0xc0 && remaining != 0 {
+                return Err(error("invalid PINGREQ length"));
+            }
             return Ok((buffer.len() >= total).then_some(total));
         }
     }
@@ -169,6 +241,9 @@ pub(crate) fn frame_len(buffer: &[u8], max: usize) -> Result<Option<usize>> {
 }
 
 pub(crate) fn decode(frame: &[u8], max_filters: usize) -> Result<Packet> {
+    if frame_len(frame, frame.len())? != Some(frame.len()) {
+        return Err(error("decoder requires exactly one complete frame"));
+    }
     let header = *frame.first().ok_or(error("missing fixed header"))?;
     let mut start = 1;
     while *frame.get(start).ok_or(error("missing Remaining Length"))? & 128 != 0 {
@@ -176,12 +251,6 @@ pub(crate) fn decode(frame: &[u8], max_filters: usize) -> Result<Packet> {
     }
     start += 1;
     let mut c = Cursor::new(&frame[start..]);
-    if header >> 4 != 3 {
-        let required = if matches!(header >> 4, 8 | 10) { 2 } else { 0 };
-        if header & 15 != required {
-            return Err(error("invalid fixed header flags"));
-        }
-    }
     let packet = match header >> 4 {
         1 => {
             if c.string()? != "MQTT" {
@@ -205,45 +274,39 @@ pub(crate) fn decode(frame: &[u8], max_filters: usize) -> Result<Packet> {
                 validate_topic(&topic)?;
                 let payload = Bytes::copy_from_slice(c.binary()?);
                 let qos = Qos::try_from(will_qos)?;
-                if qos == Qos::ExactlyOnce {
-                    return Err(MqttError::Unsupported("QoS2 Will"));
-                }
                 Some(MqttMessage {
                     topic,
                     payload,
                     qos,
                     retain: flags & 32 != 0,
+                    properties: Default::default(),
                 })
             } else {
                 None
             };
-            // Consume credentials for framing validation, but do not silently
-            // treat credential-bearing connections as authenticated.
-            if flags & 128 != 0 {
-                c.string()?;
-            }
-            if flags & 64 != 0 {
-                c.binary()?;
-            }
-            if flags & 192 != 0 {
-                return Err(MqttError::Unsupported("authentication"));
-            }
+            let username = if flags & 128 != 0 {
+                Some(c.string()?)
+            } else {
+                None
+            };
+            let password = if flags & 64 != 0 {
+                Some(Bytes::copy_from_slice(c.binary()?))
+            } else {
+                None
+            };
             c.done()?;
             Packet::Connect(Connect {
                 client_id,
                 clean: flags & 2 != 0,
                 keep_alive,
                 will,
+                username,
+                password,
+                v5: None,
             })
         }
         3 => {
             let qos = Qos::try_from((header >> 1) & 3)?;
-            if qos == Qos::ExactlyOnce {
-                return Err(MqttError::Unsupported("QoS2 PUBLISH"));
-            }
-            if qos == Qos::AtMostOnce && header & 8 != 0 {
-                return Err(error("QoS0 DUP flag"));
-            }
             let topic = c.string()?;
             validate_topic(&topic)?;
             let packet_id = if qos != Qos::AtMostOnce {
@@ -258,14 +321,20 @@ pub(crate) fn decode(frame: &[u8], max_filters: usize) -> Result<Packet> {
                     payload,
                     qos,
                     retain: header & 1 != 0,
+                    properties: Default::default(),
                 },
                 packet_id,
             }
         }
-        4 => {
+        4..=7 => {
             let id = c.id()?;
             c.done()?;
-            Packet::PubAck(id)
+            match header >> 4 {
+                4 => Packet::PubAck(id),
+                5 => Packet::PubRec(id),
+                6 => Packet::PubRel(id),
+                _ => Packet::PubComp(id),
+            }
         }
         8 => {
             let id = c.id()?;
@@ -277,7 +346,7 @@ pub(crate) fn decode(frame: &[u8], max_filters: usize) -> Result<Packet> {
                 let filter = c.string()?;
                 validate_filter(&filter)?;
                 let qos = Qos::try_from(c.byte()?)?;
-                filters.push((filter, qos));
+                filters.push((filter, Some(qos)));
             }
             if filters.is_empty() {
                 return Err(error("empty SUBSCRIBE"));
@@ -331,6 +400,14 @@ pub(crate) fn frame(header: u8, body: &[u8]) -> Vec<u8> {
     output
 }
 
+pub(crate) fn publish_size(message: &MqttMessage, id: Option<u16>) -> usize {
+    let remaining = 2 + message.topic.len() + usize::from(id.is_some()) * 2 + message.payload.len();
+    2 + remaining
+        + usize::from(remaining >= 128)
+        + usize::from(remaining >= 16384)
+        + usize::from(remaining >= 2097152)
+}
+
 pub(crate) fn publish(
     message: &MqttMessage,
     qos: Qos,
@@ -362,12 +439,41 @@ mod tests {
         assert!(frame_len(&[0x30, 0x80, 0], 1024).is_err());
         assert!(frame_len(&[0x30, 0x80, 0x20], 1024).is_err());
         for size in [0, 127, 128, 16383, 16384] {
-            let frame = frame(0x30, &vec![0; size]);
+            let frame = frame(if size == 0 { 0xc0 } else { 0x30 }, &vec![0; size]);
             for end in [1, frame.len() - 1] {
                 assert_eq!(frame_len(&frame[..end], usize::MAX).unwrap(), None);
             }
             assert_eq!(frame_len(&frame, usize::MAX).unwrap(), Some(frame.len()));
         }
+    }
+
+    #[test]
+    fn qos2_control_flags_identifiers_and_complete_lengths_are_validated() {
+        for (header, kind) in [(0x50, 5), (0x62, 6), (0x70, 7)] {
+            let p = decode(&frame(header, &[0, 9]), 1).unwrap();
+            assert!(matches!(
+                (kind, p),
+                (5, Packet::PubRec(9)) | (6, Packet::PubRel(9)) | (7, Packet::PubComp(9))
+            ));
+            for body in [&[0, 0][..], &[0][..], &[0, 9, 1][..]] {
+                assert!(decode(&frame(header, body), 1).is_err());
+            }
+        }
+        for header in [0x52, 0x60, 0x6a, 0x72] {
+            assert!(decode(&frame(header, &[0, 9]), 1).is_err());
+        }
+        let mut body = vec![0, 1, b'a', 0, 9];
+        body.extend(b"payload");
+        assert!(matches!(
+            decode(&frame(0x34, &body), 1).unwrap(),
+            Packet::Publish {
+                packet_id: Some(9),
+                message: MqttMessage {
+                    qos: Qos::ExactlyOnce,
+                    ..
+                }
+            }
+        ));
     }
 
     #[test]

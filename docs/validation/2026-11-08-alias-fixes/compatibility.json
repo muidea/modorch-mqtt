@@ -1,0 +1,20 @@
+[
+  {
+    "command": "cargo +1.85.0 check --workspace --all-targets --all-features --locked --offline",
+    "status": "Passed",
+    "exit_code": 0,
+    "evidence": "docs/validation/2026-11-08-alias-fixes/msrv.log"
+  },
+  {
+    "command": "cargo check -p modorch-mqtt --no-default-features --locked --offline",
+    "status": "Passed",
+    "exit_code": 0,
+    "evidence": "docs/validation/2026-11-08-alias-fixes/default-features.log"
+  },
+  {
+    "command": "cargo test -p modorch-mqtt --no-default-features --features toml --test config --locked --offline",
+    "status": "Passed",
+    "exit_code": 0,
+    "evidence": "docs/validation/2026-11-08-alias-fixes/toml-only.log"
+  }
+]

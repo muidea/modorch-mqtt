@@ -1,4 +1,4 @@
-//! Embed the experimental MQTT 3.1.1 QoS0/1 broker into an existing Modorch app.
+//! Embed the experimental MQTT 3.1.1 QoS0/1/2 broker into an existing Modorch app.
 //! Register factories, explicitly enable the returned module IDs, and await the
 //! host's checked shutdown. No second Application, EventHub or Runtime is created.
 //!
@@ -20,8 +20,31 @@
 #![forbid(unsafe_code)]
 #![deny(missing_docs)]
 
+#[cfg(feature = "bootstrap")]
+mod host;
+#[cfg(feature = "bootstrap")]
+pub use host::{MqttBrokerHost, MqttHostError};
+
+#[cfg(feature = "toml")]
+mod file_config;
+#[cfg(feature = "toml")]
+pub use file_config::{MAX_MQTT_TOML_BYTES, MqttTomlConfig};
+
 pub use modorch_mqtt_api::*;
-pub use modorch_mqtt_core::{BrokerHandle, MqttBrokerConfig, MqttBrokerFactory, STATUS_TOPIC};
+#[cfg(feature = "auth")]
+pub use modorch_mqtt_auth::*;
+pub use modorch_mqtt_core::{
+    AdminControlConfig, AuthProviderConfig, BrokerHandle, MqttBrokerConfig, MqttBrokerFactory,
+    PUBLISH_QUERY_TOPIC, PUBLISH_TOPIC, STATUS_TOPIC, StorageProviderConfig, TlsConfig,
+    WebSocketConfig,
+};
+#[cfg(feature = "admin")]
+pub use modorch_mqtt_extensions::{AdminAuditEntry, AdminConfig, AdminFactory, AdminHandle};
+#[cfg(feature = "metrics")]
+pub use modorch_mqtt_extensions::{MetricsConfig, MetricsFactory, MetricsHandle, MetricsSnapshot};
+
+#[cfg(feature = "storage")]
+pub use modorch_mqtt_storage::{SqliteStorageConfig, SqliteStorageFactory};
 
 /// Factory assembly only. Construction/registration does not listen or spawn.
 pub struct MqttBrokerBundle {
@@ -68,3 +91,13 @@ impl MqttRegisteredComponents {
         &self.handle
     }
 }
+
+#[cfg(feature = "http")]
+pub use modorch_mqtt_extensions::{HttpConfig, HttpFactory, HttpHandle};
+
+#[cfg(feature = "audit")]
+pub use modorch_mqtt_extensions::SqliteAuditConfig;
+
+/// Optional explicit MQTT5 network Bridge.
+#[cfg(feature = "bridge")]
+pub use modorch_mqtt_bridge as bridge;

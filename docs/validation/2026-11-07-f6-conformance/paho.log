@@ -1,0 +1,2 @@
+PASS: Paho QoS0/QoS1/QoS2 live delivery, complete publish handshakes and QoS2 retained replay
+PASS: SIGINT checked shutdown and port release

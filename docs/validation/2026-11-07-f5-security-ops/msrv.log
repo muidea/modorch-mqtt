@@ -1,0 +1,30 @@
+warning: skipping duplicate package `modorch v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch/Cargo.toml
+in favor of /home/rangh/.cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch/Cargo.toml
+
+warning: skipping duplicate package `modorch-core v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-core/Cargo.toml
+in favor of /home/rangh/.cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-core/Cargo.toml
+
+warning: skipping duplicate package `modorch-eventhub v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-eventhub/Cargo.toml
+in favor of /home/rangh/.cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-eventhub/Cargo.toml
+
+warning: skipping duplicate package `modorch-observe v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-observe/Cargo.toml
+in favor of /home/rangh/.cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-observe/Cargo.toml
+
+warning: skipping duplicate package `modorch-registry v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-registry/Cargo.toml
+in favor of /home/rangh/.cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-registry/Cargo.toml
+
+warning: skipping duplicate package `modorch-runtime v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-runtime/Cargo.toml
+in favor of /home/rangh/.cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-runtime/Cargo.toml
+
+warning: skipping duplicate package `modorch-scheduler v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-scheduler/Cargo.toml
+in favor of /home/rangh/.cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-scheduler/Cargo.toml
+
+    Checking standalone-broker v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/examples/standalone-broker)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.42s

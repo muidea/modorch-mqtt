@@ -114,7 +114,7 @@ impl Client {
     }
     async fn publish(&mut self, topic: &str, payload: &[u8], qos: u8, retain: bool) {
         let mut body = string(topic);
-        if qos == 1 {
+        if qos != 0 {
             body.extend([0, 7]);
         }
         body.extend(payload);
@@ -122,6 +122,10 @@ impl Client {
             .await;
         if qos == 1 {
             assert_eq!(self.recv().await, (0x40, vec![0, 7]));
+        } else if qos == 2 {
+            assert_eq!(self.recv().await, (0x50, vec![0, 7]));
+            self.send(codec::frame(0x62, &[0, 7])).await;
+            assert_eq!(self.recv().await, (0x70, vec![0, 7]));
         }
     }
     async fn message(&mut self) -> (String, Vec<u8>, u8, Option<u16>) {
@@ -191,7 +195,7 @@ async fn qos1_overlap_retained_delete_and_unsubscribe() {
         subscriber
             .subscribe(&[("sensor/#", 0), ("sensor/+", 1), ("qos2", 2)])
             .await,
-        [0, 1, 0x80]
+        [0, 1, 2]
     );
     publisher.publish("sensor/a", b"value", 1, true).await;
     let (topic, payload, header, id) = subscriber.message().await;
@@ -295,7 +299,7 @@ async fn will_on_abrupt_close_and_takeover_but_not_disconnect() {
 }
 
 #[tokio::test]
-async fn malformed_client_and_qos2_close_only_that_connection() {
+async fn malformed_client_and_invalid_qos_close_only_that_connection() {
     let (app, handle) = start(config()).await;
     let addr = handle.local_addr().unwrap();
     for bytes in [
@@ -317,7 +321,7 @@ async fn malformed_client_and_qos2_close_only_that_connection() {
     let (mut client, _) = Client::connect(addr, "bad-qos", true).await;
     let mut body = string("topic");
     body.extend([0, 1]);
-    client.send(codec::frame(0x34, &body)).await;
+    client.send(codec::frame(0x36, &body)).await;
     assert_eq!(client.0.read(&mut [0]).await.unwrap(), 0);
     let (mut healthy, _) = Client::connect(addr, "healthy", true).await;
     healthy.send(vec![0xc0, 0]).await;
@@ -435,7 +439,7 @@ async fn later_activation_failure_and_listener_quota_release_the_port() {
     }
     let factory = MqttBrokerFactory::new(config()).unwrap();
     let handle = factory.handle();
-    let mut builder = ApplicationBuilder::new("connection-quota").task_limits(1, 1);
+    let mut builder = ApplicationBuilder::new("connection-quota").task_limits(2, 1);
     builder.register_module(factory).unwrap();
     let mut selection = ComponentSelection::new();
     selection.enable_module("mqtt-broker");
@@ -516,7 +520,7 @@ async fn all_ready_before_listen_and_listener_spawn_quota_compensates_bound_sock
     for occupy_task in [false, true] {
         let factory = MqttBrokerFactory::new(config()).unwrap();
         let handle = factory.handle();
-        let mut builder = ApplicationBuilder::new("ready-gate").task_limits(1, 1);
+        let mut builder = ApplicationBuilder::new("ready-gate").task_limits(2, 1);
         builder.register_module(factory).unwrap();
         builder
             .register_module(ReadyProbe {
@@ -715,3 +719,25 @@ fn configuration_rejects_unsafe_and_overflowing_limits() {
     cfg.memory_budget_bytes = 1024;
     assert!(cfg.validate().is_err());
 }
+
+mod auth;
+mod eventhub;
+#[cfg(feature = "tls")]
+mod tls;
+
+mod storage;
+
+mod qos2;
+
+mod conformance;
+mod packet_tables;
+mod protocol;
+mod topic_vectors;
+
+mod outbound;
+
+#[cfg(feature = "websocket")]
+mod websocket;
+
+#[cfg(feature = "mqtt5")]
+mod mqtt5;

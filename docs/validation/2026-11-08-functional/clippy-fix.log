@@ -1,0 +1,220 @@
+warning: skipping duplicate package `modorch v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch/Cargo.toml
+
+warning: skipping duplicate package `modorch-core v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-core/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-core/Cargo.toml
+
+warning: skipping duplicate package `modorch-eventhub v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-eventhub/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-eventhub/Cargo.toml
+
+warning: skipping duplicate package `modorch-observe v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-observe/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-observe/Cargo.toml
+
+warning: skipping duplicate package `modorch-registry v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-registry/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-registry/Cargo.toml
+
+warning: skipping duplicate package `modorch-runtime v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-runtime/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-runtime/Cargo.toml
+
+warning: skipping duplicate package `modorch-scheduler v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-scheduler/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-scheduler/Cargo.toml
+
+    Checking modorch-mqtt-api v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt-api)
+    Checking modorch-mqtt-core v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt-core)
+    Checking modorch-mqtt-extensions v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt-extensions)
+    Checking modorch-mqtt-auth v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt-auth)
+    Checking modorch-mqtt-storage v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt-storage)
+    Checking modorch-mqtt-bridge v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt-bridge)
+       Fixed crates/modorch-mqtt-core/src/wire.rs (1 fix)
+       Fixed crates/modorch-mqtt-core/src/mqtt5/validation.rs (1 fix)
+       Fixed crates/modorch-mqtt-core/src/state.rs (3 fixes)
+warning: very complex type used. Consider factoring parts into `type` definitions
+   --> crates/modorch-mqtt-core/src/mqtt5/validation.rs:111:41
+    |
+111 | pub(super) fn validate(bytes: &[u8]) -> Result<Option<(Option<String>, Option<Bytes>)>, MqttError> {
+    |                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#type_complexity
+    = note: `-D clippy::type-complexity` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::type_complexity)]`
+
+warning: `modorch-mqtt-core` (lib) generated 1 warning
+warning: failed to automatically apply fixes suggested by rustc to crate `modorch_mqtt_bridge`
+
+after fixes were automatically applied the compiler reported errors within these files:
+
+  * crates/modorch-mqtt-bridge/src/lib.rs
+
+This likely indicates a bug in either rustc or cargo itself,
+and we would appreciate a bug report! You're likely to see
+a number of compiler warnings after this message which cargo
+attempted to fix but failed. If you could open an issue at
+https://github.com/rust-lang/rust-clippy/issues
+quoting the full output of this command we'd be very appreciative!
+Note that you may be able to make some more progress in the near-term
+fixing code with the `--broken-code` flag
+
+The following errors were reported:
+error[E0308]: mismatched types
+   --> crates/modorch-mqtt-bridge/src/lib.rs:216:13
+    |
+216 |             result?
+    |             ^^^^^^^- help: consider using a semicolon here: `;`
+    |             |
+    |             expected `()`, found `TaskHandle`
+    |
+note: return type inferred to be `()` here
+   --> crates/modorch-mqtt-bridge/src/lib.rs:188:1
+    |
+188 | #[async_trait]
+    | ^^^^^^^^^^^^^^
+    = note: this error originates in the attribute macro `async_trait` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0308`.
+Original diagnostics will follow.
+
+warning: this block may be rewritten with the `?` operator
+   --> crates/modorch-mqtt-bridge/src/lib.rs:216:13
+    |
+216 | /             if let Err(error) = result {
+217 | |                 return Err(error);
+218 | |             }
+    | |_____________^ help: replace it with: `result?`
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#question_mark
+    = note: `-D clippy::question-mark` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::question_mark)]`
+
+warning: this `if` statement can be collapsed
+   --> crates/modorch-mqtt-bridge/src/lib.rs:260:9
+    |
+260 | /         if k == ORIGIN {
+261 | |             if origin.replace(v.clone()).is_some() {
+262 | |                 return None;
+263 | |             }
+264 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+    = note: `-D clippy::collapsible-if` implied by `-D warnings`
+    = help: to override `-D warnings` add `#[allow(clippy::collapsible_if)]`
+help: collapse nested if block
+    |
+260 ~         if k == ORIGIN
+261 ~             && origin.replace(v.clone()).is_some() {
+262 |                 return None;
+263 ~             }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/modorch-mqtt-bridge/src/lib.rs:265:9
+    |
+265 | /         if k == HOPS {
+266 | |             if hops.replace(v.parse::<u8>().ok()?).is_some() {
+267 | |                 return None;
+268 | |             }
+269 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+265 ~         if k == HOPS
+266 ~             && hops.replace(v.parse::<u8>().ok()?).is_some() {
+267 |                 return None;
+268 ~             }
+    |
+
+warning: this `if` statement can be collapsed
+   --> crates/modorch-mqtt-bridge/src/lib.rs:312:9
+    |
+312 | /         if pending.as_ref().is_some_and(|p| p.complete) {
+313 | |             if source
+314 | |                 .try_ack(&pending.as_ref().unwrap().publication)
+315 | |                 .is_ok()
+...   |
+321 | |         }
+    | |_________^
+    |
+    = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#collapsible_if
+help: collapse nested if block
+    |
+312 ~         if pending.as_ref().is_some_and(|p| p.complete)
+313 ~             && source
+314 |                 .try_ack(&pending.as_ref().unwrap().publication)
+...
+319 |                 handle.0.lock().unwrap().pending -= 1;
+320 ~             }
+    |
+
+warning: `modorch-mqtt-bridge` (lib) generated 4 warnings (run `cargo clippy --fix --lib -p modorch-mqtt-bridge` to apply 4 suggestions)
+    Checking modorch-mqtt v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt)
+       Fixed crates/modorch-mqtt-core/src/tests/mqtt5.rs (1 fix)
+warning: `modorch-mqtt-core` (lib test) generated 1 warning (1 duplicate)
+warning: failed to automatically apply fixes suggested by rustc to crate `modorch_mqtt_bridge`
+
+after fixes were automatically applied the compiler reported errors within these files:
+
+  * crates/modorch-mqtt-bridge/src/lib.rs
+
+This likely indicates a bug in either rustc or cargo itself,
+and we would appreciate a bug report! You're likely to see
+a number of compiler warnings after this message which cargo
+attempted to fix but failed. If you could open an issue at
+https://github.com/rust-lang/rust-clippy/issues
+quoting the full output of this command we'd be very appreciative!
+Note that you may be able to make some more progress in the near-term
+fixing code with the `--broken-code` flag
+
+The following errors were reported:
+error[E0308]: mismatched types
+   --> crates/modorch-mqtt-bridge/src/lib.rs:216:13
+    |
+216 |             result?
+    |             ^^^^^^^- help: consider using a semicolon here: `;`
+    |             |
+    |             expected `()`, found `TaskHandle`
+    |
+note: return type inferred to be `()` here
+   --> crates/modorch-mqtt-bridge/src/lib.rs:188:1
+    |
+188 | #[async_trait]
+    | ^^^^^^^^^^^^^^
+    = note: this error originates in the attribute macro `async_trait` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error: aborting due to 1 previous error
+
+For more information about this error, try `rustc --explain E0308`.
+Original diagnostics will follow.
+
+warning: `modorch-mqtt-bridge` (lib test) generated 4 warnings (4 duplicates)
+warning: field assignment outside of initializer for an instance created with Default::default()
+  --> crates/modorch-mqtt-extensions/tests/http.rs:31:5
+   |
+31 |     admin.allowed_callers = vec![ComponentRef::module("http")];
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+note: consider initializing the variable with `modorch_mqtt_extensions::AdminConfig { allowed_callers: vec![ComponentRef::module("http")], ..Default::default() }` and removing relevant reassignments
+  --> crates/modorch-mqtt-extensions/tests/http.rs:30:5
+   |
+30 |     let mut admin = AdminConfig::default();
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/rust-1.94.0/index.html#field_reassign_with_default
+   = note: `-D clippy::field-reassign-with-default` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::field_reassign_with_default)]`
+
+warning: `modorch-mqtt-extensions` (test "http") generated 1 warning
+    Checking secure-modorch-server v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/examples/secure-modorch-server)
+    Checking durable-broker v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/examples/durable-broker)
+    Checking standalone-broker v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/examples/standalone-broker)
+    Checking existing-modorch-server v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/examples/existing-modorch-server)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 28.08s

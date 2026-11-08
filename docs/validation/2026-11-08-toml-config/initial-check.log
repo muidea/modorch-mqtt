@@ -1,0 +1,49 @@
+warning: skipping duplicate package `modorch v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch/Cargo.toml
+
+warning: skipping duplicate package `modorch-core v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-core/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-core/Cargo.toml
+
+warning: skipping duplicate package `modorch-eventhub v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-eventhub/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-eventhub/Cargo.toml
+
+warning: skipping duplicate package `modorch-observe v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-observe/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-observe/Cargo.toml
+
+warning: skipping duplicate package `modorch-registry v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-registry/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-registry/Cargo.toml
+
+warning: skipping duplicate package `modorch-runtime v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-runtime/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-runtime/Cargo.toml
+
+warning: skipping duplicate package `modorch-scheduler v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-scheduler/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-scheduler/Cargo.toml
+
+     Locking 10 packages to latest Rust 1.85 compatible versions
+      Adding equivalent v1.0.3
+      Adding hashbrown v0.17.1
+      Adding indexmap v2.14.2
+      Adding serde_spanned v0.6.9
+      Adding toml v0.8.23
+      Adding toml_datetime v0.6.11
+      Adding toml_edit v0.22.27
+    Updating wasip2 v1.0.1+wasi-0.2.4 -> v1.0.4+wasi-0.2.12 (requires Rust 1.87.0)
+      Adding winnow v0.7.15
+    Updating wit-bindgen v0.46.0 -> v0.57.1
+    Checking hashbrown v0.17.1
+    Checking equivalent v1.0.3
+    Checking serde_spanned v0.6.9
+    Checking toml_datetime v0.6.11
+    Checking winnow v0.7.15
+    Checking indexmap v2.14.2
+    Checking toml_edit v0.22.27
+    Checking toml v0.8.23
+    Checking modorch-mqtt v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 4.08s

@@ -1,0 +1,97 @@
+warning: skipping duplicate package `modorch v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch/Cargo.toml
+
+warning: skipping duplicate package `modorch-core v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-core/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-core/Cargo.toml
+
+warning: skipping duplicate package `modorch-eventhub v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-eventhub/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-eventhub/Cargo.toml
+
+warning: skipping duplicate package `modorch-observe v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-observe/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-observe/Cargo.toml
+
+warning: skipping duplicate package `modorch-registry v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-registry/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-registry/Cargo.toml
+
+warning: skipping duplicate package `modorch-runtime v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-runtime/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-runtime/Cargo.toml
+
+warning: skipping duplicate package `modorch-scheduler v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-scheduler/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-scheduler/Cargo.toml
+
+    Blocking waiting for file lock on artifact directory
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.27
+   Compiling libc v0.2.191
+   Compiling serde_core v1.0.229
+   Compiling serde v1.0.229
+   Compiling version_check v0.9.5
+   Compiling shlex v2.0.1
+   Compiling find-msvc-tools v0.1.15
+   Compiling zmij v1.0.23
+   Compiling cc v1.10.0
+   Compiling thiserror v2.0.21
+   Compiling serde_json v1.0.154
+   Compiling generic-array v0.14.7
+   Compiling zerocopy v0.8.63
+   Compiling ahash v0.8.12
+   Compiling pkg-config v0.3.34
+   Compiling syn v3.0.9
+   Compiling syn v2.0.119
+   Compiling vcpkg v0.2.15
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling rustls v0.23.46
+   Compiling errno v0.3.14
+   Compiling mio v1.2.4
+   Compiling signal-hook-registry v1.4.8
+   Compiling socket2 v0.6.5
+   Compiling getrandom v0.2.17
+   Compiling ring v0.17.14
+   Compiling libsqlite3-sys v0.30.1
+   Compiling digest v0.10.7
+   Compiling getrandom v0.3.4
+   Compiling sha2 v0.10.9
+   Compiling serde_derive v1.0.229
+   Compiling tokio-macros v2.7.2
+   Compiling thiserror-impl v2.0.21
+   Compiling futures-macro v0.3.34
+   Compiling async-trait v0.1.92
+   Compiling tracing-attributes v0.1.31
+   Compiling hashbrown v0.14.5
+   Compiling futures-util v0.3.34
+   Compiling hashlink v0.9.1
+   Compiling tracing v0.1.44
+   Compiling rustls-webpki v0.103.16
+   Compiling bytes v1.12.1
+   Compiling tokio v1.54.1
+   Compiling modorch-mqtt-api v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt-api)
+   Compiling rusqlite v0.32.1
+   Compiling modorch-core v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)
+   Compiling tokio-util v0.7.20
+   Compiling tokio-rustls v0.26.6
+   Compiling modorch-registry v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)
+   Compiling modorch-eventhub v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)
+   Compiling modorch-scheduler v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)
+   Compiling modorch-runtime v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)
+   Compiling modorch v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)
+   Compiling modorch-mqtt-storage v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt-storage)
+   Compiling modorch-mqtt-core v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt-core)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 14s
+     Running unittests src/lib.rs (target/debug/deps/modorch_mqtt_core-87256a4ee4c4e77f)
+
+running 3 tests
+test tests::topic_vectors::shared_topic_vectors_agree_with_codec_and_modorch_facade ... ok
+test tests::topic_vectors::shared_topic_vectors_drive_real_hub_subscriptions_and_handlers ... ok
+test tests::topic_vectors::shared_topic_vectors_drive_real_mqtt_validation_and_delivery ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 78 filtered out; finished in 1.66s
+

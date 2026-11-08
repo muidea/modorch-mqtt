@@ -1,0 +1,143 @@
+{
+  "result": {
+    "task": "F6控制报文提前拒绝、正文未编号候选/结构表与QoS2发送ACK矩阵收口",
+    "framework_version": "0.0.3",
+    "skill": "modorch-module-development",
+    "skill_revision": "1.0.7",
+    "changed_files": [
+      "README.md",
+      "contracts/README.md",
+      "contracts/mqtt311-audit.json",
+      "contracts/mqtt311-packets.json",
+      "contracts/mqtt311.json",
+      "crates/modorch-mqtt-core/src/codec.rs",
+      "crates/modorch-mqtt-core/src/state/qos2.rs",
+      "crates/modorch-mqtt-core/src/tests.rs",
+      "crates/modorch-mqtt-core/src/tests/packet_tables.rs",
+      "docs/modorch_mqtt_broker_full_design_0.0.3.md",
+      "docs/mqtt311-audit.md",
+      "docs/mqtt311-conformance.md",
+      "docs/remaining-work.md",
+      "scripts/audit-mqtt311.py",
+      "scripts/check-conformance.py",
+      "scripts/check-project.py",
+      "scripts/tests/test_audit.py",
+      "scripts/tests/test_conformance.py"
+    ],
+    "validation": [
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo python3 .agents/skills/modorch-module-development/scripts/preflight.py --manifest-path Cargo.toml",
+        "status": "Passed",
+        "evidence": "framework-preflight.json"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_NET_OFFLINE=true ./scripts/check.sh",
+        "status": "Passed",
+        "evidence": "check.log: 105 Rust + 1 doctest + 12 Python, fmt/check/clippy/doc, host smokes and SIGKILL"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo cargo +1.85.0 check --workspace --all-targets --all-features --locked --offline",
+        "status": "Passed",
+        "evidence": "msrv.log"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo cargo check -p modorch-mqtt --no-default-features --locked --offline; cargo build -p standalone-broker -p secure-modorch-server -p durable-broker --locked --offline",
+        "status": "Passed",
+        "evidence": "feature-build.log: both commands succeeded"
+      },
+      {
+        "command": "python3 scripts/audit-mqtt311.py --source-html /tmp/modorch-mqtt311-oasis.html",
+        "status": "Passed",
+        "evidence": "audit-source.log: pinned HTML digest and 9 main-body candidate paragraphs verified"
+      },
+      {
+        "command": "python3 scripts/check-conformance.py --results docs/validation/2026-11-08-f6-packet-audit/check.log --output docs/validation/2026-11-08-f6-packet-audit/scenarios.json",
+        "status": "Passed",
+        "evidence": "scenarios.json; matrix.log: 35 scenarios + 14 bounded audit traces; complete conformance still Partial"
+      },
+      {
+        "command": "Assert check-conformance.py --require-complete returns1 for Partial",
+        "status": "Passed",
+        "evidence": "release-gate.json; release-scenarios.json"
+      },
+      {
+        "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho.py",
+        "status": "Passed",
+        "evidence": "paho.log"
+      },
+      {
+        "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho-tls.py",
+        "status": "Passed",
+        "evidence": "paho-tls.log"
+      },
+      {
+        "command": "python3 scripts/check-project.py; Python compile; sh -n scripts/check.sh; git diff --check; source hashes",
+        "status": "Passed",
+        "evidence": "auxiliary.log; source-hashes.json; environment.json"
+      },
+      {
+        "command": "Remote CI, magicCommon JSON consumer, independent Agent, hardware power failure and cross-platform runs",
+        "status": "NotRun",
+        "evidence": "No new external execution evidence; see docs/remaining-work.md"
+      }
+    ],
+    "contract_checks": [
+      {
+        "rule_id": "MQTT-TOPIC-001/regression",
+        "status": "Passed",
+        "evidence": "check.log: shared39-vector tests still passed"
+      },
+      {
+        "rule_id": "MQTT-QOS-002/sender-ACK-table",
+        "status": "Passed",
+        "evidence": "check.log: state::qos2::tests::sender_ack_transition_matrix_preserves_phase_and_identifier_ownership, 12 transitions"
+      },
+      {
+        "rule_id": "MQTT-BOUND-001/early-malformed-header",
+        "status": "Passed",
+        "evidence": "check.log: all256 first bytes, all256 CONNECT flags, length/ID and partial-header close tests; before/after reproduction logs"
+      },
+      {
+        "rule_id": "MQTT-SEC-003/protocol-close-Will",
+        "status": "Passed",
+        "evidence": "check.log: invalid_partial_header_triggers_will_and_preserves_persistent_qos2_session"
+      },
+      {
+        "rule_id": "MQTT-COMPAT-001",
+        "status": "Passed",
+        "evidence": "framework-preflight.json; msrv.log; feature-build.log"
+      },
+      {
+        "rule_id": "MQTT-DOC-001/audit-subset",
+        "status": "Passed",
+        "evidence": "check.log; audit-source.log; scenarios.json: bounded mappings and negative gate tests"
+      },
+      {
+        "rule_id": "MQTT-QOS-002/full-conformance",
+        "status": "NotRun",
+        "evidence": "scenarios.json: UN-008 and FSM-COMPLETE remain NotRun; complete semantic/packet/FSM/fault audit pending"
+      },
+      {
+        "rule_id": "MQTT-DOC-001/full-release",
+        "status": "NotRun",
+        "evidence": "All-MUST independent Agent/platform/security/performance release gate incomplete"
+      }
+    ],
+    "limitations": [
+      "Local Linux/WSL2 x86_64, Rust1.94 and MSRV1.85 only; no remote CI or independent Agent executed.",
+      "Unnumbered extractor verifies a paragraph-level candidate inventory only. Three candidates continue numbered MQTT-4.3.2-1; all semantic obligations and outbound layouts are not certified.",
+      "The ACK matrix exhausts the defined 4-state/3-ACK sender subset, not the full network/fault/persistence FSM.",
+      "Source hashes capture cumulative uncommitted input; changed_files compare prior recorded inputs. Cargo.toml/Cargo.lock and upstream unchanged. Historical evidence untouched; no commit/push.",
+      "Full normative mode rejects Partial. It is not the missing all-MUST/performance/platform/independent Agent release gate.",
+      "SQLite format3 migration limits and shutdown Will deferral remain unchanged."
+    ],
+    "unresolved": [
+      "Complete cross-paragraph normative semantics, all outbound packet layouts and CONNECT/Session/Will/subscription/QoS FSM/fault/interoperability audit",
+      "F7 MQTT5 properties/reason codes/session/message expiry/receive maximum/alias/shared subscriptions",
+      "Optional WebSocket/Bridge and TOML/later operational extensions",
+      "Production TLS/Auth/Storage/QoS2 load, long-run memory, high-load shutdown and recovery SLO",
+      "Real power failure, cross-platform/filesystem compatibility, magicCommon consumer and independent Agent/full-MUST release gates"
+    ],
+    "overall_status": "Partial"
+  }
+}

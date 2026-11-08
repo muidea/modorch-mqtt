@@ -1,0 +1,337 @@
+{
+  "version": 1,
+  "source": {
+    "url": "https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html",
+    "sha256": "fc1f493558339850740a57ea19c4b2bdf39db6589edf9a69a984afbec098aa9b",
+    "retrieved": "2026-11-07",
+    "inventory_method": "Distinct MQTT-* identifiers from HTML text; official typo MQTT-3-8.3-4 retained verbatim. Not an exhaustive inventory of unnumbered normative requirements."
+  },
+  "scope": "Independent literal Server output expectations for implemented MQTT3.1.1 TCP/TLS packet kinds; controls include IDs1/256/65535, mixed SUBACK and no extra payload. PUBLISH flags, empty/binary/UTF8 fields and Remaining Length boundaries. Does not approve full FSM/fault/platform conformance.",
+  "connect": {
+    "persistent_hex": "100e00044d5154540400000000027772",
+    "clean_hex": "100e00044d5154540402000000027772",
+    "new_hex": "20020000",
+    "resumed_hex": "20020100",
+    "rejections": [
+      {
+        "kind": "version",
+        "request_hex": "100e00044d5154540502000000027772",
+        "response_hex": "20020001"
+      },
+      {
+        "kind": "empty-persistent-id",
+        "request_hex": "100c00044d515454040000000000",
+        "response_hex": "20020002"
+      },
+      {
+        "kind": "capacity",
+        "request_hex": "100e00044d5154540402000000027a7a",
+        "response_hex": "20020003"
+      },
+      {
+        "kind": "reserved-will",
+        "request_hex": "101d00044d5154540406000000027772000a246d6f646f7263682f78000178",
+        "response_hex": "20020005"
+      }
+    ]
+  },
+  "controls": [
+    {
+      "kind": "PUBACK",
+      "packet_id": 1,
+      "request_hex": "3207000177000100ff",
+      "response_hex": "40020001"
+    },
+    {
+      "kind": "PUBREC",
+      "packet_id": 1,
+      "request_hex": "3407000177000100ff",
+      "response_hex": "50020001"
+    },
+    {
+      "kind": "PUBCOMP",
+      "packet_id": 1,
+      "request_hex": "62020001",
+      "response_hex": "70020001"
+    },
+    {
+      "kind": "SUBACK",
+      "packet_id": 1,
+      "request_hex": "821900010001610000016201000163020008246d6f646f72636800",
+      "response_hex": "9006000100010280"
+    },
+    {
+      "kind": "UNSUBACK",
+      "packet_id": 1,
+      "request_hex": "a2050001000161",
+      "response_hex": "b0020001"
+    },
+    {
+      "kind": "PUBACK",
+      "packet_id": 256,
+      "request_hex": "3207000177010000ff",
+      "response_hex": "40020100"
+    },
+    {
+      "kind": "PUBREC",
+      "packet_id": 256,
+      "request_hex": "3407000177010000ff",
+      "response_hex": "50020100"
+    },
+    {
+      "kind": "PUBCOMP",
+      "packet_id": 256,
+      "request_hex": "62020100",
+      "response_hex": "70020100"
+    },
+    {
+      "kind": "SUBACK",
+      "packet_id": 256,
+      "request_hex": "821901000001610000016201000163020008246d6f646f72636800",
+      "response_hex": "9006010000010280"
+    },
+    {
+      "kind": "UNSUBACK",
+      "packet_id": 256,
+      "request_hex": "a2050100000161",
+      "response_hex": "b0020100"
+    },
+    {
+      "kind": "PUBACK",
+      "packet_id": 65535,
+      "request_hex": "3207000177ffff00ff",
+      "response_hex": "4002ffff"
+    },
+    {
+      "kind": "PUBREC",
+      "packet_id": 65535,
+      "request_hex": "3407000177ffff00ff",
+      "response_hex": "5002ffff"
+    },
+    {
+      "kind": "PUBCOMP",
+      "packet_id": 65535,
+      "request_hex": "6202ffff",
+      "response_hex": "7002ffff"
+    },
+    {
+      "kind": "SUBACK",
+      "packet_id": 65535,
+      "request_hex": "8219ffff0001610000016201000163020008246d6f646f72636800",
+      "response_hex": "9006ffff00010280"
+    },
+    {
+      "kind": "UNSUBACK",
+      "packet_id": 65535,
+      "request_hex": "a205ffff000161",
+      "response_hex": "b002ffff"
+    },
+    {
+      "kind": "PINGRESP",
+      "request_hex": "c000",
+      "response_hex": "d000"
+    }
+  ],
+  "publishes": [
+    {
+      "qos": 0,
+      "retain": false,
+      "dup": false,
+      "packet_id": null,
+      "topic": "w",
+      "payload_hex": "00ff",
+      "wire_hex": "300500017700ff"
+    },
+    {
+      "qos": 0,
+      "retain": true,
+      "dup": false,
+      "packet_id": null,
+      "topic": "w",
+      "payload_hex": "00ff",
+      "wire_hex": "310500017700ff"
+    },
+    {
+      "qos": 1,
+      "retain": false,
+      "dup": false,
+      "packet_id": 1,
+      "topic": "w",
+      "payload_hex": "00ff",
+      "wire_hex": "3207000177000100ff"
+    },
+    {
+      "qos": 1,
+      "retain": true,
+      "dup": false,
+      "packet_id": 1,
+      "topic": "w",
+      "payload_hex": "00ff",
+      "wire_hex": "3307000177000100ff"
+    },
+    {
+      "qos": 1,
+      "retain": false,
+      "dup": true,
+      "packet_id": 1,
+      "topic": "w",
+      "payload_hex": "00ff",
+      "wire_hex": "3a07000177000100ff"
+    },
+    {
+      "qos": 1,
+      "retain": true,
+      "dup": true,
+      "packet_id": 1,
+      "topic": "w",
+      "payload_hex": "00ff",
+      "wire_hex": "3b07000177000100ff"
+    },
+    {
+      "qos": 2,
+      "retain": false,
+      "dup": false,
+      "packet_id": 1,
+      "topic": "w",
+      "payload_hex": "00ff",
+      "wire_hex": "3407000177000100ff"
+    },
+    {
+      "qos": 2,
+      "retain": true,
+      "dup": false,
+      "packet_id": 1,
+      "topic": "w",
+      "payload_hex": "00ff",
+      "wire_hex": "3507000177000100ff"
+    },
+    {
+      "qos": 2,
+      "retain": false,
+      "dup": true,
+      "packet_id": 1,
+      "topic": "w",
+      "payload_hex": "00ff",
+      "wire_hex": "3c07000177000100ff"
+    },
+    {
+      "qos": 2,
+      "retain": true,
+      "dup": true,
+      "packet_id": 1,
+      "topic": "w",
+      "payload_hex": "00ff",
+      "wire_hex": "3d07000177000100ff"
+    },
+    {
+      "qos": 1,
+      "retain": false,
+      "dup": false,
+      "packet_id": 256,
+      "topic": "w",
+      "payload_hex": "",
+      "wire_hex": "32050001770100"
+    },
+    {
+      "qos": 2,
+      "retain": true,
+      "dup": true,
+      "packet_id": 65535,
+      "topic": "w",
+      "payload_hex": "",
+      "wire_hex": "3d05000177ffff"
+    },
+    {
+      "qos": 2,
+      "retain": true,
+      "dup": false,
+      "packet_id": 256,
+      "topic": "温度",
+      "payload_hex": "0000ff",
+      "wire_hex": "350d0006e6b8a9e5baa601000000ff"
+    },
+    {
+      "qos": 0,
+      "retain": false,
+      "dup": false,
+      "packet_id": null,
+      "topic": "w",
+      "payload_hex": "",
+      "wire_hex": "3003000177"
+    }
+  ],
+  "lengths": [
+    {
+      "qos": 0,
+      "remaining": 127,
+      "payload_bytes": 124,
+      "prefix_hex": "307f000177"
+    },
+    {
+      "qos": 0,
+      "remaining": 128,
+      "payload_bytes": 125,
+      "prefix_hex": "308001000177"
+    },
+    {
+      "qos": 0,
+      "remaining": 16383,
+      "payload_bytes": 16380,
+      "prefix_hex": "30ff7f000177"
+    },
+    {
+      "qos": 0,
+      "remaining": 16384,
+      "payload_bytes": 16381,
+      "prefix_hex": "30808001000177"
+    },
+    {
+      "qos": 1,
+      "remaining": 127,
+      "payload_bytes": 122,
+      "prefix_hex": "327f0001770001"
+    },
+    {
+      "qos": 1,
+      "remaining": 128,
+      "payload_bytes": 123,
+      "prefix_hex": "3280010001770001"
+    },
+    {
+      "qos": 1,
+      "remaining": 16383,
+      "payload_bytes": 16378,
+      "prefix_hex": "32ff7f0001770001"
+    },
+    {
+      "qos": 1,
+      "remaining": 16384,
+      "payload_bytes": 16379,
+      "prefix_hex": "328080010001770001"
+    },
+    {
+      "qos": 2,
+      "remaining": 127,
+      "payload_bytes": 122,
+      "prefix_hex": "347f0001770001"
+    },
+    {
+      "qos": 2,
+      "remaining": 128,
+      "payload_bytes": 123,
+      "prefix_hex": "3480010001770001"
+    },
+    {
+      "qos": 2,
+      "remaining": 16383,
+      "payload_bytes": 16378,
+      "prefix_hex": "34ff7f0001770001"
+    },
+    {
+      "qos": 2,
+      "remaining": 16384,
+      "payload_bytes": 16379,
+      "prefix_hex": "348080010001770001"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "url": "https://docs.oasis-open.org/mqtt/mqtt/v5.0/os/mqtt-v5.0-os.html",
+  "cached_artifact": "docs/validation/2026-11-08-followup-audit/mqtt-v5.0-os.html",
+  "sha256": "41116bcf54bc9b9ee72a425406293efda60fb40741e7d1512b87f51a46fa499c",
+  "decoding": "windows-1252 (HTML charset)",
+  "quotes": [
+    {
+      "needle": "Packet Identifiers used with PUBLISH",
+      "excerpt": "eater. For SUBSCRIBE or UNSUBSCRIBE it is the corresponding SUBACK or UNSUBACK. Packet Identifiers used with PUBLISH, SUBSCRIBE and UNSUBSCRIBE packets form a single, unified set of identifiers separately for the Client and the Server in a Session. A Packet Identifier cannot be used by more than one command at any time. A PUBACK, PUBREC , PUBREL, or PUBCOMP packet MUST contain the same Packet Identifier as the PUBLISH packet that was originally sent [MQTT-2.2.1-5] . A SUBACK and UNSUBACK MUST contain the Packet Identifier that was used in the corresponding SUBSCRIBE and UNSUBSCRIBE packet respectively [MQTT-2.2.1-6] . The Client and Server assign Packet Identifiers independently of each other. As a result, Client-Server pairs can participate in concurrent message exchanges using the same Packet Identifiers. Non-normative comment It is possible for a Client to send a PUBLISH packet with Packet Identifier 0x1234 and then receive a different PUBLISH packet with Packet Identifier 0x1234 from its Server before it receiv"
+    },
+    {
+      "needle": "If the Server accepts a connection with Clean Start set to 0",
+      "excerpt": " to setting a 0x00 (Success) Reason Code in the CONNACK packet [MQTT-3.2.2-2] . If the Server accepts a connection with Clean Start set to 0 and the Server has Session State for the ClientID, it MUST set Session Present to 1 in the CONNACK packet, otherwise it MUST set Session Present to 0 in the CONNACK packet. In both cases it MUST set a 0x00 (Success) Reason Code in the CONNACK packet [MQTT-3.2.2-3] . If the value of Session Present received by the Client from the Server is not as expected, the Client proceeds as follows: · If the Client does not have Session State and receives Session Present set to 1 it MUST close the Network Connection [MQTT-3.2.2-4] . If it wishes to restart with a new Session the Client can reconnect using Clean Start set to 1. · If the Client does have Session State and receives Session Present set to 0 it MUST discard its Session State if it continues with the Network Connection [MQTT-3.2.2-5] . If a Server sends a CONNACK packet containing a non-zero Reason Code it MUST set Session Prese"
+    },
+    {
+      "needle": "The Packet Identifier becomes available for reuse",
+      "excerpt": "ssign it a non zero Packet Identifier that is currently unused [MQTT-2.2.1-4] . The Packet Identifier becomes available for reuse after the sender has processed the corresponding acknowledgement packet, defined as follows. In the case of a QoS 1 PUBLISH, this is the corresponding PUBACK; in the case of QoS 2 PUBLISH it is PUBCOMP or a PUBREC with a Reason Code of 128 or greater. For SUBSCRIBE or UNSUBSCRIBE it is the corresponding SUBACK or UNSUBACK. Packet Identifiers used with PUBLISH, SUBSCRIBE and UNSUBSCRIBE packets form a single, unified set of identifiers separately for the Client and the Server in a Session. A Packet Identifier cannot be used by more than one command at any time. A PUBACK, PUBREC , PUBREL, or PUBCOMP packet MUST contain the same Packet Identifier as the PUBLISH packet that was originally sent [MQTT-2.2.1-5] . A SUBACK and UNSUBACK MUST contain the Packet Identifier that was used in the corresponding SUBSCRIBE and UNSUBSCRIBE packet respectively [MQTT-2.2.1-6] . The Client and Server assign "
+    }
+  ]
+}

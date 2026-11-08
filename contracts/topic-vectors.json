@@ -1,0 +1,324 @@
+{
+  "version": 1,
+  "source": {
+    "repository": "https://github.com/muidea/modorch-rs",
+    "revision": "336ba20196044e1b81fb2ca297a18b5e258a5800",
+    "path": "crates/modorch-eventhub/tests/support/topic_vectors.rs",
+    "sha256": "e59d9e70331a4b8bccb947f2669cbf7a6ad462199c589fc77ffeb7e53a334359",
+    "format": "Normalized JSON export of independent Rust expected vectors; upstream has no JSON fixture."
+  },
+  "vectors": [
+    {
+      "id": "MR-T01",
+      "filter": "device/+",
+      "topic": "device/123",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "MR-T02",
+      "filter": "device/+",
+      "topic": "device/",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "MR-T03",
+      "filter": "device/+",
+      "topic": "device",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "MR-T04",
+      "filter": "device/#",
+      "topic": "device",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "MR-T05",
+      "filter": "device/#",
+      "topic": "device/",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "MR-T06",
+      "filter": "device/#",
+      "topic": "device/a/b",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "MR-T07",
+      "filter": "device/#/status",
+      "topic": "device/a/status",
+      "filter_valid": false,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "MR-T08",
+      "filter": "device/:id",
+      "topic": "device/42",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "MR-T09",
+      "filter": "device/:id",
+      "topic": "device/:id",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "MR-T10",
+      "filter": "#",
+      "topic": "$SYS/status",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "MR-T11",
+      "filter": "+/status",
+      "topic": "$SYS/status",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "MR-T12",
+      "filter": "$SYS/#",
+      "topic": "$SYS/status",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "MR-T13",
+      "filter": "device//status",
+      "topic": "device//status",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "MR-T14",
+      "filter": "/",
+      "topic": "/",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "MR-T15",
+      "filter": "a/+",
+      "topic": "a/b/c",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "MR-T16",
+      "filter": "a/b",
+      "topic": "A/b",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "MR-T17",
+      "filter": "a+",
+      "topic": "a+",
+      "filter_valid": false,
+      "topic_valid": false,
+      "matches": false
+    },
+    {
+      "id": "MR-T18",
+      "filter": "a/+x",
+      "topic": "a/x",
+      "filter_valid": false,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "MR-T19",
+      "filter": "a/#",
+      "topic": "a/#",
+      "filter_valid": true,
+      "topic_valid": false,
+      "matches": false
+    },
+    {
+      "id": "MR-T20",
+      "filter": "+/+",
+      "topic": "/finance",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "empty-filter",
+      "filter": "",
+      "topic": "a",
+      "filter_valid": false,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "empty-name",
+      "filter": "#",
+      "topic": "",
+      "filter_valid": true,
+      "topic_valid": false,
+      "matches": false
+    },
+    {
+      "id": "nul-filter",
+      "filter": "a/\u0000",
+      "topic": "a/b",
+      "filter_valid": false,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "nul-name",
+      "filter": "#",
+      "topic": "a/\u0000",
+      "filter_valid": true,
+      "topic_valid": false,
+      "matches": false
+    },
+    {
+      "id": "embedded-hash",
+      "filter": "a/b#",
+      "topic": "a/b",
+      "filter_valid": false,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "hash-followed-by-empty",
+      "filter": "a/#/",
+      "topic": "a/",
+      "filter_valid": false,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "unicode",
+      "filter": "设备/+",
+      "topic": "设备/温度",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "no-normalization",
+      "filter": "é",
+      "topic": "é",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "no-trim",
+      "filter": " a ",
+      "topic": "a",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "spaces",
+      "filter": " a ",
+      "topic": " a ",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "leading-empty",
+      "filter": "/+",
+      "topic": "/",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "trailing-empty",
+      "filter": "a//",
+      "topic": "a//",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "nested-dollar",
+      "filter": "+/+",
+      "topic": "a/$SYS",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "root-plus-dollar",
+      "filter": "+",
+      "topic": "$SYS",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": false
+    },
+    {
+      "id": "literal-colon",
+      "filter": ":",
+      "topic": ":",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "zero-after-empty",
+      "filter": "a//#",
+      "topic": "a/",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "root-dollar",
+      "filter": "$SYS/#",
+      "topic": "$SYS",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "share-literal",
+      "filter": "$share/team/a/+",
+      "topic": "$share/team/a/b",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": true
+    },
+    {
+      "id": "share-no-group",
+      "filter": "$share/team/a/+",
+      "topic": "a/b",
+      "filter_valid": true,
+      "topic_valid": true,
+      "matches": false
+    }
+  ]
+}

@@ -1,0 +1,785 @@
+{
+  "validation_status": "Passed",
+  "overall_status": "Partial",
+  "claim": "Targeted scenario evidence only; mapped clauses are not complete normative conformance approval. Unmapped clauses stay NotRun. Complete F6 remains Partial.",
+  "scenarios": [
+    {
+      "id": "connect-rejection",
+      "status": "Passed",
+      "scope": "Unsupported protocol and empty persistent ID return CONNACK then close; pipelined PUBLISH must not route.",
+      "clauses": [
+        "MQTT-3.1.2-2",
+        "MQTT-3.1.3-8",
+        "MQTT-3.1.4-5",
+        "MQTT-3.2.2-4",
+        "MQTT-3.2.2-5"
+      ],
+      "tests": [
+        "tests::conformance::rejected_connect_does_not_process_pipelined_publication"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "malformed-connect",
+      "status": "Passed",
+      "scope": "Reserved flags, Will flags and missing or unflagged payload fields: close without CONNACK.",
+      "clauses": [
+        "MQTT-3.1.2-3",
+        "MQTT-3.1.2-9",
+        "MQTT-3.1.2-11",
+        "MQTT-3.1.2-13",
+        "MQTT-3.1.2-14",
+        "MQTT-3.1.2-15",
+        "MQTT-3.1.2-18",
+        "MQTT-3.1.2-19",
+        "MQTT-3.1.2-20",
+        "MQTT-3.1.2-21",
+        "MQTT-3.1.2-22",
+        "MQTT-3.1.4-1"
+      ],
+      "tests": [
+        "tests::conformance::malformed_connect_closes_without_connack"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "invalid-packets",
+      "status": "Passed",
+      "scope": "Representative invalid flags, empty filters, invalid QoS/ID/topic UTF8 and first/second CONNECT violations close only offender.",
+      "clauses": [
+        "MQTT-1.5.3-1",
+        "MQTT-1.5.3-2",
+        "MQTT-2.2.2-2",
+        "MQTT-2.3.1-1",
+        "MQTT-3.1.0-1",
+        "MQTT-3.1.0-2",
+        "MQTT-3.8.1-1",
+        "MQTT-3.8.3-3",
+        "MQTT-3-8.3-4",
+        "MQTT-3.10.1-1",
+        "MQTT-3.10.3-2",
+        "MQTT-3.14.1-1",
+        "MQTT-4.7.1-1",
+        "MQTT-4.8.0-1"
+      ],
+      "tests": [
+        "tests::conformance::malformed_packets_and_second_connect_close_only_the_offending_connection"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "subscription-replacement",
+      "status": "Passed",
+      "scope": "Replace QoS, replay retained, exact filter deletion and UNSUBACK even when no filter removed; new live traffic stops after unsubscribe.",
+      "clauses": [
+        "MQTT-3.8.4-1",
+        "MQTT-3.8.4-2",
+        "MQTT-3.8.4-3",
+        "MQTT-3.8.4-6",
+        "MQTT-3.10.4-1",
+        "MQTT-3.10.4-2",
+        "MQTT-3.10.4-4",
+        "MQTT-3.10.4-5",
+        "MQTT-3.10.4-6"
+      ],
+      "tests": [
+        "tests::conformance::replacement_subscription_replays_retained_and_unsubscribe_is_exact"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "response-order",
+      "status": "Passed",
+      "scope": "Pipelined PUBLISH IDs 9,2,7; reversed and duplicate PUBREC with a one-frame control budget; deterministic no-writer-progress fixture.",
+      "clauses": [
+        "MQTT-4.6.0-2",
+        "MQTT-4.6.0-3",
+        "MQTT-4.6.0-4"
+      ],
+      "tests": [
+        "tests::conformance::ack_fifos_preserve_received_order_including_duplicate_pubrec",
+        "state::qos2::tests::queued_pubrec_responses_and_snapshot_keep_release_order_without_reordering_publish"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "ordered-recovery",
+      "status": "Passed",
+      "scope": "Preserve reverse PUBREC order and remaining PUBLISH identifiers/order/DUP across snapshot and actual SQLite restart.",
+      "clauses": [
+        "MQTT-4.4.0-1",
+        "MQTT-4.6.0-1"
+      ],
+      "tests": [
+        "tests::storage::reversed_pubrec_order_survives_sqlite_restart",
+        "state::qos2::tests::queued_pubrec_responses_and_snapshot_keep_release_order_without_reordering_publish"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "identifier-and-unicode",
+      "status": "Passed",
+      "scope": "Accept alphanumeric IDs at every length 1..23 with configured minimum; preserve BOM, Unicode forms, case, spaces and empty levels.",
+      "clauses": [
+        "MQTT-1.5.3-3",
+        "MQTT-3.1.3-5",
+        "MQTT-4.7.3-4"
+      ],
+      "tests": [
+        "tests::conformance::required_client_identifiers_and_opaque_unicode_topics_are_preserved",
+        "tests::conformance::client_id_budget_cannot_exclude_mandatory_23_byte_identifiers"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "qos2-receiver",
+      "status": "Passed",
+      "scope": "Method B duplicate/release/identifier reuse and changed duplicate content: never route accepted QoS2 twice.",
+      "clauses": [
+        "MQTT-4.3.3-2"
+      ],
+      "tests": [
+        "tests::qos2::qos2_incoming_duplicate_release_and_identifier_reuse_route_exactly_once",
+        "tests::qos2::qos2_packet_id_dedup_ignores_changed_payload_and_clean_session_resets_exchange"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "qos2-sender",
+      "status": "Passed",
+      "scope": "Both reconnect phases preserve IDs; wrong ACK/PUBCOMP cannot free pending PUBLISH; window enforces PUBLISH order.",
+      "clauses": [
+        "MQTT-2.3.1-4",
+        "MQTT-4.3.3-1",
+        "MQTT-4.6.0-5",
+        "MQTT-4.6.0-6"
+      ],
+      "tests": [
+        "tests::qos2::qos2_outgoing_reconnect_resumes_publish_or_pubrel_and_wrong_acks_cannot_free_id",
+        "tests::qos2::qos2_reliable_window_preserves_publish_order_and_releases_capacity_only_on_pubcomp"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "qos2-will-retained",
+      "status": "Passed",
+      "scope": "Abrupt-close QoS2 retained Will and late subscriber replay use full outgoing handshake.",
+      "clauses": [
+        "MQTT-3.1.2-8",
+        "MQTT-3.1.2-17"
+      ],
+      "tests": [
+        "tests::qos2::qos2_will_and_retained_replay_use_full_receiver_handshake"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "keepalive-and-fragmentation",
+      "status": "Passed",
+      "scope": "Handshake timeout, keepalive expiration triggers Will, fragmented frames make progress.",
+      "clauses": [
+        "MQTT-3.1.2-24",
+        "MQTT-3.12.4-1"
+      ],
+      "tests": [
+        "tests::handshake_timeout_keepalive_will_and_fragmented_packets"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "will-lifetime",
+      "status": "Passed",
+      "scope": "Abrupt close and takeover publish Will; graceful DISCONNECT removes it.",
+      "clauses": [
+        "MQTT-3.1.2-10",
+        "MQTT-3.1.4-2",
+        "MQTT-3.14.4-3"
+      ],
+      "tests": [
+        "tests::will_on_abrupt_close_and_takeover_but_not_disconnect"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "qos1-reconnect",
+      "status": "Passed",
+      "scope": "Offline reliable messages survive disconnect and retransmit using original IDs and DUP.",
+      "clauses": [
+        "MQTT-3.1.2-4",
+        "MQTT-3.1.2-5"
+      ],
+      "tests": [
+        "tests::offline_qos1_and_inflight_reconnect_keep_packet_id_and_dup"
+      ],
+      "missing_pass_evidence": []
+    }
+  ],
+  "clause_coverage": [
+    {
+      "id": "MQTT-1.5.3-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-1.5.3-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-1.5.3-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-2.2.2-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-2.2.2-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-2.3.1-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-2.3.1-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-2.3.1-3",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-2.3.1-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-2.3.1-5",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-2.3.1-6",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-2.3.1-7",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3-8.3-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.0-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.0-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.2-10",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-11",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-12",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.2-13",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-14",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-15",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-16",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.2-17",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-18",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-19",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-20",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-21",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-22",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-23",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.2-24",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-6",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.2-8",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-9",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.3-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.3-10",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.3-11",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.3-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.3-3",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.3-4",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.3-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.3-6",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.3-7",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.3-8",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.3-9",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.4-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.4-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.4-3",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.4-4",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.1.4-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.1-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.3-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.10.3-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.4-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.4-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.4-3",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.10.4-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.4-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.4-6",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.12.4-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.14.1-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.14.4-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.14.4-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.14.4-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.2.0-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.2.2-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.2.2-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.2.2-3",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.2.2-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.2.2-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.2.2-6",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.1-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.1-10",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.1-11",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.1-12",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.1-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.1-3",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.1-4",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.1-5",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.1-6",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.1-7",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.1-8",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.1-9",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.2-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.2-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.2-3",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.4-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.5-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.3.5-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.6.1-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.8.1-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.3-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.8.3-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.8.3-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.4-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.4-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.4-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.4-4",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.8.4-5",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.8.4-6",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.9.3-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-3.9.3-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-4.1.0-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-4.1.0-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-4.3.1-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-4.3.2-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-4.3.2-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-4.3.3-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.3.3-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.4.0-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.5.0-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-4.5.0-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-4.6.0-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.6.0-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.6.0-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.6.0-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.6.0-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.6.0-6",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.7.1-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.7.1-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-4.7.1-3",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-4.7.2-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-4.7.3-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-4.7.3-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-4.7.3-3",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-4.7.3-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.8.0-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.8.0-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-6.0.0-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-6.0.0-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-6.0.0-3",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-6.0.0-4",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-7.0.0-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-7.0.0-2",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-7.1.1-1",
+      "coverage": "NotRun"
+    },
+    {
+      "id": "MQTT-7.1.2-1",
+      "coverage": "NotRun"
+    }
+  ],
+  "inputs": {
+    "matrix": "contracts/mqtt311.json",
+    "matrix_sha256": "11a21619e24da2afa5123890a445f68a9b777fcc70133440201dc9b52c30e02c",
+    "results": "docs/validation/2026-11-07-f6-conformance/check.log",
+    "results_sha256": "da487ca1b9ca61f1dbd5699a5467b9670787a16c9f9db2e931e0fce40334a244"
+  }
+}

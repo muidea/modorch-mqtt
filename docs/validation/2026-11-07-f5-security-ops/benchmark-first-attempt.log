@@ -1,0 +1,61 @@
+{"clients": 1, "qos": 0, "payload_bytes": 128, "messages_per_client": 20, "messages": 20, "elapsed_seconds": 0.04012643599708099, "messages_per_second": 498.4245299396863, "latency_ms": {"p50": 1.26909, "p95": 5.443398, "p99": 7.036817}, "peak_sampled_broker_rss_kib": 5012, "broker_config": "Benchmark configuration: MqttBrokerConfig { name: \"mqtt-broker\", listener: 127.0.0.1:0, admin: None, tls: None, auth: None, anonymous_access: true, control_subscription_ids: [1, 2, 3], max_connections: 512, max_connections_per_ip: 512, max_connection_attempts_per_ip: 1024, connection_attempt_window: 60s, max_tracked_peer_ips: 1024, max_sessions: 2000, max_packet_bytes: 4096, max_client_id_bytes: 128, handshake_timeout: 5s, write_timeout: 10s, max_subscriptions_per_client: 256, per_client_outbound_queue: 128, max_inflight_per_client: 16, max_offline_messages_per_client: 2048, max_pending_bytes_per_client: 16777216, max_retained_topics: 10000, max_will_records: 500, max_publish_records: 10000, memory_budget_bytes: 268435456 }"}
+{"clients": 1, "qos": 1, "payload_bytes": 128, "messages_per_client": 20, "messages": 20, "elapsed_seconds": 0.054034790002333466, "messages_per_second": 370.13190944456915, "latency_ms": {"p50": 2.098158, "p95": 4.969809, "p99": 5.953194}, "peak_sampled_broker_rss_kib": 5012, "broker_config": "Benchmark configuration: MqttBrokerConfig { name: \"mqtt-broker\", listener: 127.0.0.1:0, admin: None, tls: None, auth: None, anonymous_access: true, control_subscription_ids: [1, 2, 3], max_connections: 512, max_connections_per_ip: 512, max_connection_attempts_per_ip: 1024, connection_attempt_window: 60s, max_tracked_peer_ips: 1024, max_sessions: 2000, max_packet_bytes: 4096, max_client_id_bytes: 128, handshake_timeout: 5s, write_timeout: 10s, max_subscriptions_per_client: 256, per_client_outbound_queue: 128, max_inflight_per_client: 16, max_offline_messages_per_client: 2048, max_pending_bytes_per_client: 16777216, max_retained_topics: 10000, max_will_records: 500, max_publish_records: 10000, memory_budget_bytes: 268435456 }"}
+{"clients": 10, "qos": 0, "payload_bytes": 128, "messages_per_client": 20, "messages": 200, "elapsed_seconds": 0.07112649399641668, "messages_per_second": 2811.891726451129, "latency_ms": {"p50": 2.79446, "p95": 8.459299, "p99": 9.070153}, "peak_sampled_broker_rss_kib": 5532, "broker_config": "Benchmark configuration: MqttBrokerConfig { name: \"mqtt-broker\", listener: 127.0.0.1:0, admin: None, tls: None, auth: None, anonymous_access: true, control_subscription_ids: [1, 2, 3], max_connections: 512, max_connections_per_ip: 512, max_connection_attempts_per_ip: 1024, connection_attempt_window: 60s, max_tracked_peer_ips: 1024, max_sessions: 2000, max_packet_bytes: 4096, max_client_id_bytes: 128, handshake_timeout: 5s, write_timeout: 10s, max_subscriptions_per_client: 256, per_client_outbound_queue: 128, max_inflight_per_client: 16, max_offline_messages_per_client: 2048, max_pending_bytes_per_client: 16777216, max_retained_topics: 10000, max_will_records: 500, max_publish_records: 10000, memory_budget_bytes: 268435456 }"}
+{"clients": 10, "qos": 1, "payload_bytes": 128, "messages_per_client": 20, "messages": 200, "elapsed_seconds": 0.09099136900476879, "messages_per_second": 2198.0106705452267, "latency_ms": {"p50": 3.142354, "p95": 8.477975, "p99": 9.087705}, "peak_sampled_broker_rss_kib": 5704, "broker_config": "Benchmark configuration: MqttBrokerConfig { name: \"mqtt-broker\", listener: 127.0.0.1:0, admin: None, tls: None, auth: None, anonymous_access: true, control_subscription_ids: [1, 2, 3], max_connections: 512, max_connections_per_ip: 512, max_connection_attempts_per_ip: 1024, connection_attempt_window: 60s, max_tracked_peer_ips: 1024, max_sessions: 2000, max_packet_bytes: 4096, max_client_id_bytes: 128, handshake_timeout: 5s, write_timeout: 10s, max_subscriptions_per_client: 256, per_client_outbound_queue: 128, max_inflight_per_client: 16, max_offline_messages_per_client: 2048, max_pending_bytes_per_client: 16777216, max_retained_topics: 10000, max_will_records: 500, max_publish_records: 10000, memory_budget_bytes: 268435456 }"}
+{"clients": 100, "qos": 0, "payload_bytes": 128, "messages_per_client": 20, "messages": 2000, "elapsed_seconds": 0.3088007979968097, "messages_per_second": 6476.6672009075, "latency_ms": {"p50": 14.543502, "p95": 26.619035, "p99": 29.394198}, "peak_sampled_broker_rss_kib": 8168, "broker_config": "Benchmark configuration: MqttBrokerConfig { name: \"mqtt-broker\", listener: 127.0.0.1:0, admin: None, tls: None, auth: None, anonymous_access: true, control_subscription_ids: [1, 2, 3], max_connections: 512, max_connections_per_ip: 512, max_connection_attempts_per_ip: 1024, connection_attempt_window: 60s, max_tracked_peer_ips: 1024, max_sessions: 2000, max_packet_bytes: 4096, max_client_id_bytes: 128, handshake_timeout: 5s, write_timeout: 10s, max_subscriptions_per_client: 256, per_client_outbound_queue: 128, max_inflight_per_client: 16, max_offline_messages_per_client: 2048, max_pending_bytes_per_client: 16777216, max_retained_topics: 10000, max_will_records: 500, max_publish_records: 10000, memory_budget_bytes: 268435456 }"}
+{"clients": 100, "qos": 1, "payload_bytes": 128, "messages_per_client": 20, "messages": 2000, "elapsed_seconds": 0.5915863150003133, "messages_per_second": 3380.7408137879943, "latency_ms": {"p50": 24.761119, "p95": 65.526378, "p99": 79.734673}, "peak_sampled_broker_rss_kib": 8136, "broker_config": "Benchmark configuration: MqttBrokerConfig { name: \"mqtt-broker\", listener: 127.0.0.1:0, admin: None, tls: None, auth: None, anonymous_access: true, control_subscription_ids: [1, 2, 3], max_connections: 512, max_connections_per_ip: 512, max_connection_attempts_per_ip: 1024, connection_attempt_window: 60s, max_tracked_peer_ips: 1024, max_sessions: 2000, max_packet_bytes: 4096, max_client_id_bytes: 128, handshake_timeout: 5s, write_timeout: 10s, max_subscriptions_per_client: 256, per_client_outbound_queue: 128, max_inflight_per_client: 16, max_offline_messages_per_client: 2048, max_pending_bytes_per_client: 16777216, max_retained_topics: 10000, max_will_records: 500, max_publish_records: 10000, memory_budget_bytes: 268435456 }"}
+Traceback (most recent call last):
+  File "/home/rangh/aispace/modorch-mqtt/scripts/benchmark.py", line 83, in scenario
+    connected = await asyncio.wait_for(asyncio.gather(*(connect(i) for i in range(count))), 30)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/tasks.py", line 520, in wait_for
+    return await fut
+           ^^^^^^^^^
+  File "/home/rangh/aispace/modorch-mqtt/scripts/benchmark.py", line 76, in connect
+    assert await receive(reader) == (0x20, b"\x00\x00")
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rangh/aispace/modorch-mqtt/scripts/benchmark.py", line 40, in receive
+    header = (await reader.readexactly(1))[0]
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/streams.py", line 750, in readexactly
+    raise exceptions.IncompleteReadError(incomplete, n)
+asyncio.exceptions.IncompleteReadError: 0 bytes read on a total of 1 expected bytes
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/rangh/aispace/modorch-mqtt/scripts/benchmark.py", line 176, in main
+    result = await scenario(binary, count, qos, args.messages, args.payload_bytes)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/rangh/aispace/modorch-mqtt/scripts/benchmark.py", line 144, in scenario
+    await writer.wait_closed()
+  File "/usr/lib/python3.12/asyncio/streams.py", line 364, in wait_closed
+    await self._protocol._get_close_waiter(self)
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/rangh/aispace/modorch-mqtt/scripts/benchmark.py", line 192, in <module>
+    asyncio.run(main(arguments))
+  File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 123, in run
+    raise KeyboardInterrupt()
+KeyboardInterrupt
+Exception ignored in: <function BaseSubprocessTransport.__del__ at 0x700a9e6611c0>
+Traceback (most recent call last):
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 126, in __del__
+  File "/usr/lib/python3.12/asyncio/base_subprocess.py", line 104, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 568, in close
+  File "/usr/lib/python3.12/asyncio/unix_events.py", line 592, in _close
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 795, in call_soon
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 541, in _check_closed
+RuntimeError: Event loop is closed

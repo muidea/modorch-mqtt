@@ -1,0 +1,66 @@
+name: Experimental broker checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchains
+        run: |
+          rustup toolchain install stable --profile minimal --component rustfmt --component clippy
+          rustup default stable
+          rustup toolchain install 1.85.0 --profile minimal
+      - name: Fetch locked dependencies
+        run: cargo fetch --locked
+      - name: Check pinned Modorch identity
+        run: |
+          mkdir -p validation
+          python3 .agents/skills/modorch-module-development/scripts/preflight.py --manifest-path Cargo.toml > validation/framework-preflight.json
+      - name: Verify workspace and recovery
+        shell: bash
+        env:
+          CARGO_NET_OFFLINE: "true"
+        run: |
+          set -o pipefail
+          ./scripts/check.sh 2>&1 | tee validation/check.log
+      - name: Verify MSRV and default feature boundary
+        env:
+          CARGO_NET_OFFLINE: "true"
+        run: |
+          cargo +1.85.0 check --workspace --all-targets --all-features --locked
+          cargo check -p modorch-mqtt --no-default-features --locked
+          cargo test -p modorch-mqtt --no-default-features --features toml --test config --locked
+      - name: Verify independent Paho clients
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --locked -p standalone-broker -p secure-modorch-server
+          python3 -m venv validation/interop-venv
+          validation/interop-venv/bin/pip install -r scripts/requirements-interop.txt
+          validation/interop-venv/bin/python scripts/verify-paho.py 2>&1 | tee validation/paho.log
+          validation/interop-venv/bin/python scripts/verify-paho-tls.py 2>&1 | tee validation/paho-tls.log
+          cargo build --locked -p standalone-broker --features modorch-mqtt/mqtt5,modorch-mqtt/websocket
+          validation/interop-venv/bin/python scripts/verify-paho5.py 2>&1 | tee validation/paho5.log
+      - name: Record targeted conformance
+        run: python3 scripts/check-conformance.py --results validation/check.log --output validation/scenarios.json
+      - name: Record unapproved release inventory
+        run: |
+          python3 scripts/check-release.py --prepare --producer github-ci --results validation/check.log --bundle validation/release-plan.json
+          python3 scripts/check-release.py --bundle validation/release-plan.json --output validation/release.json --allow-partial
+      - name: Archive executed evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-validation
+          path: |
+            validation/*.json
+            validation/*.log

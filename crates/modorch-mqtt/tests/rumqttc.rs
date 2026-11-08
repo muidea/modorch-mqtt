@@ -5,7 +5,7 @@ use rumqttc::{AsyncClient, Event, Incoming, MqttOptions, QoS};
 use std::time::Duration;
 
 #[tokio::test]
-async fn rumqttc_qos0_qos1_retained_self_delivery_and_graceful_stop() {
+async fn rumqttc_qos0_qos1_qos2_retained_self_delivery_and_graceful_stop() {
     let config = MqttBrokerConfig {
         listener: "127.0.0.1:0".parse().unwrap(),
         ..MqttBrokerConfig::loopback_development()
@@ -31,10 +31,12 @@ async fn rumqttc_qos0_qos1_retained_self_delivery_and_graceful_stop() {
     options.set_clean_session(false);
     let (client, mut events) = AsyncClient::new(options, 16);
     client
-        .subscribe("interop/+", QoS::AtLeastOnce)
+        .subscribe("interop/+", QoS::ExactlyOnce)
         .await
         .unwrap();
     let mut received = Vec::new();
+    let mut published_qos2 = false;
+    let mut completed_qos2 = false;
     tokio::time::timeout(Duration::from_secs(5), async {
         loop {
             match events.poll().await.unwrap() {
@@ -47,14 +49,20 @@ async fn rumqttc_qos0_qos1_retained_self_delivery_and_graceful_stop() {
                         .publish("interop/qos1", QoS::AtLeastOnce, true, "one")
                         .await
                         .unwrap();
+                    client
+                        .publish("interop/qos2", QoS::ExactlyOnce, false, "two")
+                        .await
+                        .unwrap();
                 }
                 Event::Incoming(Incoming::Publish(message)) => {
                     received.push((message.topic, message.payload.to_vec()));
-                    if received.len() == 2 {
-                        break;
-                    }
                 }
+                Event::Incoming(Incoming::PubComp(_)) => published_qos2 = true,
+                Event::Outgoing(rumqttc::Outgoing::PubComp(_)) => completed_qos2 = true,
                 _ => {}
+            }
+            if received.len() == 3 && published_qos2 && completed_qos2 {
+                break;
             }
         }
     })
@@ -65,7 +73,8 @@ async fn rumqttc_qos0_qos1_retained_self_delivery_and_graceful_stop() {
         received,
         [
             ("interop/qos0".into(), b"zero".to_vec()),
-            ("interop/qos1".into(), b"one".to_vec())
+            ("interop/qos1".into(), b"one".to_vec()),
+            ("interop/qos2".into(), b"two".to_vec())
         ]
     );
     assert_eq!(registered.handle().status().retained, 1);

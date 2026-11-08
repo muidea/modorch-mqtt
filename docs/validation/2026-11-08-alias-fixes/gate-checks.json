@@ -1,0 +1,51 @@
+[
+  {
+    "command": "python3 scripts/check-project.py",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "status": "Passed",
+    "evidence": "docs/validation/2026-11-08-alias-fixes/project-final.log"
+  },
+  {
+    "command": "python3 scripts/check-feature-evidence.py --results docs/validation/2026-11-08-alias-fixes/check-final.log --output docs/validation/2026-11-08-alias-fixes/optional.json",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "status": "Passed",
+    "evidence": "docs/validation/2026-11-08-alias-fixes/optional.log"
+  },
+  {
+    "command": "python3 scripts/check-conformance.py --results docs/validation/2026-11-08-alias-fixes/check-final.log --output docs/validation/2026-11-08-alias-fixes/scenarios.json",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "status": "Passed",
+    "evidence": "docs/validation/2026-11-08-alias-fixes/scenarios.log"
+  },
+  {
+    "command": "python3 scripts/check-release.py --prepare --results docs/validation/2026-11-08-alias-fixes/check-final.log --bundle docs/validation/2026-11-08-alias-fixes/release-plan.json",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "status": "Passed",
+    "evidence": "docs/validation/2026-11-08-alias-fixes/release-prepare.log"
+  },
+  {
+    "command": "python3 scripts/check-release.py --bundle docs/validation/2026-11-08-alias-fixes/release-plan.json --output docs/validation/2026-11-08-alias-fixes/release-development.json --allow-partial",
+    "exit_code": 0,
+    "expected_exit_code": 0,
+    "status": "Passed",
+    "evidence": "docs/validation/2026-11-08-alias-fixes/release-development.log"
+  },
+  {
+    "command": "python3 scripts/check-release.py --bundle docs/validation/2026-11-08-alias-fixes/release-plan.json --output docs/validation/2026-11-08-alias-fixes/release.json",
+    "exit_code": 1,
+    "expected_exit_code": 1,
+    "status": "Passed",
+    "evidence": "docs/validation/2026-11-08-alias-fixes/release-strict.log"
+  },
+  {
+    "command": "python3 scripts/check-conformance.py --results docs/validation/2026-11-08-alias-fixes/check-final.log --output docs/validation/2026-11-08-alias-fixes/complete-conformance.json --require-complete",
+    "exit_code": 1,
+    "expected_exit_code": 1,
+    "status": "Passed",
+    "evidence": "docs/validation/2026-11-08-alias-fixes/complete-conformance.log"
+  }
+]

@@ -1,0 +1,100 @@
+{
+  "result": {
+    "task": "根据设计复核剩余遗留项，确认组合边界反例并更新待办；不修改产品代码",
+    "framework_version": "0.0.3",
+    "skill": "modorch-module-development",
+    "skill_revision": "1.0.7",
+    "changed_files": [
+      "docs/modorch_mqtt_broker_full_design_0.0.3.md",
+      "docs/remaining-work.md",
+      "docs/validation/2026-11-08-followup-audit/README.md",
+      "docs/validation/2026-11-08-followup-audit/framework-preflight.json",
+      "docs/validation/2026-11-08-followup-audit/mixed-version-final.log",
+      "docs/validation/2026-11-08-followup-audit/mixed-version-initial.log",
+      "docs/validation/2026-11-08-followup-audit/mixed-version-retry.log",
+      "docs/validation/2026-11-08-followup-audit/mixed-version.log",
+      "docs/validation/2026-11-08-followup-audit/mqtt-v5.0-os.html",
+      "docs/validation/2026-11-08-followup-audit/mqtt5-text.txt",
+      "docs/validation/2026-11-08-followup-audit/no-local-final.log",
+      "docs/validation/2026-11-08-followup-audit/no-local.log",
+      "docs/validation/2026-11-08-followup-audit/no-local.py",
+      "docs/validation/2026-11-08-followup-audit/normative-quotes.json",
+      "docs/validation/2026-11-08-followup-audit/packet-boundary-final.log",
+      "docs/validation/2026-11-08-followup-audit/packet-boundary.log",
+      "docs/validation/2026-11-08-followup-audit/prior-verification.json",
+      "docs/validation/2026-11-08-followup-audit/probe/Cargo.lock",
+      "docs/validation/2026-11-08-followup-audit/probe/Cargo.toml",
+      "docs/validation/2026-11-08-followup-audit/probe/src/main.rs",
+      "docs/validation/2026-11-08-followup-audit/source-hashes.json",
+      "docs/validation/2026-11-08-followup-audit/standalone-build.log"
+    ],
+    "validation": [
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo python3 .agents/skills/modorch-module-development/scripts/preflight.py --manifest-path Cargo.toml",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-followup-audit/framework-preflight.json"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_INCREMENTAL=0 cargo build -p standalone-broker --features modorch-mqtt/mqtt5,modorch-mqtt/websocket --locked --offline",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-followup-audit/standalone-build.log"
+      },
+      {
+        "command": "python3 docs/validation/2026-11-08-followup-audit/no-local.py (exit 0 means defect reproduced)",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-followup-audit/no-local-final.log"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_INCREMENTAL=0 CARGO_TARGET_DIR=$PWD/target cargo run --offline --locked --manifest-path docs/validation/2026-11-08-followup-audit/probe/Cargo.toml (exit 0 means defect reproduced)",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-followup-audit/mixed-version-final.log"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_INCREMENTAL=0 CARGO_TARGET_DIR=$PWD/target cargo run --offline --locked --manifest-path docs/validation/2026-11-08-followup-audit/probe/Cargo.toml -- packet-boundary (exit 0 means defect reproduced)",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-followup-audit/packet-boundary-final.log"
+      }
+    ],
+    "contract_checks": [
+      {
+        "rule_id": "R-05",
+        "status": "Failed",
+        "evidence": "mixed-version-final.log：接续成功后的SQLite快照无法恢复，启动补偿完成"
+      },
+      {
+        "rule_id": "R-06",
+        "status": "Failed",
+        "evidence": "packet-boundary-final.log：8192字节3.1.1保留消息已确认落盘但恢复失败；8191字节对照恢复成功"
+      },
+      {
+        "rule_id": "R-07 / MQTT-3.8.3-3",
+        "status": "Failed",
+        "evidence": "no-local-final.log及normative-quotes.json：自身Retained回放不遵守No Local，实时路径与其他ClientID对照正常"
+      },
+      {
+        "rule_id": "PRIOR-EVIDENCE-INTEGRITY",
+        "status": "Passed",
+        "evidence": "prior-verification.json；旧验证材料全部匹配，产品源码未改变"
+      },
+      {
+        "rule_id": "FULL-F6-F7-RELEASE",
+        "status": "NotRun",
+        "evidence": "未执行完整规范及独立发布审查；上轮0/178批准保持历史状态"
+      }
+    ],
+    "limitations": [
+      "主Skill为modorch-mqtt-development1.0.2；遵循支持Module Skill1.0.7结果Schema",
+      "本轮执行定向反例、示例构建和框架预检，未重跑整套check/MSRV/最小Feature",
+      "初始两次混合协议探针未获得成功接续，保留调试失败记录；以final日志为结论依据",
+      "本轮未修复产品、未提交/推送；旧验证目录保持不变"
+    ],
+    "unresolved": [
+      "R-05混合协议Session接续产生不可恢复快照",
+      "R-06混合监听恢复误拒合法3.1.1边界消息",
+      "R-07 No Local未过滤自身Retained回放",
+      "完整F6/F7规范及互操作/故障组合验收",
+      "代表性负载/长期RSS/满载退出恢复SLO、magicCommon消费、远端CI、跨平台/真实断电、独立Agent/安全/性能评审"
+    ],
+    "overall_status": "Partial"
+  }
+}

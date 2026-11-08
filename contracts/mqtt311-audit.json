@@ -1,0 +1,311 @@
+{
+  "version": 1,
+  "source": {
+    "url": "https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html",
+    "sha256": "fc1f493558339850740a57ea19c4b2bdf39db6589edf9a69a984afbec098aa9b",
+    "retrieved": "2026-11-07",
+    "inventory_method": "Distinct MQTT-* identifiers from HTML text; official typo MQTT-3-8.3-4 retained verbatim. Not an exhaustive inventory of unnumbered normative requirements."
+  },
+  "inventory_method": "main-body-p-and-h1-h6-uppercase-normative-without-MQTT-ID-v1",
+  "claim": "Main-body paragraph candidate inventory with manual continuation/role assessment, structural table inventory and bounded transition evidence. This does not certify full MQTT3.1.1.",
+  "unnumbered": [
+    {
+      "id": "UN-001",
+      "source_text": "The key words \"MUST\", \"MUST NOT\", \"REQUIRED\", \"SHALL\", \"SHALL NOT\", \"SHOULD\", \"SHOULD NOT\", \"RECOMMENDED\", \"MAY\", and \"OPTIONAL\" in this specification are to be interpreted as described in IETF RFC 2119 [RFC2119].",
+      "section": "1.2",
+      "role": "Context",
+      "coverage": "Definition",
+      "scope": "RFC2119 keyword interpretation is context; not an independent protocol test.",
+      "tests": []
+    },
+    {
+      "id": "UN-002",
+      "source_text": "3. The Server MAY check that the contents of the CONNECT Packet meet any further restrictions and MAY perform authentication and authorization checks. If any of these checks fail, it SHOULD send an appropriate CONNACK response with a non-zero return code as described in section 3.2 and it MUST close the Network Connection.",
+      "section": "3.1.4",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Authentication/policy rejection sends a standard failure CONNACK then closes; no pipelined publication admitted.",
+      "tests": [
+        "tests::protocol::connect_failure_codes_distinguish_rejected_id_capacity_and_authorization",
+        "tests::conformance::rejected_connect_does_not_process_pipelined_publication"
+      ]
+    },
+    {
+      "id": "UN-003",
+      "source_text": "Byte 1 is the \"Connect Acknowledge Flags\". Bits 7-1 are reserved and MUST be set to 0. Bit 0 (SP1) is the Session Present Flag.",
+      "section": "3.2.2.1",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Reserved CONNACK bits stay zero for new/resumed/clean and rejected sessions.",
+      "tests": [
+        "tests::packet_tables::connack_reserved_flags_are_zero_for_new_resumed_clean_and_rejected_sessions",
+        "connection::tests::connect_failures_use_table31_reasons_and_unknown_failures_have_no_connack"
+      ]
+    },
+    {
+      "id": "UN-004",
+      "source_text": "· MUST assign an unused Packet Identifier each time it has a new Application Message to publish.",
+      "section": "4.3.2",
+      "role": "Both",
+      "coverage": "TargetedEvidence",
+      "scope": "Continuation of numbered group MQTT-4.3.2-1; PacketID allocation/wrap never reuses an outstanding ID.",
+      "tests": [
+        "state::qos2::tests::packet_identifier_wrap_skips_live_qos1_and_qos2_ids_and_reuses_only_completed_ids"
+      ]
+    },
+    {
+      "id": "UN-005",
+      "source_text": "· MUST send a PUBLISH Packet containing this Packet Identifier with QoS=1, DUP=0.",
+      "section": "4.3.2",
+      "role": "Both",
+      "coverage": "TargetedEvidence",
+      "scope": "Continuation of MQTT-4.3.2-1; new QoS1 delivery has own ID and DUP=0.",
+      "tests": [
+        "tests::protocol::publish_qos_matrix_keeps_payload_and_sets_outgoing_dup_independently"
+      ]
+    },
+    {
+      "id": "UN-006",
+      "source_text": "· MUST treat the PUBLISH Packet as “unacknowledged” until it has received the corresponding PUBACK packet from the receiver. See Section 4.4 for a discussion of unacknowledged messages.",
+      "section": "4.3.2",
+      "role": "Both",
+      "coverage": "TargetedEvidence",
+      "scope": "Continuation of MQTT-4.3.2-1; unacknowledged QoS1 survives reconnect with original ID and DUP.",
+      "tests": [
+        "tests::offline_qos1_and_inflight_reconnect_keep_packet_id_and_dup"
+      ]
+    },
+    {
+      "id": "UN-007",
+      "source_text": "A Client MUST follow these rules when implementing the protocol flows defined elsewhere in this chapter:",
+      "section": "4.6",
+      "role": "Client",
+      "coverage": "Context",
+      "scope": "Introduction to the following numbered ordering rules; Server obligation follows in MQTT-4.6.0-6.",
+      "tests": []
+    },
+    {
+      "id": "UN-008",
+      "source_text": "3. It satisfies all of the MUST level requirements in the following chapters that are identified except for those that only apply to the Client:",
+      "section": "7.1.1",
+      "role": "Server",
+      "coverage": "NotRun",
+      "scope": "Aggregate conformance requirement; targeted tests do not prove all MUST obligations or every emitted packet format.",
+      "tests": []
+    },
+    {
+      "id": "UN-009",
+      "source_text": "2. It satisfies all of the MUST level requirements in the following chapters that are identified except for those that only apply to the Server:",
+      "section": "7.1.2",
+      "role": "Client",
+      "coverage": "ClientOnly",
+      "scope": "Client conformance target; the optional experimental Bridge uses MQTT5 clients and is outside the mqtt311-tcp-tls-sqlite release profile. Separate Bridge/client conformance remains unapproved.",
+      "tests": []
+    }
+  ],
+  "structural": [
+    {
+      "id": "TABLE-2.1",
+      "section": "2.2.1",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "All 16 packet types and 16 low-bit combinations validate Server receive direction and actual TCP behavior.",
+      "tests": [
+        "tests::packet_tables::packet_type_direction_and_fixed_flags_cover_all_256_first_bytes",
+        "tests::packet_tables::all_256_fixed_headers_preserve_healthy_connections_and_expected_wire_responses"
+      ]
+    },
+    {
+      "id": "TABLE-2.2",
+      "section": "2.2.2",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "All fixed flags; 256 CONNECT flag bytes and anonymous credential rejection; invalid fixed header rejected before body.",
+      "tests": [
+        "tests::packet_tables::packet_type_direction_and_fixed_flags_cover_all_256_first_bytes",
+        "tests::packet_tables::all_256_connect_flags_validate_payload_presence_and_wire_rejection",
+        "tests::packet_tables::illegal_header_or_impossible_length_closes_without_waiting_for_advertised_body"
+      ]
+    },
+    {
+      "id": "TABLE-2.4",
+      "section": "2.2.3",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Eight encoded length boundaries, incremental headers, overflow/nonminimal rejection and declared budget without huge allocation.",
+      "tests": [
+        "tests::packet_tables::remaining_length_table_boundaries_are_incremental_without_large_allocations"
+      ]
+    },
+    {
+      "id": "TABLE-2.5",
+      "section": "2.3.1",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Every received ID-bearing packet validates IDs0/1/65535; QoS0 binary payload is not consumed as PacketID.",
+      "tests": [
+        "tests::packet_tables::packet_identifier_table_enforces_nonzero_ids_and_qos0_payload_remains_binary"
+      ]
+    },
+    {
+      "id": "TABLE-2.6",
+      "section": "2.4",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Received payload/length layouts and illegal extra payload; SUB/UNSUB require entries.",
+      "tests": [
+        "tests::packet_tables::impossible_packet_lengths_and_non_exact_decoder_inputs_fail_before_body",
+        "tests::packet_tables::all_256_connect_flags_validate_payload_presence_and_wire_rejection",
+        "tests::conformance::malformed_packets_and_second_connect_close_only_the_offending_connection"
+      ]
+    },
+    {
+      "id": "TABLE-3.1",
+      "section": "3.2.2.3",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Implemented rejection reasons and unclassified close; all CONNACK reserved bits including SessionPresent.",
+      "tests": [
+        "tests::packet_tables::connack_reserved_flags_are_zero_for_new_resumed_clean_and_rejected_sessions",
+        "connection::tests::connect_failures_use_table31_reasons_and_unknown_failures_have_no_connack"
+      ]
+    },
+    {
+      "id": "TABLE-3.2",
+      "section": "3.3.1.2",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "All nine publish/subscribe QoS combinations, independent DUP and QoS0 absence of ACK/ID.",
+      "tests": [
+        "tests::protocol::publish_qos_matrix_keeps_payload_and_sets_outgoing_dup_independently"
+      ]
+    },
+    {
+      "id": "TABLE-3.4",
+      "section": "3.3.4",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Received QoS0/1/2 response table and actual TCP exchanges.",
+      "tests": [
+        "tests::packet_tables::all_256_fixed_headers_preserve_healthy_connections_and_expected_wire_responses"
+      ]
+    },
+    {
+      "id": "TABLE-3.3",
+      "section": "3/4",
+      "role": "Context",
+      "coverage": "Informative",
+      "scope": "Explicitly non-normative example; surrounding normative packet/FSM rules remain applicable.",
+      "tests": []
+    },
+    {
+      "id": "TABLE-3.5",
+      "section": "3/4",
+      "role": "Context",
+      "coverage": "Informative",
+      "scope": "Explicitly non-normative example; surrounding normative packet/FSM rules remain applicable.",
+      "tests": []
+    },
+    {
+      "id": "TABLE-3.6",
+      "section": "3/4",
+      "role": "Context",
+      "coverage": "Informative",
+      "scope": "Explicitly non-normative example; surrounding normative packet/FSM rules remain applicable.",
+      "tests": []
+    },
+    {
+      "id": "TABLE-3.7",
+      "section": "3/4",
+      "role": "Context",
+      "coverage": "Informative",
+      "scope": "Explicitly non-normative example; surrounding normative packet/FSM rules remain applicable.",
+      "tests": []
+    },
+    {
+      "id": "FIGURE-4.1",
+      "section": "3/4",
+      "role": "Context",
+      "coverage": "Informative",
+      "scope": "Explicitly non-normative example; surrounding normative packet/FSM rules remain applicable.",
+      "tests": []
+    },
+    {
+      "id": "FIGURE-4.2",
+      "section": "3/4",
+      "role": "Context",
+      "coverage": "Informative",
+      "scope": "Explicitly non-normative example; surrounding normative packet/FSM rules remain applicable.",
+      "tests": []
+    },
+    {
+      "id": "FIGURE-4.3",
+      "section": "3/4",
+      "role": "Context",
+      "coverage": "Informative",
+      "scope": "Explicitly non-normative example; surrounding normative packet/FSM rules remain applicable.",
+      "tests": []
+    },
+    {
+      "id": "FSM-QOS2-SENDER-ACK",
+      "section": "4.3.3/4.4",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Complete 4-state x 3-ACK implementation matrix: empty/queued/await-PUBREC/await-PUBCOMP versus PUBACK/PUBREC/PUBCOMP. Does not prove all network/fault/persistence transitions.",
+      "tests": [
+        "state::qos2::tests::sender_ack_transition_matrix_preserves_phase_and_identifier_ownership"
+      ]
+    },
+    {
+      "id": "FSM-CONNECTION-DEADLINES",
+      "section": "3.1.2.10/3.1.4/4.1",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Bounded fault timings: authorization, gate wait, committed receipt wait, CONNECT timeout, mid-frame backpressure, and checked cancellation. Only KeepAlive is the related normative timeout; handshake/write/identity deadlines are local policies. Not a full FSM cross-product or arbitrary scheduler/storage/platform timing guarantee.",
+      "tests": [
+        "tests::auth::keepalive_and_principal_expiry_close_during_authorization_and_ignore_late_grants",
+        "tests::auth::principal_deadline_preserves_long_lifetimes_and_unlimited_expiry",
+        "tests::storage::keepalive_closes_socket_during_commit_then_drains_without_poison_or_qos2_reroute",
+        "tests::storage::handshake_deadline_during_attach_commit_drains_and_preserves_the_session",
+        "tests::storage::handshake_deadline_while_waiting_for_store_gate_never_attaches_late",
+        "tests::storage::keepalive_while_waiting_for_store_gate_rejects_publish_after_network_close",
+        "tests::storage::tls_keepalive_closes_during_commit_without_canceling_the_durable_promise",
+        "tests::storage::shutdown_closes_socket_and_waits_for_committed_receipt_before_releasing_resources",
+        "connection::tests::stalled_frame_write_expires_despite_incoming_ping_traffic",
+        "connection::tests::partial_publish_write_timeout_preserves_qos1_and_qos2_for_dup_reconnect"
+      ]
+    },
+    {
+      "id": "FSM-COMPLETE",
+      "section": "3/4",
+      "role": "Server",
+      "coverage": "NotRun",
+      "scope": "Complete cross-product of CONNECT/Session/Will/subscription/QoS FSM, fault timing and all outbound packet layouts is not audited by the packet/ACK tables.",
+      "tests": []
+    },
+    {
+      "id": "FSM-SERVER-OUTBOUND",
+      "section": "2/3/4",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Independent literal layout vectors for nine Server output kinds,14 Publish flag/field vectors,16 control replies,12 RL boundary cases and7 CONNACK session/rejection contexts. Real memory TCP/reconnect plus encoding checks; no all-values, all-FSM or storage/TLS/platform approval.",
+      "tests": [
+        "tests::outbound::outgoing_publish_flags_binary_utf8_and_length_boundaries_match_literal_vectors",
+        "tests::outbound::outgoing_control_responses_have_exact_flags_lengths_identifiers_and_codes",
+        "tests::outbound::outgoing_connack_new_resumed_clean_and_rejected_frames_preserve_existing_session",
+        "tests::outbound::outgoing_live_retained_and_reconnected_qos_flows_match_literal_frames",
+        "tests::outbound::outgoing_publish_remaining_lengths_cross_boundaries_on_real_tcp"
+      ]
+    },
+    {
+      "id": "FSM-QOS2-SLOW-CONSUMER",
+      "section": "4.3.3/4.4",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Memory TCP, window1/backlog2, held PUBCOMP: all-target/Retained rejection before PUBREC, no ghost inbound exchange, capacity release and same-ID retry. Bounded correctness fault; not representative performance/long-run/loaded-shutdown approval.",
+      "tests": [
+        "tests::qos2::qos2_slow_consumer_pubcomp_backlog_rejects_atomically_and_same_id_retry_can_commit"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+PASS: Cargo.lock and workspace dependency manifest unchanged from preceding QoS2 evidence
+$ python3 -m py_compile scripts/verify-paho.py scripts/benchmark.py scripts/verify-paho-tls.py scripts/check-conformance.py scripts/verify-storage.py scripts/tests/test_conformance.py
+$ sh -n scripts/check.sh
+$ git diff --check
+$ cargo fmt --all -- --check
+PASS: current Markdown local links
+PASS: SHA256 input inventory (70 source files)

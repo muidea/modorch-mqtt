@@ -1,0 +1,15 @@
+{
+  "commands": [
+    {
+      "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho.py",
+      "exit_code": 0,
+      "evidence": "paho.log"
+    },
+    {
+      "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho-tls.py",
+      "exit_code": 0,
+      "evidence": "paho-tls.log"
+    }
+  ],
+  "diagnostic": "Initial --help discovery used system python and found no paho module; actual verification used the existing isolated venv and passed."
+}

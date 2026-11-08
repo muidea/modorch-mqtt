@@ -1,0 +1,29 @@
+{
+  "commands": [
+    {
+      "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_NET_OFFLINE=true ./scripts/check.sh",
+      "exit_code": 0,
+      "evidence": "check.log"
+    },
+    {
+      "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo cargo +1.85.0 check --workspace --all-targets --all-features --locked --offline",
+      "exit_code": 0,
+      "evidence": "msrv.log"
+    },
+    {
+      "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo cargo check -p modorch-mqtt --no-default-features --locked --offline",
+      "exit_code": 0,
+      "evidence": "default-feature.log"
+    },
+    {
+      "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo cargo test -p modorch-mqtt --no-default-features --features toml --test config --locked --offline",
+      "exit_code": 0,
+      "evidence": "toml-only.log"
+    },
+    {
+      "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo cargo build -p standalone-broker -p secure-modorch-server --locked --offline",
+      "exit_code": 0,
+      "evidence": "interop-build.log"
+    }
+  ]
+}

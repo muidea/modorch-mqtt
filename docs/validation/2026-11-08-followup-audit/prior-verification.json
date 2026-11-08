@@ -1,0 +1,24 @@
+{
+  "prior_source_count": 169,
+  "source_changes": [
+    "docs/modorch_mqtt_broker_full_design_0.0.3.md",
+    "docs/remaining-work.md"
+  ],
+  "historical_evidence": [
+    {
+      "manifest": "docs/validation/2026-11-08-functional/evidence-hashes.json",
+      "matched": 89,
+      "mismatches": []
+    },
+    {
+      "manifest": "docs/validation/2026-11-08-remaining-audit/evidence-hashes.json",
+      "matched": 16,
+      "mismatches": []
+    },
+    {
+      "manifest": "docs/validation/2026-11-08-remaining-fixes/evidence-hashes.json",
+      "matched": 30,
+      "mismatches": []
+    }
+  ]
+}

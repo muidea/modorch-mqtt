@@ -1,0 +1,27 @@
+{
+  "algorithm": "sha256",
+  "files": {
+    "docs/validation/2026-11-08-followup-audit/README.md": "bfe4f80c038cd7c26c8d63848435cf88c3ebc4e6543099ae011911708408de15",
+    "docs/validation/2026-11-08-followup-audit/framework-preflight.json": "689ac1db18b4b611ba8f4eceb8e0a3b0ed11dd4661b2b3a5f3b9c75cc5012d06",
+    "docs/validation/2026-11-08-followup-audit/mixed-version-final.log": "76cb001057fe58483f7b78672eb4eecfadf30961bd53a61aeadb1998f863c5aa",
+    "docs/validation/2026-11-08-followup-audit/mixed-version-initial.log": "079fde98c1c95efe1ecfcf9afad3586fa16156573d08b04d2c557c268e67f3dd",
+    "docs/validation/2026-11-08-followup-audit/mixed-version-retry.log": "c63114df32ecd1144f9c871a01f3120da5f15fb4cf610f04e1e93e8cb945ceba",
+    "docs/validation/2026-11-08-followup-audit/mixed-version.log": "03cb12c3d155cee73dc8ca23a7d4cde5720bcda94704fdda87c4db98982c1c1d",
+    "docs/validation/2026-11-08-followup-audit/mqtt-v5.0-os.html": "41116bcf54bc9b9ee72a425406293efda60fb40741e7d1512b87f51a46fa499c",
+    "docs/validation/2026-11-08-followup-audit/mqtt5-text.txt": "26f169e673afb1b9d7f5ef10051b5be624e47fd3f24f484624cda21703d97f4b",
+    "docs/validation/2026-11-08-followup-audit/no-local-final.log": "26edc9b4dccf35eeb207a2fcb27a1415d4c820bc46152ed918a258056e92efbc",
+    "docs/validation/2026-11-08-followup-audit/no-local.log": "26edc9b4dccf35eeb207a2fcb27a1415d4c820bc46152ed918a258056e92efbc",
+    "docs/validation/2026-11-08-followup-audit/no-local.py": "f349d3a555abc946158949afb84824a5b0c8e408b9f8f33f99e19468c10940b0",
+    "docs/validation/2026-11-08-followup-audit/normative-quotes.json": "d576d8cce6c4d7aa9183d07c0e003cc1a2217ed36b959badddc398957b3f6c02",
+    "docs/validation/2026-11-08-followup-audit/packet-boundary-final.log": "d59a7458fb6ebf25321c427885c39b3dd6f0cbb1be6b02366979ff2887a663bc",
+    "docs/validation/2026-11-08-followup-audit/packet-boundary.log": "2054e9e564d895531aa5f6d4b893d732d074c17c5395788a73b23fe1f6a28ac9",
+    "docs/validation/2026-11-08-followup-audit/prior-verification.json": "678ad453aed45a33d17ba28c311daffb94c1903e4fb10fdbd7ea6406f33beb31",
+    "docs/validation/2026-11-08-followup-audit/probe/Cargo.lock": "bd7c8e9769b7a5c9aae31e5cdc1ec562403cef8bf1b7ad65ba0cff9775e155ee",
+    "docs/validation/2026-11-08-followup-audit/probe/Cargo.toml": "992a4f1579a2ff68844418f5f62c758a80911cc7ce902d9bc4f3b58cad81ceea",
+    "docs/validation/2026-11-08-followup-audit/probe/src/main.rs": "72640a3d2a1efa48a4c8f962fa7307c54bf6b83bf39a886889b6545cc68ea6be",
+    "docs/validation/2026-11-08-followup-audit/report-schema.log": "c801c033ee3f38425810f309fb2951eb2ffc8c2f49a522925d0732dfcd01a6e3",
+    "docs/validation/2026-11-08-followup-audit/result.json": "b2f1d557b4cb0cc1094c14d1ac936c871310ca1bcd24165940d53dde96fc4d0c",
+    "docs/validation/2026-11-08-followup-audit/source-hashes.json": "e1bc398fc664917335c1ae7fc62bc1007950ec2711bd237174633dfe3d2b5429",
+    "docs/validation/2026-11-08-followup-audit/standalone-build.log": "a875fa8f3ff23ed5cb6a54624d0252de9e551b1852175736af2bd39a1fa09e13"
+  }
+}

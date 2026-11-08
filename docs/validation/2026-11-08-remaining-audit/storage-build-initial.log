@@ -1,0 +1,59 @@
+warning: skipping duplicate package `modorch v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch/Cargo.toml
+
+warning: skipping duplicate package `modorch-core v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-core/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-core/Cargo.toml
+
+warning: skipping duplicate package `modorch-eventhub v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-eventhub/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-eventhub/Cargo.toml
+
+warning: skipping duplicate package `modorch-observe v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-observe/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-observe/Cargo.toml
+
+warning: skipping duplicate package `modorch-registry v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-registry/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-registry/Cargo.toml
+
+warning: skipping duplicate package `modorch-runtime v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-runtime/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-runtime/Cargo.toml
+
+warning: skipping duplicate package `modorch-scheduler v0.0.3 (https://github.com/muidea/modorch-rs?rev=336ba20196044e1b81fb2ca297a18b5e258a5800#336ba201)`:
+  /home/rangh/aispace/modorch-rs/crates/modorch-scheduler/Cargo.toml
+in favor of /tmp/modorch-mqtt-storage-cargo/git/checkouts/modorch-rs-88ea8ecaf7cf996d/336ba20/crates/modorch-scheduler/Cargo.toml
+
+     Locking 15 packages to latest Rust 1.94.0 compatible versions
+      Adding ahash v0.8.12
+      Adding cc v1.10.0
+      Adding fallible-iterator v0.3.0
+      Adding fallible-streaming-iterator v0.1.9
+      Adding find-msvc-tools v0.1.15
+      Adding hashbrown v0.14.5
+      Adding hashlink v0.9.1
+      Adding libsqlite3-sys v0.30.1
+      Adding modorch-mqtt-storage v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt-storage)
+      Adding pkg-config v0.3.34
+      Adding rusqlite v0.32.1
+      Adding shlex v2.0.1
+      Adding vcpkg v0.2.15
+      Adding zerocopy v0.8.63
+      Adding zerocopy-derive v0.8.63
+   Compiling modorch-mqtt-storage v0.1.0-alpha.1 (/home/rangh/aispace/modorch-mqtt/crates/modorch-mqtt-storage)
+   Compiling mqtt-bridge-audit-probe v0.0.0 (/home/rangh/aispace/modorch-mqtt/docs/validation/2026-11-08-remaining-audit/bridge-probe)
+error[E0425]: cannot find value `PUBLISH_TOPIC` in this scope
+  --> src/bin/storage.rs:36:13
+   |
+36 |             PUBLISH_TOPIC, Destination::Component(ComponentRef::module("mqtt-broker")),
+   |             ^^^^^^^^^^^^^ not found in this scope
+   |
+help: consider importing this constant
+   |
+ 2 + use modorch_mqtt_core::PUBLISH_TOPIC;
+   |
+
+For more information about this error, try `rustc --explain E0425`.
+error: could not compile `mqtt-bridge-audit-probe` (bin "storage") due to 1 previous error

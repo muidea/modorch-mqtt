@@ -1,0 +1,10 @@
+{
+  "strict-release": {
+    "exit_code": 1,
+    "expected": 1
+  },
+  "require-complete": {
+    "exit_code": 1,
+    "expected": 1
+  }
+}

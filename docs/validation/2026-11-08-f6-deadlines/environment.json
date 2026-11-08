@@ -1,0 +1,9 @@
+{
+  "platform": "Linux-6.18.54.1-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+  "machine": "x86_64",
+  "python": "3.12.3 (main, Mar  3 2026, 12:15:18) [GCC 13.3.0]",
+  "rustc": "rustc 1.94.0 (4a4ef493e 2026-03-02)\nbinary: rustc\ncommit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db\ncommit-date: 2026-03-02\nhost: x86_64-unknown-linux-gnu\nrelease: 1.94.0\nLLVM version: 21.1.8\n",
+  "cargo": "cargo 1.94.0 (85eff7c80 2026-01-15)\n",
+  "baseline_head": "05b4621c810cfeeea68c30adff39b25022e711e3",
+  "prior_inputs": "docs/validation/2026-11-08-f6-packet-audit/source-hashes.json"
+}

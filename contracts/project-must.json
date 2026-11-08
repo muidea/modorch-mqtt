@@ -1,0 +1,418 @@
+{
+  "version": 1,
+  "claim": "All section15 IDs plus CONFIG-001. Test/source links are targeted traces, not full obligation approval. Non-test build/security/platform/performance evidence is required separately.",
+  "obligations": [
+    {
+      "id": "MQTT-ARCH-001",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "已有 Modorch Host 只使用现有 Application、EventHub 和 Scheduler",
+      "tests": [
+        "tests::registration_is_explicit_and_status_uses_the_hosts_hub"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-core/src/lib.rs",
+        "crates/modorch-mqtt-core/src/tests.rs",
+        "crates/modorch-mqtt/src/lib.rs"
+      ]
+    },
+    {
+      "id": "MQTT-ARCH-002",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "Core 与扩展是可选择性启用的标准 Module，Core 不依赖具体实现 crate",
+      "tests": [
+        "tests::registration_is_explicit_and_status_uses_the_hosts_hub",
+        "optional_factories_do_not_enable_themselves_or_export_listeners"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-core/src/lib.rs",
+        "crates/modorch-mqtt-core/src/tests.rs",
+        "crates/modorch-mqtt-extensions/tests/modules.rs",
+        "crates/modorch-mqtt/src/lib.rs"
+      ]
+    },
+    {
+      "id": "MQTT-LIFE-001",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "全体相关 `ready()` 通过后才执行 `listen`；全部入口激活成功后 App 才为 Ready；Shutdown/Restart 无孤儿 Task",
+      "tests": [
+        "tests::all_ready_before_listen_and_listener_spawn_quota_compensates_bound_socket",
+        "tests::storage::shutdown_closes_socket_and_waits_for_committed_receipt_before_releasing_resources"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-core/src/connection.rs",
+        "crates/modorch-mqtt-core/src/lib.rs",
+        "crates/modorch-mqtt-core/src/tests.rs",
+        "crates/modorch-mqtt-core/src/tests/storage.rs"
+      ]
+    },
+    {
+      "id": "MQTT-TOPIC-001",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "Topic Name/Filter 与 OASIS 相符，合法 Topic 超 Hub 本地预算不影响 Client→Client",
+      "tests": [
+        "tests::protocol::maximum_utf8_topic_and_filter_are_supported_as_65535_encoded_bytes",
+        "tests::topic_vectors::shared_topic_vectors_agree_with_codec_and_modorch_facade",
+        "tests::topic_vectors::shared_topic_vectors_drive_real_hub_subscriptions_and_handlers",
+        "tests::topic_vectors::shared_topic_vectors_drive_real_mqtt_validation_and_delivery"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-core/src/codec.rs",
+        "crates/modorch-mqtt-core/src/state.rs",
+        "crates/modorch-mqtt-core/src/tests/protocol.rs",
+        "crates/modorch-mqtt-core/src/tests/topic_vectors.rs"
+      ]
+    },
+    {
+      "id": "MQTT-ROUTE-001",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "Client Session 订阅按客户端维护，不复用组件级去重",
+      "tests": [
+        "tests::protocol::mixed_subscribe_codes_follow_filter_order_and_duplicate_filters_replace_in_sequence",
+        "tests::qos1_overlap_retained_delete_and_unsubscribe"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-core/src/state.rs",
+        "crates/modorch-mqtt-core/src/tests.rs",
+        "crates/modorch-mqtt-core/src/tests/protocol.rs"
+      ]
+    },
+    {
+      "id": "MQTT-EVENT-001",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "inbound 可观察，outbound 必须显式请求；无出网回环",
+      "tests": [
+        "tests::eventhub::control_rejects_spoofed_source_invalid_dtos_and_non_requests_without_restart",
+        "tests::eventhub::inbound_fans_out_typed_events_and_self_subscription_has_no_bridge_loop",
+        "tests::eventhub::outbound_receipts_idempotency_source_isolation_and_frozen_targets"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-core/src/lib.rs",
+        "crates/modorch-mqtt-core/src/state.rs",
+        "crates/modorch-mqtt-core/src/tests/eventhub.rs"
+      ]
+    },
+    {
+      "id": "MQTT-QOS-001",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "QoS0/1 拥有权、ACK、重传、Packet ID 与顺序符合所声明范围",
+      "tests": [
+        "connection::tests::partial_publish_write_timeout_preserves_qos1_and_qos2_for_dup_reconnect",
+        "tests::conformance::ack_fifos_preserve_received_order_including_duplicate_pubrec",
+        "tests::offline_qos1_and_inflight_reconnect_keep_packet_id_and_dup",
+        "tests::outbound::outgoing_connack_new_resumed_clean_and_rejected_frames_preserve_existing_session",
+        "tests::outbound::outgoing_control_responses_have_exact_flags_lengths_identifiers_and_codes",
+        "tests::outbound::outgoing_live_retained_and_reconnected_qos_flows_match_literal_frames",
+        "tests::outbound::outgoing_publish_flags_binary_utf8_and_length_boundaries_match_literal_vectors",
+        "tests::outbound::outgoing_publish_remaining_lengths_cross_boundaries_on_real_tcp",
+        "tests::protocol::publish_qos_matrix_keeps_payload_and_sets_outgoing_dup_independently"
+      ],
+      "sources": [
+        "contracts/mqtt311-outbound.json",
+        "crates/modorch-mqtt-core/src/connection.rs",
+        "crates/modorch-mqtt-core/src/state/qos2.rs",
+        "crates/modorch-mqtt-core/src/tests.rs",
+        "crates/modorch-mqtt-core/src/tests/conformance.rs",
+        "crates/modorch-mqtt-core/src/tests/outbound.rs",
+        "crates/modorch-mqtt-core/src/tests/protocol.rs"
+      ]
+    },
+    {
+      "id": "MQTT-QOS-002",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "只有 QoS2 完整通过才能声明完整 MQTT 3.1.1",
+      "tests": [
+        "connection::tests::partial_publish_write_timeout_preserves_qos1_and_qos2_for_dup_reconnect",
+        "state::qos2::tests::sender_ack_transition_matrix_preserves_phase_and_identifier_ownership",
+        "tests::outbound::outgoing_connack_new_resumed_clean_and_rejected_frames_preserve_existing_session",
+        "tests::outbound::outgoing_control_responses_have_exact_flags_lengths_identifiers_and_codes",
+        "tests::outbound::outgoing_live_retained_and_reconnected_qos_flows_match_literal_frames",
+        "tests::outbound::outgoing_publish_flags_binary_utf8_and_length_boundaries_match_literal_vectors",
+        "tests::outbound::outgoing_publish_remaining_lengths_cross_boundaries_on_real_tcp",
+        "tests::qos2::qos2_incoming_duplicate_release_and_identifier_reuse_route_exactly_once",
+        "tests::qos2::qos2_outgoing_reconnect_resumes_publish_or_pubrel_and_wrong_acks_cannot_free_id",
+        "tests::storage::qos2_each_ack_and_phase_transition_waits_for_durable_confirmation"
+      ],
+      "sources": [
+        "contracts/mqtt311-outbound.json",
+        "crates/modorch-mqtt-core/src/connection.rs",
+        "crates/modorch-mqtt-core/src/state/qos2.rs",
+        "crates/modorch-mqtt-core/src/tests/outbound.rs",
+        "crates/modorch-mqtt-core/src/tests/qos2.rs",
+        "crates/modorch-mqtt-core/src/tests/storage.rs"
+      ]
+    },
+    {
+      "id": "MQTT-STATE-001",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "内存与持久模式恢复保证明确且可测",
+      "tests": [
+        "tests::restart_preserves_memory_sessions_retained_inflight_and_fences_old_generation",
+        "tests::storage::sqlite_restart_restores_offline_routes_retained_and_inflight_before_subscriber_reconnect"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-core/src/persistence.rs",
+        "crates/modorch-mqtt-core/src/state.rs",
+        "crates/modorch-mqtt-core/src/state/snapshot.rs",
+        "crates/modorch-mqtt-core/src/tests.rs",
+        "crates/modorch-mqtt-core/src/tests/storage.rs"
+      ]
+    },
+    {
+      "id": "MQTT-SEC-001",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "非授权连接/Topic 被拒绝，内部控制命名空间不可经网络伪造",
+      "tests": [
+        "tests::auth::authorization_timeout_and_mismatched_grant_never_commit_or_restart_core",
+        "tests::long_topics_qos0_self_echo_and_reserved_namespaces",
+        "tests::tls::public_listener_requires_auth_and_tls_together"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-auth/src/lib.rs",
+        "crates/modorch-mqtt-core/src/auth.rs",
+        "crates/modorch-mqtt-core/src/tests.rs",
+        "crates/modorch-mqtt-core/src/tests/auth.rs",
+        "crates/modorch-mqtt-core/src/tests/tls.rs",
+        "crates/modorch-mqtt-core/src/transport.rs"
+      ]
+    },
+    {
+      "id": "MQTT-BOUND-001",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "所有网络/消息/存储路径有界，慢消费者无无限内存增长",
+      "tests": [
+        "tests::application_isolation_and_memory_quota_release",
+        "tests::auth::peer_ip_handshake_admission_and_backoff_are_bounded_before_authentication",
+        "tests::eventhub::ledger_is_bounded_and_atomic_routing_rejections_are_queryable",
+        "tests::qos2::qos2_slow_consumer_pubcomp_backlog_rejects_atomically_and_same_id_retry_can_commit",
+        "tests::sqlite_capacity_integrity_and_exclusive_database_identity_are_enforced"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-core/src/config.rs",
+        "crates/modorch-mqtt-core/src/state.rs",
+        "crates/modorch-mqtt-core/src/tests.rs",
+        "crates/modorch-mqtt-core/src/tests/auth.rs",
+        "crates/modorch-mqtt-core/src/tests/eventhub.rs",
+        "crates/modorch-mqtt-core/src/tests/qos2.rs",
+        "crates/modorch-mqtt-storage/src/lib.rs"
+      ]
+    },
+    {
+      "id": "MQTT-DOC-001",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "源码、Rustdoc、Contracts、Skill、Feature/能力矩阵一致",
+      "tests": [
+        "every_core_limit_and_millisecond_duration_is_mapped_and_defaults_match_rust"
+      ],
+      "sources": [
+        ".agents/skills/modorch-mqtt-development/SKILL.md",
+        "README.md",
+        "crates/modorch-mqtt/tests/config.rs",
+        "docs/release.md"
+      ]
+    },
+    {
+      "id": "MQTT-LIFE-002",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "活动入口随后发生激活失败，Broker 必须取消任务、释放端口、返回 `ActivateIngress` 根因并按 0.0.3 规则可重试",
+      "tests": [
+        "tests::cancel_start_while_ready_still_completes_owned_compensation",
+        "tests::later_activation_failure_and_listener_quota_release_the_port"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-core/src/connection.rs",
+        "crates/modorch-mqtt-core/src/lib.rs",
+        "crates/modorch-mqtt-core/src/tests.rs"
+      ]
+    },
+    {
+      "id": "MQTT-LIFE-003",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "重建后旧受管 Task/Service 失效；长期 EventHub 句柄不代表 Broker 连接授权，旧连接 epoch 绝不可发送",
+      "tests": [
+        "tests::eventhub::publish_ledger_survives_reconstruction_and_stale_handler_cannot_mutate",
+        "tests::restart_preserves_memory_sessions_retained_inflight_and_fences_old_generation"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-core/src/connection.rs",
+        "crates/modorch-mqtt-core/src/lib.rs",
+        "crates/modorch-mqtt-core/src/tests.rs",
+        "crates/modorch-mqtt-core/src/tests/eventhub.rs"
+      ]
+    },
+    {
+      "id": "MQTT-STATE-002",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "启用 Storage Module 后，在 `activate_ingress` 完成恢复后才 listen；Request 未就绪/超时/不确定状态不可开放",
+      "tests": [
+        "tests::storage::corrupt_recovery_page_and_reduced_budget_never_open_listener_or_discard_committed_data",
+        "tests::storage::handshake_deadline_while_waiting_for_store_gate_never_attaches_late"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-core/src/persistence.rs",
+        "crates/modorch-mqtt-core/src/state.rs",
+        "crates/modorch-mqtt-core/src/state/snapshot.rs",
+        "crates/modorch-mqtt-core/src/tests/storage.rs"
+      ]
+    },
+    {
+      "id": "MQTT-COMPAT-001",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "基线为 Modorch-RS 0.0.3 精确来源，MSRV >=1.85；新库所有目标 crate 解析同一个 Modorch 依赖",
+      "tests": [
+        "configuration_and_registration_never_enable_components_implicitly"
+      ],
+      "sources": [
+        "Cargo.lock",
+        "Cargo.toml",
+        "crates/modorch-mqtt/tests/config.rs"
+      ]
+    },
+    {
+      "id": "MQTT-SEC-002",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "Auth 身份须先通过 ClientID 使用授权及 Core owner 校验才能恢复、接管或清除 Session；跨身份拒绝不修改旧状态，恢复订阅须重新授权",
+      "tests": [
+        "authenticated_owner_cannot_be_taken_over_or_cleared_by_another_identity",
+        "tests::auth::core_enforces_owner_even_when_provider_allows_and_rechecks_recovered_subscriptions",
+        "tests::auth::session_change_during_external_authorization_is_rejected_before_takeover"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-auth/src/lib.rs",
+        "crates/modorch-mqtt-auth/tests/security.rs",
+        "crates/modorch-mqtt-core/src/auth.rs",
+        "crates/modorch-mqtt-core/src/tests/auth.rs",
+        "crates/modorch-mqtt-core/src/transport.rs"
+      ]
+    },
+    {
+      "id": "MQTT-SEC-003",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "Will 在 CONNECT 接受前通过 Topic/保留命名空间、QoS/Retain 和发布 ACL 检查并预留资源；拒绝不安装，已授权触发经统一发布路径且可恢复",
+      "tests": [
+        "will_authorization_precedes_takeover_and_subscription_acl_cannot_be_widened",
+        "tests::storage::durable_owner_and_authorized_will_survive_restart_without_credential_storage"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-auth/src/lib.rs",
+        "crates/modorch-mqtt-auth/tests/security.rs",
+        "crates/modorch-mqtt-core/src/auth.rs",
+        "crates/modorch-mqtt-core/src/tests/storage.rs",
+        "crates/modorch-mqtt-core/src/transport.rs"
+      ]
+    },
+    {
+      "id": "MQTT-STATE-003",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "同一有界快照枚举全部 Session/离线订阅、Retained、QoS、Will 和接纳记录，校验写入 epoch/配额后才开放入口；订阅者重连前即可为其路由",
+      "tests": [
+        "tests::storage::durable_internal_idempotency_and_original_receipt_survive_a_new_application",
+        "tests::storage::qos2_snapshot_restores_both_directions_without_rerouting_and_resumes_pubrel",
+        "tests::storage::sqlite_restart_restores_offline_routes_retained_and_inflight_before_subscriber_reconnect"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-core/src/persistence.rs",
+        "crates/modorch-mqtt-core/src/state.rs",
+        "crates/modorch-mqtt-core/src/state/snapshot.rs",
+        "crates/modorch-mqtt-core/src/tests/storage.rs"
+      ]
+    },
+    {
+      "id": "MQTT-STATE-004",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "同一 Core Factory 的 MemoryStore 跨监督重建及补偿保留，teardown 不清空已接纳状态；不同 Application 独立，新进程/新 Application 不享有内存恢复保证",
+      "tests": [
+        "tests::application_isolation_and_memory_quota_release",
+        "tests::restart_preserves_memory_sessions_retained_inflight_and_fences_old_generation"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-core/src/persistence.rs",
+        "crates/modorch-mqtt-core/src/state.rs",
+        "crates/modorch-mqtt-core/src/state/snapshot.rs",
+        "crates/modorch-mqtt-core/src/tests.rs"
+      ]
+    },
+    {
+      "id": "MQTT-BOUND-002",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "可靠发布先对全部目标预留条数/字节/全局预算，再原子提交；容量不足整次拒绝且不发成功 ACK，无部分扇出和已接纳消息淘汰；不确定重试保留幂等目标集合",
+      "tests": [
+        "tests::eventhub::ledger_reservations_share_global_budget_and_do_not_mutate_on_exhaustion",
+        "tests::qos2::qos2_slow_consumer_pubcomp_backlog_rejects_atomically_and_same_id_retry_can_commit",
+        "tests::saturation_rejects_entire_publish_without_retained_or_partial_delivery",
+        "tests::storage::failed_store_commit_sends_no_ack_or_delivery_and_restart_uses_last_committed_image"
+      ],
+      "sources": [
+        "crates/modorch-mqtt-core/src/config.rs",
+        "crates/modorch-mqtt-core/src/state.rs",
+        "crates/modorch-mqtt-core/src/tests.rs",
+        "crates/modorch-mqtt-core/src/tests/eventhub.rs",
+        "crates/modorch-mqtt-core/src/tests/qos2.rs",
+        "crates/modorch-mqtt-core/src/tests/storage.rs"
+      ]
+    },
+    {
+      "id": "MQTT-CONFIG-001",
+      "level": "MUST",
+      "implementation_status": "Experimental",
+      "coverage": "TargetedEvidence",
+      "scope": "Core TOML严格解析、宿主Provider引用与显式装配；不隐式启用组件。",
+      "tests": [
+        "configuration_and_registration_never_enable_components_implicitly",
+        "every_core_limit_and_millisecond_duration_is_mapped_and_defaults_match_rust",
+        "tls_paths_use_explicit_base_without_reading_files_and_require_feature",
+        "provider_references_require_host_capability_and_do_not_register_factories",
+        "parser_errors_debug_and_size_limit_do_not_echo_source_or_secrets",
+        "strict_schema_rejects_unknown_unsupported_ambiguous_and_unsafe_settings",
+        "enabled_toml_profile_uses_host_hub_and_real_tcp_qos1_then_checked_shutdown",
+        "explicit_host_factories_match_toml_refs_tls_and_prelisten_storage_recovery"
+      ],
+      "sources": [
+        "crates/modorch-mqtt/src/file_config.rs",
+        "crates/modorch-mqtt/tests/config.rs",
+        "examples/standalone-broker/src/main.rs"
+      ]
+    }
+  ]
+}

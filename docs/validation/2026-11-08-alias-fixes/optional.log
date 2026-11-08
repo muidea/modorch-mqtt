@@ -1,0 +1,1 @@
+$ python3 scripts/check-feature-evidence.py --results docs/validation/2026-11-08-alias-fixes/check-final.log --output docs/validation/2026-11-08-alias-fixes/optional.json

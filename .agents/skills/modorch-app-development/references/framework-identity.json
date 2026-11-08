@@ -1,0 +1,59 @@
+{
+  "compatible_versions": [
+    "0.0.3"
+  ],
+  "contracts_revision": "1.2.0",
+  "features": [
+    "default",
+    "runtime",
+    "eventhub",
+    "scheduler",
+    "config-toml",
+    "observability"
+  ],
+  "framework_version": "0.0.3",
+  "hash_algorithm": "sha256(sorted UTF-8 path + NUL + lowercase file sha256 + LF)",
+  "identity": {
+    "files": {
+      "modorch-config/Cargo.toml": "ac64d9635f40fe5d6ec37839d3ccab34585442d19a6a4e1469cd4619f861dad5",
+      "modorch-config/src/lib.rs": "1a4373907de9b058040b7c09f4766b7668bdb04eaa2480512719bd99018439da",
+      "modorch-core/Cargo.toml": "068f2fc96c229303b159347d1d1f95d57babecbca58bfaabc6e51e1b7296f959",
+      "modorch-core/src/failure.rs": "84f02bb8d8a66e38c88bc47c56b0eda83e794f3760c0050910464a8ecb517eab",
+      "modorch-core/src/lib.rs": "e0bc1f51a8d8953c93668f450ad4db20171eca800ea250840f65d36518307083",
+      "modorch-core/src/operation.rs": "e7c6f4254fca497f95f1ec1b588a95fbfbb00a790eac4f9214a6c614b6c26a70",
+      "modorch-eventhub/Cargo.toml": "c0bb9d348adc2ec3d90feb9b6273b75b9915dadfb2bdfb43bada889f7e17ebbc",
+      "modorch-eventhub/src/admission.rs": "0a27cc526d3a1bbf5cc1b31401cda210f12fd1837254fe4aed69946e521d9a57",
+      "modorch-eventhub/src/lanes.rs": "7ed73fac039bfd12d3d5eefd38574dfacf0e5d81044bacf402968f70eceacbf4",
+      "modorch-eventhub/src/lib.rs": "b60bcb9e3f34b94f33f8f6ce2d1cdd3d0485536b75c4ccc250f8ea4a57725dea",
+      "modorch-eventhub/src/limits.rs": "bfab89967159e2efa66d308da8484e19e591e5db126fdebd51b4eb7ca7ea2543",
+      "modorch-eventhub/src/metrics.rs": "b4a44a58c26ba04565879bc1c1ad7c918aea5dd9dbabefa5c917fb70300a2f3e",
+      "modorch-eventhub/src/request.rs": "cce3e4821a1554092943cd88fcbcbdea225d2e6c934bc64b0af4982e184fa6e7",
+      "modorch-eventhub/src/routing.rs": "9d30565e6960d942840ce80498c607cb87b166c3a0234b7355eb21eead40ad3b",
+      "modorch-eventhub/src/topic.rs": "448d7636f3057c0666af43376e01eb9460855b1d814768c947d83eb6949e5f17",
+      "modorch-eventhub/src/types.rs": "653bf25e075d16ccd45dbe74335cdba55e3037aef04dbd01118bb22bdd79e054",
+      "modorch-eventhub/src/waitgraph.rs": "1f91caadca46ef7bb1a45475342fd6c8cc7f96ce87939cac9bb9f3438e46bfd2",
+      "modorch-eventhub/src/workers.rs": "5f52494fb51e7d642b59ca732bb657fd5d508427eeb4f8097ece8c1e7dabd9ef",
+      "modorch-observe/Cargo.toml": "3f4077684d7dc1dd0addb39cf723f23b38b843ae30ba634d8238eb529659b003",
+      "modorch-observe/src/lib.rs": "0ca127f2d1afd8b71dc198221da7107d4703761dd34e85e88e07545da9056592",
+      "modorch-registry/Cargo.toml": "c8cf97ec3440af80b3cf48607b3934f674aaf357205aab295dc2e8ab27a6aaa6",
+      "modorch-registry/src/lib.rs": "a4993a194c3f0cfd6ccaea222fcc26853a9983e80995dfd126cd84a16d8fd341",
+      "modorch-registry/src/services.rs": "ca6e8ec7709f0c6f290dfcee2703e6f82dbf8348f09faba41b375ac7efc5e7c4",
+      "modorch-runtime/Cargo.toml": "f53fc46daae8085f0b495f2627a176123bc08053beebbb74af7da37ad6651c9d",
+      "modorch-runtime/src/component.rs": "9ac543eaa97e9b72546d259c89f1d30ad95be92a4c888578f1d2f40c8134d2af",
+      "modorch-runtime/src/lib.rs": "962878a54053f6da64e7129b96b300bf4da1d601f91ce7d14675b3614589668f",
+      "modorch-runtime/src/metrics.rs": "bdeb52271ece6a3930b2297c23b20c3d769781d4df15dfdd79f356083342a4fe",
+      "modorch-runtime/src/supervision.rs": "00c5f6c9768410c10f051fa73b142adc580f18eb60eeaeb3234313709dc0d037",
+      "modorch-scheduler/Cargo.toml": "b875c2c0575a3a06f7080720e65bac9a9567e06c4eb26a8a1060b05dfbd94763",
+      "modorch-scheduler/src/blocking.rs": "8648b4dcab441af9972b2822111c6015a25b3587db1fc3b857ce82a64ae92930",
+      "modorch-scheduler/src/lib.rs": "d7a88c46e92c1cb33dcfbd29b572e51a6da7da97242f12d7e7e53f9fdf51c453",
+      "modorch-scheduler/src/resource_metrics.rs": "2291e615485a9f45e2aa065ca8b2b4a8372ffc9927f6768306b5fd39006dee45",
+      "modorch/Cargo.toml": "a212a8daaa6bd80f994317ba44787cad057fe383ef9388259b1ba51e8029ceba",
+      "modorch/src/lib.rs": "4e238a4a19bc1c63d7210c28555ec2d63e7c6795ce32242b5d043ca333c08d79"
+    },
+    "sha256": "3c3ddca614e910cef42cd34800364e2600609821f259c22f3a73f464f49e1971"
+  },
+  "required_features": [
+    "runtime"
+  ],
+  "skill_revision": "1.0.7"
+}

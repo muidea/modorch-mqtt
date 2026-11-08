@@ -1,0 +1,39 @@
+{
+  "project_path": "/home/rangh/aispace/modorch-mqtt",
+  "scope": "project",
+  "skill_count": 3,
+  "items": [
+    {
+      "skill_id": "modorch-app-development",
+      "status": "synced",
+      "legacy_status": "Synced",
+      "reason": "source_and_target_match",
+      "source_repository": "skills-repo",
+      "local_version": "1.0.7",
+      "repo_version": "1.0.7",
+      "local_path": "/home/rangh/aispace/modorch-mqtt/.agents/skills/modorch-app-development/SKILL.md",
+      "repo_path": "/home/rangh/.skill-hub/repositories/skills-repo/skills/modorch-app-development/SKILL.md"
+    },
+    {
+      "skill_id": "modorch-module-development",
+      "status": "synced",
+      "legacy_status": "Synced",
+      "reason": "source_and_target_match",
+      "source_repository": "skills-repo",
+      "local_version": "1.0.7",
+      "repo_version": "1.0.7",
+      "local_path": "/home/rangh/aispace/modorch-mqtt/.agents/skills/modorch-module-development/SKILL.md",
+      "repo_path": "/home/rangh/.skill-hub/repositories/skills-repo/skills/modorch-module-development/SKILL.md"
+    },
+    {
+      "skill_id": "modorch-mqtt-development",
+      "status": "synced",
+      "legacy_status": "Synced",
+      "reason": "source_and_target_match",
+      "local_version": "1.0.0",
+      "repo_version": "1.0.0",
+      "local_path": "/home/rangh/aispace/modorch-mqtt/.agents/skills/modorch-mqtt-development/SKILL.md",
+      "repo_path": "/home/rangh/.skill-hub/repositories/skills-repo/skills/modorch-mqtt-development/SKILL.md"
+    }
+  ]
+}

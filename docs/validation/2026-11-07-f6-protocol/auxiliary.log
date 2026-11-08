@@ -1,0 +1,8 @@
+PASS: Cargo.lock and root dependency manifest unchanged from previous conformance evidence
+$ python3 -m py_compile scripts/verify-paho.py scripts/benchmark.py scripts/verify-paho-tls.py scripts/check-conformance.py scripts/verify-storage.py scripts/tests/test_conformance.py
+$ sh -n scripts/check.sh
+$ git diff --check
+$ cargo fmt --all -- --check
+PASS: current Markdown local links
+PASS: SHA256 input inventory (71 source files)
+PASS: 31 targeted scenario results;128 associated clause IDs;12 NotRun; normative overall Partial

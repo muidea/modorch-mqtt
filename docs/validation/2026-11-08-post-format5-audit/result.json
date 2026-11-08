@@ -1,0 +1,97 @@
+{
+  "result": {
+    "task": "核对format5修复后的剩余遗留项，确认Topic Alias持久恢复反例和Skill格式说明滞后，排除PFI0等价表示疑点",
+    "framework_version": "0.0.3",
+    "skill": "modorch-module-development",
+    "skill_revision": "1.0.7",
+    "changed_files": [
+      "docs/modorch_mqtt_broker_full_design_0.0.3.md",
+      "docs/remaining-work.md",
+      "docs/validation/2026-11-08-post-format5-audit/README.md",
+      "docs/validation/2026-11-08-post-format5-audit/alias-recovery.log",
+      "docs/validation/2026-11-08-post-format5-audit/evidence-hashes.json",
+      "docs/validation/2026-11-08-post-format5-audit/format-indicator-initial.log",
+      "docs/validation/2026-11-08-post-format5-audit/format-indicator.log",
+      "docs/validation/2026-11-08-post-format5-audit/format-indicator.py",
+      "docs/validation/2026-11-08-post-format5-audit/framework-preflight.json",
+      "docs/validation/2026-11-08-post-format5-audit/normative-quotes.json",
+      "docs/validation/2026-11-08-post-format5-audit/prior-verification.json",
+      "docs/validation/2026-11-08-post-format5-audit/probe/Cargo.lock",
+      "docs/validation/2026-11-08-post-format5-audit/probe/Cargo.toml",
+      "docs/validation/2026-11-08-post-format5-audit/probe/src/main.rs",
+      "docs/validation/2026-11-08-post-format5-audit/project-check.log",
+      "docs/validation/2026-11-08-post-format5-audit/report-schema.log",
+      "docs/validation/2026-11-08-post-format5-audit/result.json",
+      "docs/validation/2026-11-08-post-format5-audit/skill-validation.log",
+      "docs/validation/2026-11-08-post-format5-audit/source-hashes.json"
+    ],
+    "validation": [
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo python3 .agents/skills/modorch-module-development/scripts/preflight.py --manifest-path Cargo.toml",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-post-format5-audit/framework-preflight.json"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_INCREMENTAL=0 CARGO_TARGET_DIR=$PWD/target cargo run --locked --offline --manifest-path docs/validation/2026-11-08-post-format5-audit/probe/Cargo.toml (exit 0 means counterexample reproduced)",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-post-format5-audit/alias-recovery.log"
+      },
+      {
+        "command": "python3 docs/validation/2026-11-08-post-format5-audit/format-indicator.py",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-post-format5-audit/format-indicator.log"
+      },
+      {
+        "command": "python3 scripts/check-project.py",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-post-format5-audit/project-check.log"
+      },
+      {
+        "command": "skill-hub validate --pattern modorch-mqtt-development --links",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-post-format5-audit/skill-validation.log"
+      }
+    ],
+    "contract_checks": [
+      {
+        "rule_id": "R-08",
+        "status": "Failed",
+        "evidence": "alias-recovery.log：Alias=1指向1000字节Topic，8191字节QoS1 Retained PUBLISH获PUBACK并存储后重启失败；完整Topic/较小Payload的8188字节对照恢复成功；启动补偿通过"
+      },
+      {
+        "rule_id": "D-01",
+        "status": "Failed",
+        "evidence": ".agents/skills/modorch-mqtt-development/SKILL.md:33,36仍声明format4/读1–3；源码和设计为format5/读1–4；主Skill已启用且框架预检通过"
+      },
+      {
+        "rule_id": "MQTT5-PFI0-EQUIVALENCE",
+        "status": "Passed",
+        "evidence": "format-indicator.log及normative-quotes.json：官方§3.3.2.3.2明确0等价于省略；不登记R-09；缺省和1转发对照通过"
+      },
+      {
+        "rule_id": "HISTORICAL-EVIDENCE",
+        "status": "Passed",
+        "evidence": "prior-verification.json：旧材料89/16/30/22/37份全部匹配，产品源码未修改"
+      },
+      {
+        "rule_id": "FULL-F6-F7-RELEASE",
+        "status": "NotRun",
+        "evidence": "未执行完整规范和独立发布验收；上轮发布0/178批准是历史状态，本轮未创建发布计划"
+      }
+    ],
+    "limitations": [
+      "主Skill为modorch-mqtt-development1.0.2，按支持Module Skill1.0.7 Schema输出",
+      "本轮只修改设计和遗留清单并新增独立审计材料，没有产品代码/Skill修改，没有提交/推送",
+      "未重跑整仓check/MSRV/最小Feature，既有157项命名Rust测试/2个doctest/26项Python测试是原限定范围的历史证据",
+      "PFI探针复用上轮相同产品源码和二进制摘要；官方原文复用上轮已存档下载且核对SHA256",
+      "format-indicator-initial.log中的REPRODUCED R-09初始标签已撤回，最终依据规范等价条款排除，未将其计为功能缺陷"
+    ],
+    "unresolved": [
+      "R-08：Topic Alias展开后的已确认持久消息无法恢复",
+      "D-01：项目主Skill仍宣称旧持久格式，需按托管Skill流程同步",
+      "完整F6/F7独立规范/互操作/故障组合验收",
+      "生产负载/长期RSS/满载退出恢复SLO、magicCommon实际消费、远端CI、跨平台/真实断电及独立Agent/安全/性能评审"
+    ],
+    "overall_status": "Partial"
+  }
+}

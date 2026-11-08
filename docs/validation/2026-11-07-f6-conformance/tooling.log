@@ -1,0 +1,9 @@
+test_empty_ignored_substring_and_failed_results_do_not_count_as_pass (test_conformance.EvidenceTests.test_empty_ignored_substring_and_failed_results_do_not_count_as_pass) ... ok
+test_later_failure_invalidates_earlier_passing_line (test_conformance.EvidenceTests.test_later_failure_invalidates_earlier_passing_line) ... ok
+test_passed_trace_never_upgrades_unmapped_clauses_or_overall_conformance (test_conformance.EvidenceTests.test_passed_trace_never_upgrades_unmapped_clauses_or_overall_conformance) ... ok
+test_unknown_clauses_and_empty_or_duplicate_mappings_are_rejected (test_conformance.EvidenceTests.test_unknown_clauses_and_empty_or_duplicate_mappings_are_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 4 tests in 0.001s
+
+OK

@@ -1,0 +1,12 @@
+$ python3 scripts/check-project.py
+Project deliverables and local links: Passed
+Passed
+$ python3 -m py_compile scripts/check-project.py scripts/check-conformance.py scripts/tests/test_project.py scripts/tests/test_conformance.py
+Passed
+$ sh -n scripts/check.sh
+Passed
+$ git diff --check
+Passed
+Workflow YAML parse/shape: Passed; remote run and actionlint: NotRun
+Independent vector source matches pinned upstream git object SHA256: Passed
+Source hashes: 128 input files (all validation records excluded)

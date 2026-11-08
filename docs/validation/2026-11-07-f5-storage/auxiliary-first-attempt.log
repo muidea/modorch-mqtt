@@ -1,0 +1,5 @@
+$ python3 -m py_compile scripts/verify-paho.py scripts/benchmark.py scripts/verify-paho-tls.py scripts/verify-storage.py
+$ sh -n scripts/check.sh
+$ git diff --check
+docs/modorch_mqtt_broker_full_design_0.0.3.md:3: trailing whitespace.
++> 文档状态：**完整目标设计，已部分实施；当前实现范围见 §18–§20**  

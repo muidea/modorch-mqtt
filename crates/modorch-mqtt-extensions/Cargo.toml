@@ -1,0 +1,24 @@
+[package]
+name = "modorch-mqtt-extensions"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[features]
+default = []
+audit = ["dep:rusqlite"]
+http = ["dep:httparse", "dep:sha2", "dep:serde_json"]
+
+[dependencies]
+rusqlite = { version = "0.32", features = ["bundled"], optional = true }
+httparse = { version = "1.10", optional = true }
+sha2 = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+serde.workspace = true
+modorch.workspace = true
+modorch-mqtt-api.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+modorch-mqtt-core.workspace = true

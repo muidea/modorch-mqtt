@@ -1,0 +1,12 @@
+[package]
+name = "durable-broker"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+modorch.workspace = true
+modorch-mqtt = { workspace = true, features = ["storage"] }
+tokio.workspace = true
+getrandom = "0.3"

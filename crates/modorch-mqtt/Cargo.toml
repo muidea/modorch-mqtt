@@ -5,12 +5,37 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
+[features]
+default = []
+mqtt5 = ["modorch-mqtt-core/mqtt5"]
+bootstrap = []
+bridge = ["mqtt5", "dep:modorch-mqtt-bridge"]
+websocket = ["modorch-mqtt-core/websocket"]
+audit = ["admin", "modorch-mqtt-extensions/audit"]
+http = ["admin", "metrics", "modorch-mqtt-extensions/http"]
+toml = ["dep:serde", "dep:toml"]
+storage = ["dep:modorch-mqtt-storage"]
+auth = ["dep:modorch-mqtt-auth"]
+tls = ["modorch-mqtt-core/tls"]
+admin = ["dep:modorch-mqtt-extensions"]
+metrics = ["dep:modorch-mqtt-extensions"]
+
 [dependencies]
+serde = { workspace = true, optional = true }
+toml = { version = "0.8.23", default-features = false, features = ["parse"], optional = true }
 modorch.workspace = true
 modorch-mqtt-api.workspace = true
 modorch-mqtt-core.workspace = true
+modorch-mqtt-auth = { path = "../modorch-mqtt-auth", optional = true }
+modorch-mqtt-extensions = { path = "../modorch-mqtt-extensions", optional = true }
+
+modorch-mqtt-storage = { path = "../modorch-mqtt-storage", optional = true }
 
 [dev-dependencies]
 tokio.workspace = true
 bytes.workspace = true
 rumqttc = { version = "0.25", default-features = false }
+
+[dependencies.modorch-mqtt-bridge]
+path = "../modorch-mqtt-bridge"
+optional = true

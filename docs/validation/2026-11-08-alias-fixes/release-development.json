@@ -1,0 +1,953 @@
+{
+  "profile": "mqtt311-tcp-tls-sqlite",
+  "source_digest": "e5f79a104d0481668a0ec98efa4c6f626588e0c11756efcc655fd490f8431ca7",
+  "validation_status": "Passed",
+  "overall_status": "Partial",
+  "normative_status": "Partial",
+  "claim": "Local evidence integrity and independently reviewed declared scope; artifact provenance must be trusted separately.",
+  "derived_aggregates": {
+    "UN-008": "NotRun"
+  },
+  "excluded_clauses": {
+    "MQTT-2.3.1-2": {
+      "category": "ClientOnly",
+      "reason": "Client chooses unused Packet IDs; server inheritance is covered by MQTT-2.3.1-4."
+    },
+    "MQTT-3.1.2-23": {
+      "category": "ClientOnly",
+      "reason": "Client sends PINGREQ when no other control packet is sent."
+    },
+    "MQTT-3.1.3-7": {
+      "category": "ClientOnly",
+      "reason": "Client supplying empty ClientID must set CleanSession1; server rejection is covered separately."
+    },
+    "MQTT-3.14.4-1": {
+      "category": "ClientOnly",
+      "reason": "Client closes after sending DISCONNECT; server receiving obligations are in3.14.4-3."
+    },
+    "MQTT-3.14.4-2": {
+      "category": "ClientOnly",
+      "reason": "Client sends no further packets after DISCONNECT."
+    },
+    "MQTT-4.5.0-2": {
+      "category": "ClientOnly",
+      "reason": "Client acknowledges PUBLISH regardless of matching subscriptions."
+    },
+    "MQTT-6.0.0-1": {
+      "category": "OptionalWebSocket",
+      "reason": "WebSocket is implemented as an optional experimental transport; excluded from the mqtt311-tcp-tls-sqlite release profile. Limited evidence is in optional-functional.json; full WebSocket conformance is unapproved."
+    },
+    "MQTT-6.0.0-2": {
+      "category": "OptionalWebSocket",
+      "reason": "WebSocket is implemented as an optional experimental transport; excluded from the mqtt311-tcp-tls-sqlite release profile. Limited evidence is in optional-functional.json; full WebSocket conformance is unapproved."
+    },
+    "MQTT-6.0.0-3": {
+      "category": "OptionalWebSocket",
+      "reason": "WebSocket is implemented as an optional experimental transport; excluded from the mqtt311-tcp-tls-sqlite release profile. Limited evidence is in optional-functional.json; full WebSocket conformance is unapproved."
+    },
+    "MQTT-6.0.0-4": {
+      "category": "OptionalWebSocket",
+      "reason": "WebSocket is implemented as an optional experimental transport; excluded from the mqtt311-tcp-tls-sqlite release profile. Limited evidence is in optional-functional.json; full WebSocket conformance is unapproved."
+    },
+    "MQTT-7.0.0-1": {
+      "category": "ConditionalBridge",
+      "reason": "The optional experimental Bridge uses MQTT5 clients; excluded from this MQTT3.1.1 TCP/TLS/SQLite profile. Separate client/Bridge conformance remains unapproved."
+    },
+    "MQTT-7.1.2-1": {
+      "category": "ClientOnly",
+      "reason": "Conformant Client provides ordered lossless transport; server counterpart7.1.1-1 is mapped."
+    }
+  },
+  "obligations": [
+    {
+      "id": "MQTT-ARCH-001",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-ARCH-002",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-LIFE-001",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-TOPIC-001",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-ROUTE-001",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-EVENT-001",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-QOS-001",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-QOS-002",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-STATE-001",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-SEC-001",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-BOUND-001",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-DOC-001",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-LIFE-002",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-LIFE-003",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-STATE-002",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-COMPAT-001",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-SEC-002",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-SEC-003",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-STATE-003",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-STATE-004",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-BOUND-002",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-CONFIG-001",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-1.5.3-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-1.5.3-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-1.5.3-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-2.2.2-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-2.2.2-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-2.3.1-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-2.3.1-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-2.3.1-4",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-2.3.1-5",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-2.3.1-6",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-2.3.1-7",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3-8.3-4",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.0-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.0-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-10",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-11",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-12",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-13",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-14",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-15",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-16",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-17",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-18",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-19",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-20",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-21",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-22",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-24",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-4",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-5",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-6",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-8",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.2-9",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.3-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.3-10",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.3-11",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.3-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.3-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.3-4",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.3-5",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.3-6",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.3-8",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.3-9",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.4-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.4-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.4-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.4-4",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.1.4-5",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.10.1-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.10.3-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.10.3-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.10.4-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.10.4-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.10.4-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.10.4-4",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.10.4-5",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.10.4-6",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.12.4-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.14.1-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.14.4-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.2.0-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.2.2-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.2.2-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.2.2-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.2.2-4",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.2.2-5",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.2.2-6",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.1-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.1-10",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.1-11",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.1-12",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.1-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.1-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.1-4",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.1-5",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.1-6",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.1-7",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.1-8",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.1-9",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.2-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.2-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.2-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.4-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.5-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.3.5-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.6.1-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.8.1-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.8.3-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.8.3-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.8.3-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.8.4-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.8.4-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.8.4-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.8.4-4",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.8.4-5",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.8.4-6",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.9.3-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-3.9.3-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.1.0-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.1.0-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.3.1-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.3.2-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.3.2-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.3.3-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.3.3-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.4.0-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.5.0-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.6.0-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.6.0-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.6.0-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.6.0-4",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.6.0-5",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.6.0-6",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.7.1-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.7.1-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.7.1-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.7.2-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.7.3-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.7.3-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.7.3-3",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.7.3-4",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.8.0-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-4.8.0-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-7.0.0-2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "MQTT-7.1.1-1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "UN-002",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "UN-003",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "UN-004",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "UN-005",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "UN-006",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "TABLE-2.1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "TABLE-2.2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "TABLE-2.4",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "TABLE-2.5",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "TABLE-2.6",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "TABLE-3.1",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "TABLE-3.2",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "TABLE-3.4",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "FSM-QOS2-SENDER-ACK",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "FSM-CONNECTION-DEADLINES",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "FSM-COMPLETE",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "FSM-SERVER-OUTBOUND",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "FSM-QOS2-SLOW-CONSUMER",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "F8-BUILD",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "F8-COMPAT",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "F8-INTEROP",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "F8-SECURITY",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "F8-PERFORMANCE",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "F8-RECOVERY",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "F8-PLATFORMS",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "F8-TOPIC-CROSSIMPL",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "F8-REMOTE-CI",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    },
+    {
+      "id": "F8-INDEPENDENT-AGENT",
+      "status": "NotRun",
+      "reason": "independent obligation review missing"
+    }
+  ]
+}

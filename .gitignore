@@ -1,3 +1,14 @@
 /target/
 __pycache__/
 *.pyc
+
+# Local client environment and CI output (committed evidence lives in docs/validation/).
+/.venv/
+/validation/
+/.env
+
+# Local SQLite files at the repository root, including transaction sidecars.
+/*.sqlite
+/*.sqlite-journal
+/*.sqlite-wal
+/*.sqlite-shm

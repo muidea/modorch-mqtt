@@ -1,0 +1,243 @@
+{
+  "result": {
+    "task": "按核对结果收口R-08 Topic Alias展开后的持久恢复及D-01 Skill说明滞后；不升级完整发布批准",
+    "framework_version": "0.0.3",
+    "skill": "modorch-module-development",
+    "skill_revision": "1.0.7",
+    "changed_files": [
+      ".agents/skills/modorch-mqtt-development/SKILL.md",
+      "README.md",
+      "contracts/README.md",
+      "contracts/mqtt311.json",
+      "contracts/optional-functional.json",
+      "crates/modorch-mqtt-core/src/codec.rs",
+      "crates/modorch-mqtt-core/src/mqtt5.rs",
+      "crates/modorch-mqtt-core/src/state.rs",
+      "crates/modorch-mqtt-core/src/state/snapshot.rs",
+      "crates/modorch-mqtt-core/src/tests/mqtt5.rs",
+      "crates/modorch-mqtt-core/src/tests/outbound.rs",
+      "crates/modorch-mqtt-core/src/tests/storage.rs",
+      "docs/modorch_mqtt_broker_full_design_0.0.3.md",
+      "docs/optional-features.md",
+      "docs/remaining-work.md",
+      "docs/storage.md",
+      "docs/validation/2026-11-08-alias-fixes/README.md",
+      "docs/validation/2026-11-08-alias-fixes/alias-probe.log",
+      "docs/validation/2026-11-08-alias-fixes/check-final.log",
+      "docs/validation/2026-11-08-alias-fixes/check-initial-links.log",
+      "docs/validation/2026-11-08-alias-fixes/compatibility.json",
+      "docs/validation/2026-11-08-alias-fixes/complete-conformance.json",
+      "docs/validation/2026-11-08-alias-fixes/complete-conformance.log",
+      "docs/validation/2026-11-08-alias-fixes/default-features.log",
+      "docs/validation/2026-11-08-alias-fixes/evidence-hashes.json",
+      "docs/validation/2026-11-08-alias-fixes/final-integrity.json",
+      "docs/validation/2026-11-08-alias-fixes/framework-preflight.json",
+      "docs/validation/2026-11-08-alias-fixes/gate-checks.json",
+      "docs/validation/2026-11-08-alias-fixes/mqtt5-build.log",
+      "docs/validation/2026-11-08-alias-fixes/msrv.log",
+      "docs/validation/2026-11-08-alias-fixes/optional.json",
+      "docs/validation/2026-11-08-alias-fixes/optional.log",
+      "docs/validation/2026-11-08-alias-fixes/paho-tls.log",
+      "docs/validation/2026-11-08-alias-fixes/paho.log",
+      "docs/validation/2026-11-08-alias-fixes/paho5.log",
+      "docs/validation/2026-11-08-alias-fixes/prior-verification.json",
+      "docs/validation/2026-11-08-alias-fixes/probe/Cargo.lock",
+      "docs/validation/2026-11-08-alias-fixes/probe/Cargo.toml",
+      "docs/validation/2026-11-08-alias-fixes/probe/src/main.rs",
+      "docs/validation/2026-11-08-alias-fixes/project-final.log",
+      "docs/validation/2026-11-08-alias-fixes/release-development.json",
+      "docs/validation/2026-11-08-alias-fixes/release-development.log",
+      "docs/validation/2026-11-08-alias-fixes/release-plan.json",
+      "docs/validation/2026-11-08-alias-fixes/release-prepare.log",
+      "docs/validation/2026-11-08-alias-fixes/release-strict.log",
+      "docs/validation/2026-11-08-alias-fixes/release.json",
+      "docs/validation/2026-11-08-alias-fixes/report-schema.log",
+      "docs/validation/2026-11-08-alias-fixes/result.json",
+      "docs/validation/2026-11-08-alias-fixes/scenarios.json",
+      "docs/validation/2026-11-08-alias-fixes/scenarios.log",
+      "docs/validation/2026-11-08-alias-fixes/skill-feedback-preview.log",
+      "docs/validation/2026-11-08-alias-fixes/skill-feedback.log",
+      "docs/validation/2026-11-08-alias-fixes/skill-global-before.json",
+      "docs/validation/2026-11-08-alias-fixes/skill-status.json",
+      "docs/validation/2026-11-08-alias-fixes/skill-sync.json",
+      "docs/validation/2026-11-08-alias-fixes/skill-validation.log",
+      "docs/validation/2026-11-08-alias-fixes/source-hashes.json",
+      "docs/validation/2026-11-08-alias-fixes/targeted-backtrace.log",
+      "docs/validation/2026-11-08-alias-fixes/targeted-final.log",
+      "docs/validation/2026-11-08-alias-fixes/targeted-initial.log",
+      "docs/validation/2026-11-08-alias-fixes/targeted.log",
+      "docs/validation/2026-11-08-alias-fixes/toml-only.log"
+    ],
+    "validation": [
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo python3 .agents/skills/modorch-module-development/scripts/preflight.py --manifest-path Cargo.toml",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/framework-preflight.json"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_INCREMENTAL=0 CARGO_NET_OFFLINE=true ./scripts/check.sh",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/check-final.log"
+      },
+      {
+        "command": "cargo +1.85.0 check --workspace --all-targets --all-features --locked --offline",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/msrv.log"
+      },
+      {
+        "command": "cargo check -p modorch-mqtt --no-default-features --locked --offline",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/default-features.log"
+      },
+      {
+        "command": "cargo test -p modorch-mqtt --no-default-features --features toml --test config --locked --offline",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/toml-only.log"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_INCREMENTAL=0 cargo test -p modorch-mqtt-core --all-features --locked --offline alias_",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/targeted-final.log"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_INCREMENTAL=0 CARGO_TARGET_DIR=/home/rangh/aispace/modorch-mqtt/target cargo run --manifest-path docs/validation/2026-11-08-alias-fixes/probe/Cargo.toml --locked --offline",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/alias-probe.log"
+      },
+      {
+        "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho.py",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/paho.log"
+      },
+      {
+        "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho-tls.py",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/paho-tls.log"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_INCREMENTAL=0 cargo build -p standalone-broker --features modorch-mqtt/mqtt5,modorch-mqtt/websocket --locked --offline",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/mqtt5-build.log"
+      },
+      {
+        "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho5.py",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/paho5.log"
+      },
+      {
+        "command": "skill-hub validate --pattern modorch-mqtt-development --links",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/skill-validation.log"
+      },
+      {
+        "command": "skill-hub feedback --pattern modorch-mqtt-development --dry-run",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/skill-feedback-preview.log"
+      },
+      {
+        "command": "skill-hub feedback --pattern modorch-mqtt-development --force",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/skill-feedback.log"
+      },
+      {
+        "command": "skill-hub status --pattern modorch-mqtt-development --json",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/skill-status.json"
+      },
+      {
+        "command": "python3 scripts/check-project.py",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/project-final.log"
+      },
+      {
+        "command": "python3 scripts/check-feature-evidence.py --results docs/validation/2026-11-08-alias-fixes/check-final.log --output docs/validation/2026-11-08-alias-fixes/optional.json",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/optional.log"
+      },
+      {
+        "command": "python3 scripts/check-conformance.py --results docs/validation/2026-11-08-alias-fixes/check-final.log --output docs/validation/2026-11-08-alias-fixes/scenarios.json",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/scenarios.log"
+      },
+      {
+        "command": "python3 scripts/check-release.py --prepare --results docs/validation/2026-11-08-alias-fixes/check-final.log --bundle docs/validation/2026-11-08-alias-fixes/release-plan.json",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/release-prepare.log"
+      },
+      {
+        "command": "python3 scripts/check-release.py --bundle docs/validation/2026-11-08-alias-fixes/release-plan.json --output docs/validation/2026-11-08-alias-fixes/release-development.json --allow-partial",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/release-development.log"
+      },
+      {
+        "command": "严格发布及完整符合性门禁负例：确认两条命令实际均退出1且报告Partial",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/gate-checks.json"
+      }
+    ],
+    "contract_checks": [
+      {
+        "rule_id": "R-08",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/targeted-final.log"
+      },
+      {
+        "rule_id": "R-08-PUBLIC-API-SQLITE",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/alias-probe.log"
+      },
+      {
+        "rule_id": "D-01",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/skill-sync.json"
+      },
+      {
+        "rule_id": "MODORCH-FRAMEWORK-IDENTITY",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/framework-preflight.json"
+      },
+      {
+        "rule_id": "MQTT-BOUND-001/002",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/check-final.log"
+      },
+      {
+        "rule_id": "MQTT-LIFE-001/002",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/check-final.log"
+      },
+      {
+        "rule_id": "MQTT5-TARGETED-SCENARIOS",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/optional.json"
+      },
+      {
+        "rule_id": "HISTORICAL-EVIDENCE-INTEGRITY",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/prior-verification.json"
+      },
+      {
+        "rule_id": "FULL-RELEASE-ACCEPTANCE",
+        "status": "NotRun",
+        "evidence": "docs/validation/2026-11-08-alias-fixes/release.json"
+      }
+    ],
+    "limitations": [
+      "主Skill为modorch-mqtt-development1.0.3；使用skill-hub-skill-authoring1.0.6同步本地归档；框架结果遵循支持Module Skill1.0.7 Schema。",
+      "160项命名Rust测试、2项doctest和26项Python测试通过；限定场景证据不能批准完整F6/F7。",
+      "持久格式仍为5并兼容读1/2/3/4；网络别名推断不用于Will、内部幂等记录或已知Internal Retained。完整Topic/属性仍保存并计入预算。",
+      "恢复成功不表示超下行限额报文可交付。MQTT5完整Topic下行超目标/监听上限丢弃计数；3.1.1保留原连接层超限拒绝；显式提高监听上限后验证交付。",
+      "初始失败测试假设和未创建README时的链接失败日志保留，最终结果对应修复后的实际执行。",
+      "检查中的短loopback负载、Linux SIGKILL和实验凭据/证书不构成生产SLO、硬件断电或平台完整验收。",
+      "严格发布与完整符合性命令实际退出1，门禁负例验证通过不能写作完整符合性通过；独立评审为0/178批准。",
+      "所有历史验证目录保持原摘要；本轮没有提交或远端推送。"
+    ],
+    "unresolved": [
+      "完整F6/F7规范及故障/互操作总矩阵和独立审计。",
+      "生产负载、长期RSS、满载退出/恢复SLO与阈值选定。",
+      "magicCommon消费同一Topic向量的跨实现证据。",
+      "远端CI、跨平台/文件系统、硬件断电及独立Agent/安全/性能/发布评审。"
+    ],
+    "overall_status": "Partial"
+  }
+}

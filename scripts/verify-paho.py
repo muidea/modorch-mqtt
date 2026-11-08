@@ -49,12 +49,12 @@ def main():
         port = int(match.group(1))
         subscriber, subscribed, messages = client(port, "paho-subscriber")
         clients.append(subscriber)
-        subscriber.subscribe("paho/+", qos=1)
-        assert subscribed.get(timeout=5)[0] == 1
+        subscriber.subscribe("paho/+", qos=2)
+        assert subscribed.get(timeout=5)[0] == 2
         publisher, _, _ = client(port, "paho-publisher")
         clients.append(publisher)
-        for qos, payload in [(0, b"zero"), (1, b"one")]:
-            published = publisher.publish("paho/test", payload, qos=qos, retain=qos == 1)
+        for qos, payload in [(0, b"zero"), (1, b"one"), (2, b"two")]:
+            published = publisher.publish("paho/test", payload, qos=qos, retain=qos == 2)
             published.wait_for_publish(timeout=5)
             assert published.is_published()
             message = messages.get(timeout=5)
@@ -63,11 +63,11 @@ def main():
             )
         late, subscriptions, replay = client(port, "paho-late")
         clients.append(late)
-        late.subscribe("paho/+", qos=1)
+        late.subscribe("paho/+", qos=2)
         subscriptions.get(timeout=5)
         retained = replay.get(timeout=5)
-        assert (retained.payload, retained.retain) == (b"one", True)
-        print("PASS: Paho QoS0/QoS1 live delivery, PUBACK and retained replay")
+        assert (retained.payload, retained.retain) == (b"two", True)
+        print("PASS: Paho QoS0/QoS1/QoS2 live delivery, complete publish handshakes and QoS2 retained replay")
     finally:
         for instance in clients:
             instance.disconnect()

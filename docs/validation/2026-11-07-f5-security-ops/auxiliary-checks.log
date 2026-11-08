@@ -1,0 +1,2 @@
+PASS: python3 -m py_compile scripts/*.py
+PASS: git diff --check

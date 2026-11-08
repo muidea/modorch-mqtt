@@ -1,0 +1,189 @@
+{
+  "result": {
+    "task": "继续收口F6：双向QoS2状态机、接收限额、内存/持久恢复、四阶段存储屏障与故障、format2兼容、独立客户端；同步文档。完整设计仍Partial。",
+    "framework_version": "0.0.3 / 336ba20196044e1b81fb2ca297a18b5e258a5800 / Contract1.2.0",
+    "skill": "modorch-module-development",
+    "skill_revision": "1.0.7",
+    "changed_files": [
+      "README.md",
+      "contracts/README.md",
+      "crates/modorch-mqtt-api/src/lib.rs",
+      "crates/modorch-mqtt-auth/tests/security.rs",
+      "crates/modorch-mqtt-core/src/codec.rs",
+      "crates/modorch-mqtt-core/src/config.rs",
+      "crates/modorch-mqtt-core/src/connection.rs",
+      "crates/modorch-mqtt-core/src/lib.rs",
+      "crates/modorch-mqtt-core/src/state.rs",
+      "crates/modorch-mqtt-core/src/state/qos2.rs",
+      "crates/modorch-mqtt-core/src/state/snapshot.rs",
+      "crates/modorch-mqtt-core/src/tests.rs",
+      "crates/modorch-mqtt-core/src/tests/eventhub.rs",
+      "crates/modorch-mqtt-core/src/tests/qos2.rs",
+      "crates/modorch-mqtt-core/src/tests/storage.rs",
+      "crates/modorch-mqtt-extensions/src/metrics.rs",
+      "crates/modorch-mqtt-extensions/tests/modules.rs",
+      "crates/modorch-mqtt/src/lib.rs",
+      "crates/modorch-mqtt/tests/rumqttc.rs",
+      "docs/configuration.md",
+      "docs/eventhub.md",
+      "docs/modorch_mqtt_broker_full_design_0.0.3.md",
+      "docs/qos2.md",
+      "docs/reliability.md",
+      "docs/security-and-operations.md",
+      "docs/storage.md",
+      "docs/validation/2026-11-07-f6-qos2/README.md",
+      "docs/validation/2026-11-07-f6-qos2/auxiliary-checks.log",
+      "docs/validation/2026-11-07-f6-qos2/check-before-packet-id-rule.log",
+      "docs/validation/2026-11-07-f6-qos2/check.log",
+      "docs/validation/2026-11-07-f6-qos2/debug-build.log",
+      "docs/validation/2026-11-07-f6-qos2/environment.json",
+      "docs/validation/2026-11-07-f6-qos2/feature-checks.log",
+      "docs/validation/2026-11-07-f6-qos2/framework-preflight.log",
+      "docs/validation/2026-11-07-f6-qos2/msrv.log",
+      "docs/validation/2026-11-07-f6-qos2/paho-tls.log",
+      "docs/validation/2026-11-07-f6-qos2/paho.log",
+      "docs/validation/2026-11-07-f6-qos2/phase-diagnostic-rerun.log",
+      "docs/validation/2026-11-07-f6-qos2/phase-first-failure.log",
+      "docs/validation/2026-11-07-f6-qos2/report-validation.log",
+      "docs/validation/2026-11-07-f6-qos2/result.json",
+      "docs/validation/2026-11-07-f6-qos2/source-hashes.json",
+      "examples/durable-broker/src/main.rs",
+      "examples/secure-modorch-server/src/main.rs",
+      "examples/standalone-broker/src/main.rs",
+      "scripts/verify-paho-tls.py",
+      "scripts/verify-paho.py",
+      "scripts/verify-storage.py"
+    ],
+    "validation": [
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_NET_OFFLINE=true ./scripts/check.sh",
+        "status": "Passed",
+        "evidence": "check.log: fmt, check/clippy all-targets/all-features, 68 Rust tests + 1 doctest, rustdoc -D warnings, host smoke, build and real process SIGKILL/checked shutdown"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo cargo +1.85.0 check --workspace --all-targets --all-features --locked --offline",
+        "status": "Passed",
+        "evidence": "msrv.log"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo cargo check -p modorch-mqtt --no-default-features [--features storage|auth|tls|admin|metrics] --locked --offline (six variants separately)",
+        "status": "Passed",
+        "evidence": "feature-checks.log"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo python3 /home/rangh/aispace/modorch-rs/.agents/skills/modorch-module-development/scripts/preflight.py --manifest-path Cargo.toml",
+        "status": "Passed",
+        "evidence": "framework-preflight.log"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo cargo build -p standalone-broker -p secure-modorch-server -p durable-broker --locked --offline",
+        "status": "Passed",
+        "evidence": "debug-build.log"
+      },
+      {
+        "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho.py",
+        "status": "Passed",
+        "evidence": "paho.log"
+      },
+      {
+        "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho-tls.py",
+        "status": "Passed",
+        "evidence": "paho-tls.log"
+      },
+      {
+        "command": "python3 -m py_compile scripts/*.py; sh -n scripts/check.sh; git diff --check",
+        "status": "Passed",
+        "evidence": "auxiliary-checks.log"
+      },
+      {
+        "command": "Python inline local Markdown links and source SHA256 inventory validation",
+        "status": "Passed",
+        "evidence": "auxiliary-checks.log; source-hashes.json; environment.json verifies Cargo.lock unchanged"
+      },
+      {
+        "command": "python3 /home/rangh/aispace/modorch-rs/.agents/skills/modorch-module-development/scripts/validate-report.py docs/validation/2026-11-07-f6-qos2/result.json",
+        "status": "Passed",
+        "evidence": "report-validation.log"
+      }
+    ],
+    "contract_checks": [
+      {
+        "rule_id": "MQTT-ARCH-001 / MQTT-COMPAT-001",
+        "status": "Passed",
+        "evidence": "framework-preflight.log; check.log; unchanged dependencies and single pinned Facade, no upstream modifications"
+      },
+      {
+        "rule_id": "MQTT-QOS-001/002 (QoS2 receiver FSM)",
+        "status": "Passed",
+        "evidence": "check.log: qos2_incoming_duplicate_release_and_identifier_reuse_route_exactly_once; qos2_packet_id_dedup_ignores_changed_payload_and_clean_session_resets_exchange; Method B, Packet-ID-only retries per MQTT-4.3.3-2"
+      },
+      {
+        "rule_id": "MQTT-QOS-002 (sender FSM / ordering / Packet ID)",
+        "status": "Passed",
+        "evidence": "check.log: qos2_outgoing_reconnect_resumes_publish_or_pubrel_and_wrong_acks_cannot_free_id; qos2_reliable_window_preserves_publish_order_and_releases_capacity_only_on_pubcomp; codec flags/ID/length validation"
+      },
+      {
+        "rule_id": "MQTT-STATE-002/003 (QoS2 durable subset)",
+        "status": "Passed",
+        "evidence": "check.log: qos2_snapshot_restores_both_directions_without_rerouting_and_resumes_pubrel; real SIGKILL restores receiver record and sender Publish/Release phase"
+      },
+      {
+        "rule_id": "MQTT-STATE-004 (QoS2 memory generation)",
+        "status": "Passed",
+        "evidence": "check.log: qos2_memory_generation_recovery_preserves_receiver_and_sender_phase; supervisor reconstruction plus one activation compensation, stale generation rejected"
+      },
+      {
+        "rule_id": "MQTT-BOUND-001/002 (receiver quota / no premature durable ACK)",
+        "status": "Passed",
+        "evidence": "check.log: qos2_receiver_count_and_byte_limits_reject_before_pubrec_and_resume_after_release; qos2_each_ack_and_phase_transition_waits_for_durable_confirmation; qos2_failed_phase_commits_never_advance_the_wire_or_discard_committed_exchanges"
+      },
+      {
+        "rule_id": "MQTT-SEC-001/003 (QoS2 ACL / Will / retain)",
+        "status": "Passed",
+        "evidence": "check.log: qos2_publish_acl_uses_original_qos_and_retries_do_not_create_another_exchange; qos2_will_and_retained_replay_use_full_receiver_handshake; paho-tls.log"
+      },
+      {
+        "rule_id": "MQTT-EVENT-001 (QoS2 internal publication and observation)",
+        "status": "Passed",
+        "evidence": "check.log: qos2_internal_publication_and_network_duplicate_preserve_single_business_observation"
+      },
+      {
+        "rule_id": "Snapshot format1->format2 compatibility / validation",
+        "status": "Passed",
+        "evidence": "check.log: legacy_snapshot_upgrades_and_invalid_qos2_phase_or_quotas_fail_without_replacing_state; old readers cannot read format2"
+      },
+      {
+        "rule_id": "Independent client QoS2 compatibility",
+        "status": "Passed",
+        "evidence": "check.log: rumqttc_qos0_qos1_qos2_retained_self_delivery_and_graceful_stop waits both directions complete; paho.log; paho-tls.log"
+      },
+      {
+        "rule_id": "Complete MQTT3.1.1 normative conformance / MQTT5 / WebSocket / Bridge",
+        "status": "NotRun",
+        "evidence": "Full normative matrix and later stages are not completed; design §21 retains Partial"
+      },
+      {
+        "rule_id": "Production storage/recovery SLO / hardware power loss / cross-platform / independent Agent / release gates",
+        "status": "NotRun",
+        "evidence": "No new production benchmarks, hardware power-loss tests, additional platforms or independent Agent release evaluation"
+      }
+    ],
+    "limitations": [
+      "Experimental MQTT3.1.1 QoS0/1/2 implementation; core QoS2 tests are not a complete normative conformance matrix or production release approval.",
+      "QoS2 Method B routes at first accepted PUBLISH before PUBREC. Duplicate QoS2 PUBLISH by Packet ID only resends PUBREC; completion frees ID for a new exchange. No cross-system business exactly-once guarantee.",
+      "Receiver record count and bytes are separate quotas, with full original message retained until PUBREL; no eviction/expiry of admitted persistent exchanges. Lower-QoS subscribers and business observations retain their weaker semantics.",
+      "Snapshot format2 reads legacy format1 and upgrades before listen. Old binaries cannot read format2; no in-place downgrade.",
+      "Linux/WSL2 x86_64 only; SIGKILL is not real device power-loss testing. Existing SQLite FULL/DELETE/exclusive full-image and deferred shutdown-Will boundaries remain.",
+      "One early concurrent phase test failed at startup using inherited150ms Request timeout; isolated rerun passed. New phase-correctness fixtures now use2s; existing150ms lost-reply/uncertainty tests remain. Both diagnostic logs retained; final full check passed.",
+      "Store and protocol implementation has no new dependency or framework rev change. Private task Cargo cache used; source hashes capture cumulative uncommitted workspace inputs and exclude evidence directories.",
+      "Metrics fixed-name count grows to36; metrics and Admin audit remain memory-only. No policy/certificate hot reload or encrypted database."
+    ],
+    "unresolved": [
+      "CompleteMQTT3.1.1 normative conformance and broader interoperability/fault matrix.",
+      "F7 MQTT5 properties/reason codes/session and message expiry/receive maximum/shared subscriptions.",
+      "Optional WebSocket and Bridge, production storage throughput/recovery SLO, hardware power-loss, cross-platform and independent Agent/release MUST gates.",
+      "Immediate durable Will publication at host shutdown remains deferred recovery as documented in F5; requires a separate pre-shutdown drain design."
+    ],
+    "overall_status": "Partial"
+  }
+}

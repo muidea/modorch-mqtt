@@ -1,0 +1,139 @@
+{
+  "result": {
+    "task": "按遗留项核对结果修复R-01至R-04并同步可选WebSocket/Bridge契约范围，保留原验证目录",
+    "framework_version": "0.0.3",
+    "skill": "modorch-module-development",
+    "skill_revision": "1.0.7",
+    "changed_files": [
+      "Cargo.lock",
+      "README.md",
+      "contracts/README.md",
+      "contracts/mqtt311-audit.json",
+      "contracts/mqtt311.json",
+      "contracts/optional-functional.json",
+      "crates/modorch-mqtt-api/src/lib.rs",
+      "crates/modorch-mqtt-bridge/Cargo.toml",
+      "crates/modorch-mqtt-bridge/src/lib.rs",
+      "crates/modorch-mqtt-bridge/tests/network.rs",
+      "crates/modorch-mqtt-core/src/mqtt5.rs",
+      "crates/modorch-mqtt-core/src/state.rs",
+      "crates/modorch-mqtt-core/src/state/snapshot.rs",
+      "crates/modorch-mqtt-core/src/tests/mqtt5.rs",
+      "crates/modorch-mqtt-core/src/tests/storage.rs",
+      "docs/modorch_mqtt_broker_full_design_0.0.3.md",
+      "docs/mqtt311-audit.md",
+      "docs/optional-features.md",
+      "docs/remaining-work.md",
+      "docs/storage.md"
+    ],
+    "validation": [
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo python3 .agents/skills/modorch-module-development/scripts/preflight.py --manifest-path Cargo.toml",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/framework-preflight.json"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_INCREMENTAL=0 CARGO_NET_OFFLINE=true ./scripts/check.sh",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/check-final.log"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_INCREMENTAL=0 cargo +1.85.0 check --workspace --all-targets --all-features --locked --offline",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/msrv.log"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_INCREMENTAL=0 cargo check -p modorch-mqtt --no-default-features --locked --offline",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/default-features.log"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_INCREMENTAL=0 cargo test -p modorch-mqtt --no-default-features --features toml --test config --locked --offline",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/toml-only.log"
+      },
+      {
+        "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho.py",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/paho.log"
+      },
+      {
+        "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho-tls.py",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/paho-tls.log"
+      },
+      {
+        "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho5.py",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/paho5.log"
+      },
+      {
+        "command": "python3 scripts/check-feature-evidence.py --results docs/validation/2026-11-08-remaining-fixes/check-final.log --output docs/validation/2026-11-08-remaining-fixes/optional.json",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/optional.json"
+      },
+      {
+        "command": "python3 scripts/check-release.py --bundle docs/validation/2026-11-08-remaining-fixes/release-plan.json --output docs/validation/2026-11-08-remaining-fixes/release-development.json --allow-partial",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/release-development.json"
+      },
+      {
+        "command": "python3 scripts/check-release.py --bundle docs/validation/2026-11-08-remaining-fixes/release-plan.json --output docs/validation/2026-11-08-remaining-fixes/release.json (expected exit 1 while Partial)",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/release.json"
+      },
+      {
+        "command": "python3 scripts/check-conformance.py --results docs/validation/2026-11-08-remaining-fixes/check-final.log --output docs/validation/2026-11-08-remaining-fixes/complete-conformance.json --require-complete (expected exit 1)",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/complete-conformance.json"
+      }
+    ],
+    "contract_checks": [
+      {
+        "rule_id": "R-01",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/check-final.log；限定回归：在线零过期Session接管保留订阅、标识、QoS1原ID/DUP和双向QoS2状态，断开及Clean Start清理正确"
+      },
+      {
+        "rule_id": "R-02",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/check-final.log；限定回归：目标Session丢失重提、恢复沿原ID/DUP、错误ACK拒绝、ACK后EOF及下一消息推进通过"
+      },
+      {
+        "rule_id": "R-03",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/check-final.log；限定回归：两个真实Broker与Bridge的126/127/128普通属性加两保留槽位端到端保留；条数和字节限制有效"
+      },
+      {
+        "rule_id": "R-04",
+        "status": "Passed",
+        "evidence": "docs/validation/2026-11-08-remaining-fixes/check-final.log；限定回归：多记录SQLite重启预算保持、原请求幂等及变更属性冲突；预算/属性/包长异常恢复拒绝"
+      },
+      {
+        "rule_id": "F8-INDEPENDENT-AGENT",
+        "status": "NotRun",
+        "evidence": "未执行独立Agent评审；不使用本轮自测代替"
+      },
+      {
+        "rule_id": "FULL-F6-F7-RELEASE",
+        "status": "NotRun",
+        "evidence": "release.json仍0/178批准；完整规范和生产发布Partial"
+      }
+    ],
+    "limitations": [
+      "项目主Skill为modorch-mqtt-development 1.0.2；按支持Module Skill1.0.7 Schema输出",
+      "151个命名Rust测试、2个doctest和26项Python测试通过，只表示真实执行的限定范围",
+      "7组可选场景的22个精确映射通过；MQTT3.1.1的40组场景仍只为TargetedEvidence",
+      "未运行远端CI、跨平台/文件系统、硬件断电、长期生产负载或独立安全/性能/Agent评审",
+      "所有Feature仍默认关闭；Bridge TCP、单Core单监听及停机Will延迟重启等边界不变",
+      "旧功能89份、旧复核16份材料SHA256保持不变；未提交或推送"
+    ],
+    "unresolved": [
+      "完整F6 MQTT3.1.1和F7 MQTT5独立规范/互操作/故障矩阵",
+      "代表性负载、长期RSS、满载退出/恢复SLO及批准阈值",
+      "magicCommon共享JSON实际消费、远端CI、跨平台/文件系统和硬件断电材料",
+      "独立Agent、安全、性能评审及正式发布义务批准"
+    ],
+    "overall_status": "Partial"
+  }
+}

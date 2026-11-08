@@ -1,0 +1,69 @@
+{
+  "checks": [
+    {
+      "name": "prepare",
+      "command": [
+        "python3",
+        "scripts/check-release.py",
+        "--prepare",
+        "--producer",
+        "local-development-agent",
+        "--results",
+        "docs/validation/2026-11-08-f6-wire-fsm/check.log",
+        "--bundle",
+        "docs/validation/2026-11-08-f6-wire-fsm/release-plan.json"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "status": "Passed",
+      "evidence": "prepare.log"
+    },
+    {
+      "name": "strict-release",
+      "command": [
+        "python3",
+        "scripts/check-release.py",
+        "--bundle",
+        "docs/validation/2026-11-08-f6-wire-fsm/release-plan.json",
+        "--output",
+        "docs/validation/2026-11-08-f6-wire-fsm/release.json"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "status": "Passed",
+      "evidence": "strict-release.log"
+    },
+    {
+      "name": "allow-partial",
+      "command": [
+        "python3",
+        "scripts/check-release.py",
+        "--bundle",
+        "docs/validation/2026-11-08-f6-wire-fsm/release-plan.json",
+        "--output",
+        "docs/validation/2026-11-08-f6-wire-fsm/release-development.json",
+        "--allow-partial"
+      ],
+      "exit_code": 0,
+      "expected_exit_code": 0,
+      "status": "Passed",
+      "evidence": "allow-partial.log"
+    },
+    {
+      "name": "require-complete",
+      "command": [
+        "python3",
+        "scripts/check-conformance.py",
+        "--results",
+        "docs/validation/2026-11-08-f6-wire-fsm/check.log",
+        "--output",
+        "docs/validation/2026-11-08-f6-wire-fsm/complete-conformance.json",
+        "--require-complete"
+      ],
+      "exit_code": 1,
+      "expected_exit_code": 1,
+      "status": "Passed",
+      "evidence": "require-complete.log"
+    }
+  ]
+}

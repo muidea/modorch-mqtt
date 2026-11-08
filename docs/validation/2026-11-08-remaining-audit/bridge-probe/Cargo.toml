@@ -1,0 +1,15 @@
+[package]
+name = "mqtt-bridge-audit-probe"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[workspace]
+
+[dependencies]
+modorch = { git = "https://github.com/muidea/modorch-rs", rev = "336ba20196044e1b81fb2ca297a18b5e258a5800" }
+modorch-mqtt-core = { path = "../../../../crates/modorch-mqtt-core", features = ["mqtt5"] }
+modorch-mqtt-bridge = { path = "../../../../crates/modorch-mqtt-bridge" }
+modorch-mqtt-api = { path = "../../../../crates/modorch-mqtt-api" }
+modorch-mqtt-storage = { path = "../../../../crates/modorch-mqtt-storage" }
+tokio = { version = "1", features = ["full"] }

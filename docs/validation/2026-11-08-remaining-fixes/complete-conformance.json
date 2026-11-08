@@ -1,0 +1,1626 @@
+{
+  "validation_status": "Passed",
+  "overall_status": "Partial",
+  "claim": "Targeted scenario evidence only; mapped clauses are not complete normative conformance approval. Unmapped clauses stay NotRun. Complete F6 remains Partial.",
+  "scenarios": [
+    {
+      "id": "connect-rejection",
+      "status": "Passed",
+      "scope": "Unsupported protocol and empty persistent ID return CONNACK then close; pipelined PUBLISH must not route.",
+      "clauses": [
+        "MQTT-3.1.2-2",
+        "MQTT-3.1.3-8",
+        "MQTT-3.1.4-5",
+        "MQTT-3.2.2-4",
+        "MQTT-3.2.2-5"
+      ],
+      "tests": [
+        "tests::conformance::rejected_connect_does_not_process_pipelined_publication"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "malformed-connect",
+      "status": "Passed",
+      "scope": "Reserved flags, Will flags and missing or unflagged payload fields: close without CONNACK.",
+      "clauses": [
+        "MQTT-3.1.2-3",
+        "MQTT-3.1.2-9",
+        "MQTT-3.1.2-11",
+        "MQTT-3.1.2-13",
+        "MQTT-3.1.2-14",
+        "MQTT-3.1.2-15",
+        "MQTT-3.1.2-18",
+        "MQTT-3.1.2-19",
+        "MQTT-3.1.2-20",
+        "MQTT-3.1.2-21",
+        "MQTT-3.1.2-22",
+        "MQTT-3.1.4-1"
+      ],
+      "tests": [
+        "tests::conformance::malformed_connect_closes_without_connack"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "invalid-packets",
+      "status": "Passed",
+      "scope": "Representative invalid flags, empty filters, invalid QoS/ID/topic UTF8 and first/second CONNECT violations close only offender.",
+      "clauses": [
+        "MQTT-1.5.3-1",
+        "MQTT-1.5.3-2",
+        "MQTT-2.2.2-2",
+        "MQTT-2.3.1-1",
+        "MQTT-3.1.0-1",
+        "MQTT-3.1.0-2",
+        "MQTT-3.8.1-1",
+        "MQTT-3.8.3-3",
+        "MQTT-3-8.3-4",
+        "MQTT-3.10.1-1",
+        "MQTT-3.10.3-2",
+        "MQTT-3.14.1-1",
+        "MQTT-4.7.1-1",
+        "MQTT-4.8.0-1"
+      ],
+      "tests": [
+        "tests::conformance::malformed_packets_and_second_connect_close_only_the_offending_connection"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "subscription-replacement",
+      "status": "Passed",
+      "scope": "Replace QoS, replay retained, exact filter deletion and UNSUBACK even when no filter removed; new live traffic stops after unsubscribe.",
+      "clauses": [
+        "MQTT-3.8.4-1",
+        "MQTT-3.8.4-2",
+        "MQTT-3.8.4-3",
+        "MQTT-3.8.4-6",
+        "MQTT-3.10.4-1",
+        "MQTT-3.10.4-2",
+        "MQTT-3.10.4-4",
+        "MQTT-3.10.4-5",
+        "MQTT-3.10.4-6"
+      ],
+      "tests": [
+        "tests::conformance::replacement_subscription_replays_retained_and_unsubscribe_is_exact"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "response-order",
+      "status": "Passed",
+      "scope": "Pipelined PUBLISH IDs 9,2,7; reversed and duplicate PUBREC with a one-frame control budget; deterministic no-writer-progress fixture.",
+      "clauses": [
+        "MQTT-4.6.0-2",
+        "MQTT-4.6.0-3",
+        "MQTT-4.6.0-4"
+      ],
+      "tests": [
+        "tests::conformance::ack_fifos_preserve_received_order_including_duplicate_pubrec",
+        "state::qos2::tests::queued_pubrec_responses_and_snapshot_keep_release_order_without_reordering_publish"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "ordered-recovery",
+      "status": "Passed",
+      "scope": "Preserve reverse PUBREC order and remaining PUBLISH identifiers/order/DUP across snapshot and actual SQLite restart.",
+      "clauses": [
+        "MQTT-4.4.0-1",
+        "MQTT-4.6.0-1"
+      ],
+      "tests": [
+        "tests::storage::reversed_pubrec_order_survives_sqlite_restart",
+        "state::qos2::tests::queued_pubrec_responses_and_snapshot_keep_release_order_without_reordering_publish"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "identifier-and-unicode",
+      "status": "Passed",
+      "scope": "Accept alphanumeric IDs at every length 1..23 with configured minimum; preserve BOM, Unicode forms, case, spaces and empty levels.",
+      "clauses": [
+        "MQTT-1.5.3-3",
+        "MQTT-3.1.3-5",
+        "MQTT-4.7.3-4"
+      ],
+      "tests": [
+        "tests::conformance::required_client_identifiers_and_opaque_unicode_topics_are_preserved",
+        "tests::conformance::client_id_budget_cannot_exclude_mandatory_23_byte_identifiers"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "qos2-receiver",
+      "status": "Passed",
+      "scope": "Method B duplicate/release/identifier reuse and changed duplicate content: never route accepted QoS2 twice.",
+      "clauses": [
+        "MQTT-4.3.3-2"
+      ],
+      "tests": [
+        "tests::qos2::qos2_incoming_duplicate_release_and_identifier_reuse_route_exactly_once",
+        "tests::qos2::qos2_packet_id_dedup_ignores_changed_payload_and_clean_session_resets_exchange"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "qos2-sender",
+      "status": "Passed",
+      "scope": "Both reconnect phases preserve IDs; wrong ACK/PUBCOMP cannot free pending PUBLISH; window enforces PUBLISH order.",
+      "clauses": [
+        "MQTT-2.3.1-4",
+        "MQTT-4.3.3-1",
+        "MQTT-4.6.0-5",
+        "MQTT-4.6.0-6"
+      ],
+      "tests": [
+        "tests::qos2::qos2_outgoing_reconnect_resumes_publish_or_pubrel_and_wrong_acks_cannot_free_id",
+        "tests::qos2::qos2_reliable_window_preserves_publish_order_and_releases_capacity_only_on_pubcomp"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "qos2-will-retained",
+      "status": "Passed",
+      "scope": "Abrupt-close QoS2 retained Will and late subscriber replay use full outgoing handshake.",
+      "clauses": [
+        "MQTT-3.1.2-8",
+        "MQTT-3.1.2-17"
+      ],
+      "tests": [
+        "tests::qos2::qos2_will_and_retained_replay_use_full_receiver_handshake"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "keepalive-and-fragmentation",
+      "status": "Passed",
+      "scope": "Handshake timeout, keepalive expiration triggers Will, fragmented frames make progress.",
+      "clauses": [
+        "MQTT-3.1.2-24",
+        "MQTT-3.12.4-1"
+      ],
+      "tests": [
+        "tests::handshake_timeout_keepalive_will_and_fragmented_packets"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "will-lifetime",
+      "status": "Passed",
+      "scope": "Abrupt close and takeover publish Will; graceful DISCONNECT removes it.",
+      "clauses": [
+        "MQTT-3.1.2-10",
+        "MQTT-3.1.4-2",
+        "MQTT-3.14.4-3"
+      ],
+      "tests": [
+        "tests::will_on_abrupt_close_and_takeover_but_not_disconnect"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "qos1-reconnect",
+      "status": "Passed",
+      "scope": "Offline reliable messages survive disconnect and retransmit using original IDs and DUP.",
+      "clauses": [
+        "MQTT-3.1.2-4",
+        "MQTT-3.1.2-5"
+      ],
+      "tests": [
+        "tests::offline_qos1_and_inflight_reconnect_keep_packet_id_and_dup"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "mixed-subscription-codes",
+      "status": "Passed",
+      "scope": "One SUBSCRIBE ID0x1234 with duplicate filters and denial: SUBACK codes retain input order; retained replays use both grants and final live QoS uses replacement.",
+      "clauses": [
+        "MQTT-2.3.1-7",
+        "MQTT-3.8.4-4",
+        "MQTT-3.8.4-5",
+        "MQTT-3.9.3-1",
+        "MQTT-3.9.3-2"
+      ],
+      "tests": [
+        "tests::protocol::mixed_subscribe_codes_follow_filter_order_and_duplicate_filters_replace_in_sequence"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "publish-qos-flags",
+      "status": "Passed",
+      "scope": "All nine publish/subscription QoS combinations preserve arbitrary binary payload; incoming DUP does not propagate; QoS0 emits no ACK/PacketID and server DUP0.",
+      "clauses": [
+        "MQTT-2.2.2-1",
+        "MQTT-2.3.1-5",
+        "MQTT-2.3.1-6",
+        "MQTT-3.3.1-1",
+        "MQTT-3.3.1-2",
+        "MQTT-3.3.1-3",
+        "MQTT-3.3.4-1",
+        "MQTT-3.8.4-6",
+        "MQTT-4.3.1-1",
+        "MQTT-4.3.2-1",
+        "MQTT-4.3.2-2",
+        "MQTT-3.3.2-1",
+        "MQTT-3.3.2-2"
+      ],
+      "tests": [
+        "tests::protocol::publish_qos_matrix_keeps_payload_and_sets_outgoing_dup_independently",
+        "tests::conformance::malformed_packets_and_second_connect_close_only_the_offending_connection"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "retained-lifetime",
+      "status": "Passed",
+      "scope": "QoS2->0->1 retained replacement; live RETAIN0 vs replay RETAIN1; ordinary and empty RETAIN0 leave old value; empty RETAIN1 removes it and still forwards empty payload.",
+      "clauses": [
+        "MQTT-3.3.1-5",
+        "MQTT-3.3.1-6",
+        "MQTT-3.3.1-7",
+        "MQTT-3.3.1-8",
+        "MQTT-3.3.1-9",
+        "MQTT-3.3.1-10",
+        "MQTT-3.3.1-11",
+        "MQTT-3.3.1-12"
+      ],
+      "tests": [
+        "tests::protocol::retained_replacement_qos0_delete_and_nonretained_publish_obey_wire_flags"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "unsubscribe-inflight",
+      "status": "Passed",
+      "scope": "UNSUBACK original ID; unsubscribing stops new routing while previously started QoS1 and QoS2 exchanges complete.",
+      "clauses": [
+        "MQTT-3.10.4-3"
+      ],
+      "tests": [
+        "tests::protocol::unsubscribe_keeps_started_qos1_and_qos2_deliveries_but_stops_new_routing"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "clean-session-lifetime",
+      "status": "Passed",
+      "scope": "CleanSession1 takeover clears both QoS2 directions and subscriptions, keeps retained; next persistent connection is empty, following takeover resumes Session Present1.",
+      "clauses": [
+        "MQTT-3.1.2-6",
+        "MQTT-3.1.3-2",
+        "MQTT-3.1.4-3",
+        "MQTT-3.1.4-4",
+        "MQTT-3.2.0-1",
+        "MQTT-3.2.2-1",
+        "MQTT-3.2.2-2",
+        "MQTT-3.2.2-3"
+      ],
+      "tests": [
+        "tests::protocol::clean_session_discards_both_qos2_directions_and_subscriptions_but_keeps_retained"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "network-topic-matching",
+      "status": "Passed",
+      "scope": "Sixteen TCP matching traces cover empty levels, parent #, complete + levels, case, spaces, literal colon and leading-dollar isolation; malformed multi-filter packets apply no prefix.",
+      "clauses": [
+        "MQTT-3.3.2-3",
+        "MQTT-3.8.3-2",
+        "MQTT-4.7.1-2",
+        "MQTT-4.7.1-3",
+        "MQTT-4.7.2-1",
+        "MQTT-4.7.3-1"
+      ],
+      "tests": [
+        "tests::protocol::network_topic_matching_preserves_empty_levels_dollar_isolation_and_literal_colons",
+        "tests::protocol::malformed_filter_packets_do_not_partially_install_or_remove_prior_filters"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "maximum-topic-bytes",
+      "status": "Passed",
+      "scope": "65535-byte three-byte UTF8 Topic and exact filter work over TCP and retained replay under explicitly sufficient packet budget.",
+      "clauses": [
+        "MQTT-4.7.3-3"
+      ],
+      "tests": [
+        "tests::protocol::maximum_utf8_topic_and_filter_are_supported_as_65535_encoded_bytes"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "utf8-field-validation",
+      "status": "Passed",
+      "scope": "NUL, invalid UTF8 and surrogate encodings in ClientID/WillTopic/username/SUB/UNSUB close; binary password parses and reaches authentication rejection.",
+      "clauses": [
+        "MQTT-1.5.3-1",
+        "MQTT-1.5.3-2",
+        "MQTT-3.1.3-1",
+        "MQTT-3.1.3-3",
+        "MQTT-3.1.3-4",
+        "MQTT-3.1.3-10",
+        "MQTT-3.1.3-11",
+        "MQTT-3.8.3-1",
+        "MQTT-3.10.3-1",
+        "MQTT-4.7.3-2"
+      ],
+      "tests": [
+        "tests::protocol::malformed_utf8_in_each_connect_and_filter_field_is_rejected_but_password_is_binary"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "will-qos-retain-matrix",
+      "status": "Passed",
+      "scope": "All QoS0/1/2 x retain0/1 combinations preserve binary Will payload, live and late delivery flags; no-Will DISCONNECT stays silent.",
+      "clauses": [
+        "MQTT-3.1.2-9",
+        "MQTT-3.1.2-12",
+        "MQTT-3.1.2-14",
+        "MQTT-3.1.2-16",
+        "MQTT-3.1.2-17"
+      ],
+      "tests": [
+        "tests::protocol::will_qos_and_retain_matrix_preserves_binary_payload_and_no_will_stays_silent"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "packet-id-wrap",
+      "status": "Passed",
+      "scope": "Forced65535->1 wrap skips occupied QoS1/2 IDs including Release; only correctly completed ID is reused. Simultaneous receiver/sender PacketID1 stays independent.",
+      "clauses": [
+        "MQTT-2.3.1-3",
+        "MQTT-2.3.1-4"
+      ],
+      "tests": [
+        "state::qos2::tests::packet_identifier_wrap_skips_live_qos1_and_qos2_ids_and_reuses_only_completed_ids",
+        "tests::protocol::packet_identifier_namespaces_are_independent_in_simultaneous_qos2_directions"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "offline-qos1-qos2",
+      "status": "Passed",
+      "scope": "After persistent disconnect, QoS1 and QoS2 are accepted into offline subscriptions; reconnect SessionPresent1, same order and independent Packet IDs, complete exchanges.",
+      "clauses": [
+        "MQTT-3.1.2-4",
+        "MQTT-3.1.2-5",
+        "MQTT-4.1.0-1",
+        "MQTT-4.1.0-2",
+        "MQTT-4.5.0-1"
+      ],
+      "tests": [
+        "tests::protocol::persistent_offline_session_queues_both_reliable_qos_levels_until_reconnect"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "connect-failure-codes",
+      "status": "Passed",
+      "scope": "Wrong protocol name closes without CONNACK; rejected24-byte ID returns2, forbidden Will returns5, exhausted disconnected Session quota returns3; no failure creates a Session.",
+      "clauses": [
+        "MQTT-3.1.2-1",
+        "MQTT-3.1.3-9",
+        "MQTT-3.2.2-4",
+        "MQTT-3.2.2-5"
+      ],
+      "tests": [
+        "tests::protocol::connect_failure_codes_distinguish_rejected_id_capacity_and_authorization"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "assigned-client-id",
+      "status": "Passed",
+      "scope": "Empty clean ClientID receives a fresh noncolliding identity; existing session cannot be taken over by server assignment.",
+      "clauses": [
+        "MQTT-3.1.3-6"
+      ],
+      "tests": [
+        "tests::assigned_client_id_never_takes_over_an_existing_session"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "invalid-publish-qos",
+      "status": "Passed",
+      "scope": "QoS3 PUBLISH is rejected locally without restarting Core.",
+      "clauses": [
+        "MQTT-3.3.1-4"
+      ],
+      "tests": [
+        "tests::malformed_client_and_invalid_qos_close_only_that_connection"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "overlap-and-ack-flags",
+      "status": "Passed",
+      "scope": "Overlapping subscriptions deliver one copy at highest matching QoS; PUBREL fixed bits and ACK IDs/lengths validated.",
+      "clauses": [
+        "MQTT-3.3.5-1",
+        "MQTT-3.6.1-1"
+      ],
+      "tests": [
+        "tests::qos1_overlap_retained_delete_and_unsubscribe",
+        "codec::tests::qos2_control_flags_identifiers_and_complete_lengths_are_validated"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "publication-denial",
+      "status": "Passed",
+      "scope": "Original QoS2 participates in ACL; denied PUBLISH closes without admission; reliable saturation rejects whole publication without affecting independent connections.",
+      "clauses": [
+        "MQTT-3.3.5-2",
+        "MQTT-4.8.0-2"
+      ],
+      "tests": [
+        "tests::saturation_rejects_entire_publish_without_retained_or_partial_delivery",
+        "qos2_publish_acl_uses_original_qos_and_retries_do_not_create_another_exchange"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "connect-unknown-failure",
+      "status": "Passed",
+      "scope": "Table3.1 wire frames distinguish rejected ID, server storage unavailable and authorization; unclassified failures produce no CONNACK.",
+      "clauses": [
+        "MQTT-3.2.2-6"
+      ],
+      "tests": [
+        "connection::tests::connect_failures_use_table31_reasons_and_unknown_failures_have_no_connack"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "standard-client-and-stream",
+      "status": "Passed",
+      "scope": "Independent rumqttc client uses only MQTT3.1.1 over TCP; fragmented/coalesced packets preserve ordered byte-stream behavior.",
+      "clauses": [
+        "MQTT-7.0.0-2",
+        "MQTT-7.1.1-1"
+      ],
+      "tests": [
+        "rumqttc_qos0_qos1_qos2_retained_self_delivery_and_graceful_stop",
+        "tests::handshake_timeout_keepalive_will_and_fragmented_packets"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "shared-topic-vectors",
+      "status": "Passed",
+      "scope": "39 independent Modorch topic vectors normalized to JSON drive Core validation/matching, the pinned Facade helper, actual Hub subscriptions/Handler delivery and real MQTT TCP validation/routing. $share is literal in 3.1.1. No magicCommon execution or MQTT5 sharing is claimed.",
+      "clauses": [
+        "MQTT-4.7.1-1",
+        "MQTT-4.7.1-2",
+        "MQTT-4.7.1-3",
+        "MQTT-4.7.2-1",
+        "MQTT-4.7.3-1",
+        "MQTT-4.7.3-2",
+        "MQTT-4.7.3-3"
+      ],
+      "tests": [
+        "tests::topic_vectors::shared_topic_vectors_agree_with_codec_and_modorch_facade",
+        "tests::topic_vectors::shared_topic_vectors_drive_real_hub_subscriptions_and_handlers",
+        "tests::topic_vectors::shared_topic_vectors_drive_real_mqtt_validation_and_delivery"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "control-packet-tables",
+      "status": "Passed",
+      "scope": "All 256 first bytes against type/direction/flags; 256 CONNECT flags against syntax/anonymous credentials; exact reserved CONNACK bits. Malformed header rejection isolates the client.",
+      "clauses": [
+        "MQTT-2.2.2-1",
+        "MQTT-2.2.2-2",
+        "MQTT-3.1.2-3"
+      ],
+      "tests": [
+        "tests::packet_tables::packet_type_direction_and_fixed_flags_cover_all_256_first_bytes",
+        "tests::packet_tables::all_256_fixed_headers_preserve_healthy_connections_and_expected_wire_responses",
+        "tests::packet_tables::all_256_connect_flags_validate_payload_presence_and_wire_rejection",
+        "tests::packet_tables::connack_reserved_flags_are_zero_for_new_resumed_clean_and_rejected_sessions"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "packet-length-and-id-tables",
+      "status": "Passed",
+      "scope": "Remaining Length boundary prefixes and budgets, exact decoder input, mandatory ID0/1/65535, illegal length/header rejection before body and persistent-session/Will cleanup. Not a full wire-layout proof.",
+      "clauses": [
+        "MQTT-2.3.1-1",
+        "MQTT-2.3.1-5",
+        "MQTT-4.8.0-1"
+      ],
+      "tests": [
+        "tests::packet_tables::impossible_packet_lengths_and_non_exact_decoder_inputs_fail_before_body",
+        "tests::packet_tables::remaining_length_table_boundaries_are_incremental_without_large_allocations",
+        "tests::packet_tables::packet_identifier_table_enforces_nonzero_ids_and_qos0_payload_remains_binary",
+        "tests::packet_tables::illegal_header_or_impossible_length_closes_without_waiting_for_advertised_body",
+        "tests::packet_tables::invalid_partial_header_triggers_will_and_preserves_persistent_qos2_session"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "qos2-sender-ack-transition-table",
+      "status": "Passed",
+      "scope": "All 12 Server sender ACK transitions across Empty/Queued/AwaitPubRec/AwaitPubComp preserve owned ID/payload until proper completion; PUBREC including duplicates emits one PUBREL.",
+      "clauses": [
+        "MQTT-4.3.3-1"
+      ],
+      "tests": [
+        "state::qos2::tests::sender_ack_transition_matrix_preserves_phase_and_identifier_ownership"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "keepalive-during-authorization",
+      "status": "Passed",
+      "scope": "KeepAlive1 expires during Publish/Subscribe authorization; late grants do not admit retained data or subscriptions. Supplemental local policy tests cover principal expiry (including long/unlimited lifetimes).",
+      "clauses": [
+        "MQTT-3.1.2-24"
+      ],
+      "tests": [
+        "tests::auth::keepalive_and_principal_expiry_close_during_authorization_and_ignore_late_grants",
+        "tests::auth::principal_deadline_preserves_long_lifetimes_and_unlimited_expiry"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "keepalive-during-durable-work",
+      "status": "Passed",
+      "scope": "TCP/TLS network closes on KeepAlive during Store commit/gate wait, while accepted QoS2 work drains without poisoning or rerouting. Supplemental implementation policies cover CONNECT deadline, mid-frame write deadline despite PING traffic, and checked shutdown during committed receipt wait; those policies are not additional MQTT normative obligations.",
+      "clauses": [
+        "MQTT-3.1.2-24"
+      ],
+      "tests": [
+        "tests::storage::keepalive_closes_socket_during_commit_then_drains_without_poison_or_qos2_reroute",
+        "tests::storage::handshake_deadline_during_attach_commit_drains_and_preserves_the_session",
+        "tests::storage::handshake_deadline_while_waiting_for_store_gate_never_attaches_late",
+        "tests::storage::keepalive_while_waiting_for_store_gate_rejects_publish_after_network_close",
+        "tests::storage::tls_keepalive_closes_during_commit_without_canceling_the_durable_promise",
+        "tests::storage::shutdown_closes_socket_and_waits_for_committed_receipt_before_releasing_resources",
+        "connection::tests::stalled_frame_write_expires_despite_incoming_ping_traffic"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "server-outbound-wire-layouts",
+      "status": "Passed",
+      "scope": "Independent literal output bytes for nine implemented Server packet kinds: CONNACK session/rejection contexts, ACK identifiers1/256/65535, mixed SUBACK, binary/UTF8 PUBLISH flags, retained/live/retry and RL127/128/16383/16384. Limited matrix; not all FSM/fault/platform combinations.",
+      "clauses": [
+        "MQTT-2.2.2-1",
+        "MQTT-2.3.1-4",
+        "MQTT-2.3.1-6",
+        "MQTT-2.3.1-7",
+        "MQTT-3.2.2-1",
+        "MQTT-3.2.2-2",
+        "MQTT-3.2.2-3",
+        "MQTT-3.2.2-4",
+        "MQTT-3.3.1-1",
+        "MQTT-3.3.1-2",
+        "MQTT-3.3.1-3",
+        "MQTT-3.3.1-8",
+        "MQTT-3.3.1-9",
+        "MQTT-3.9.3-1",
+        "MQTT-3.9.3-2",
+        "MQTT-4.4.0-1"
+      ],
+      "tests": [
+        "tests::outbound::outgoing_publish_flags_binary_utf8_and_length_boundaries_match_literal_vectors",
+        "tests::outbound::outgoing_control_responses_have_exact_flags_lengths_identifiers_and_codes",
+        "tests::outbound::outgoing_connack_new_resumed_clean_and_rejected_frames_preserve_existing_session",
+        "tests::outbound::outgoing_live_retained_and_reconnected_qos_flows_match_literal_frames",
+        "tests::outbound::outgoing_publish_remaining_lengths_cross_boundaries_on_real_tcp"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "partial-publish-write-reconnect",
+      "status": "Passed",
+      "scope": "One-byte duplex stalls a partially written QoS1/2 PUBLISH until local write timeout; memory session keeps ownership and reconnect emits exact original ID/DUP and completes handshake. Deterministic stream fault, not kernel/TLS/storage or scheduler timing certification.",
+      "clauses": [
+        "MQTT-3.3.1-1",
+        "MQTT-4.4.0-1"
+      ],
+      "tests": [
+        "connection::tests::partial_publish_write_timeout_preserves_qos1_and_qos2_for_dup_reconnect"
+      ],
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "qos2-pubcomp-slow-consumer-atomic-admission",
+      "status": "Passed",
+      "scope": "Real TCP window1/backlog2: stalled PUBCOMP plus queued Publish exhausts reliable target; new retained QoS2 is rejected before PUBREC without partial fanout or ghost receiver. Drain and same-ID retry route once. Local policy atomic admission; not production slow-consumer/RSS/SLO approval.",
+      "clauses": [
+        "MQTT-4.3.3-2"
+      ],
+      "tests": [
+        "tests::qos2::qos2_slow_consumer_pubcomp_backlog_rejects_atomically_and_same_id_retry_can_commit"
+      ],
+      "missing_pass_evidence": []
+    }
+  ],
+  "audit_coverage": [
+    {
+      "id": "UN-001",
+      "source_text": "The key words \"MUST\", \"MUST NOT\", \"REQUIRED\", \"SHALL\", \"SHALL NOT\", \"SHOULD\", \"SHOULD NOT\", \"RECOMMENDED\", \"MAY\", and \"OPTIONAL\" in this specification are to be interpreted as described in IETF RFC 2119 [RFC2119].",
+      "section": "1.2",
+      "role": "Context",
+      "coverage": "Definition",
+      "scope": "RFC2119 keyword interpretation is context; not an independent protocol test.",
+      "tests": [],
+      "validation_status": "NotRun",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "UN-002",
+      "source_text": "3. The Server MAY check that the contents of the CONNECT Packet meet any further restrictions and MAY perform authentication and authorization checks. If any of these checks fail, it SHOULD send an appropriate CONNACK response with a non-zero return code as described in section 3.2 and it MUST close the Network Connection.",
+      "section": "3.1.4",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Authentication/policy rejection sends a standard failure CONNACK then closes; no pipelined publication admitted.",
+      "tests": [
+        "tests::protocol::connect_failure_codes_distinguish_rejected_id_capacity_and_authorization",
+        "tests::conformance::rejected_connect_does_not_process_pipelined_publication"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "UN-003",
+      "source_text": "Byte 1 is the \"Connect Acknowledge Flags\". Bits 7-1 are reserved and MUST be set to 0. Bit 0 (SP1) is the Session Present Flag.",
+      "section": "3.2.2.1",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Reserved CONNACK bits stay zero for new/resumed/clean and rejected sessions.",
+      "tests": [
+        "tests::packet_tables::connack_reserved_flags_are_zero_for_new_resumed_clean_and_rejected_sessions",
+        "connection::tests::connect_failures_use_table31_reasons_and_unknown_failures_have_no_connack"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "UN-004",
+      "source_text": "· MUST assign an unused Packet Identifier each time it has a new Application Message to publish.",
+      "section": "4.3.2",
+      "role": "Both",
+      "coverage": "TargetedEvidence",
+      "scope": "Continuation of numbered group MQTT-4.3.2-1; PacketID allocation/wrap never reuses an outstanding ID.",
+      "tests": [
+        "state::qos2::tests::packet_identifier_wrap_skips_live_qos1_and_qos2_ids_and_reuses_only_completed_ids"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "UN-005",
+      "source_text": "· MUST send a PUBLISH Packet containing this Packet Identifier with QoS=1, DUP=0.",
+      "section": "4.3.2",
+      "role": "Both",
+      "coverage": "TargetedEvidence",
+      "scope": "Continuation of MQTT-4.3.2-1; new QoS1 delivery has own ID and DUP=0.",
+      "tests": [
+        "tests::protocol::publish_qos_matrix_keeps_payload_and_sets_outgoing_dup_independently"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "UN-006",
+      "source_text": "· MUST treat the PUBLISH Packet as “unacknowledged” until it has received the corresponding PUBACK packet from the receiver. See Section 4.4 for a discussion of unacknowledged messages.",
+      "section": "4.3.2",
+      "role": "Both",
+      "coverage": "TargetedEvidence",
+      "scope": "Continuation of MQTT-4.3.2-1; unacknowledged QoS1 survives reconnect with original ID and DUP.",
+      "tests": [
+        "tests::offline_qos1_and_inflight_reconnect_keep_packet_id_and_dup"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "UN-007",
+      "source_text": "A Client MUST follow these rules when implementing the protocol flows defined elsewhere in this chapter:",
+      "section": "4.6",
+      "role": "Client",
+      "coverage": "Context",
+      "scope": "Introduction to the following numbered ordering rules; Server obligation follows in MQTT-4.6.0-6.",
+      "tests": [],
+      "validation_status": "NotRun",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "UN-008",
+      "source_text": "3. It satisfies all of the MUST level requirements in the following chapters that are identified except for those that only apply to the Client:",
+      "section": "7.1.1",
+      "role": "Server",
+      "coverage": "NotRun",
+      "scope": "Aggregate conformance requirement; targeted tests do not prove all MUST obligations or every emitted packet format.",
+      "tests": [],
+      "validation_status": "NotRun",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "UN-009",
+      "source_text": "2. It satisfies all of the MUST level requirements in the following chapters that are identified except for those that only apply to the Server:",
+      "section": "7.1.2",
+      "role": "Client",
+      "coverage": "ClientOnly",
+      "scope": "Client conformance target; the optional experimental Bridge uses MQTT5 clients and is outside the mqtt311-tcp-tls-sqlite release profile. Separate Bridge/client conformance remains unapproved.",
+      "tests": [],
+      "validation_status": "NotRun",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "TABLE-2.1",
+      "section": "2.2.1",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "All 16 packet types and 16 low-bit combinations validate Server receive direction and actual TCP behavior.",
+      "tests": [
+        "tests::packet_tables::packet_type_direction_and_fixed_flags_cover_all_256_first_bytes",
+        "tests::packet_tables::all_256_fixed_headers_preserve_healthy_connections_and_expected_wire_responses"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "TABLE-2.2",
+      "section": "2.2.2",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "All fixed flags; 256 CONNECT flag bytes and anonymous credential rejection; invalid fixed header rejected before body.",
+      "tests": [
+        "tests::packet_tables::packet_type_direction_and_fixed_flags_cover_all_256_first_bytes",
+        "tests::packet_tables::all_256_connect_flags_validate_payload_presence_and_wire_rejection",
+        "tests::packet_tables::illegal_header_or_impossible_length_closes_without_waiting_for_advertised_body"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "TABLE-2.4",
+      "section": "2.2.3",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Eight encoded length boundaries, incremental headers, overflow/nonminimal rejection and declared budget without huge allocation.",
+      "tests": [
+        "tests::packet_tables::remaining_length_table_boundaries_are_incremental_without_large_allocations"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "TABLE-2.5",
+      "section": "2.3.1",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Every received ID-bearing packet validates IDs0/1/65535; QoS0 binary payload is not consumed as PacketID.",
+      "tests": [
+        "tests::packet_tables::packet_identifier_table_enforces_nonzero_ids_and_qos0_payload_remains_binary"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "TABLE-2.6",
+      "section": "2.4",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Received payload/length layouts and illegal extra payload; SUB/UNSUB require entries.",
+      "tests": [
+        "tests::packet_tables::impossible_packet_lengths_and_non_exact_decoder_inputs_fail_before_body",
+        "tests::packet_tables::all_256_connect_flags_validate_payload_presence_and_wire_rejection",
+        "tests::conformance::malformed_packets_and_second_connect_close_only_the_offending_connection"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "TABLE-3.1",
+      "section": "3.2.2.3",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Implemented rejection reasons and unclassified close; all CONNACK reserved bits including SessionPresent.",
+      "tests": [
+        "tests::packet_tables::connack_reserved_flags_are_zero_for_new_resumed_clean_and_rejected_sessions",
+        "connection::tests::connect_failures_use_table31_reasons_and_unknown_failures_have_no_connack"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "TABLE-3.2",
+      "section": "3.3.1.2",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "All nine publish/subscribe QoS combinations, independent DUP and QoS0 absence of ACK/ID.",
+      "tests": [
+        "tests::protocol::publish_qos_matrix_keeps_payload_and_sets_outgoing_dup_independently"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "TABLE-3.4",
+      "section": "3.3.4",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Received QoS0/1/2 response table and actual TCP exchanges.",
+      "tests": [
+        "tests::packet_tables::all_256_fixed_headers_preserve_healthy_connections_and_expected_wire_responses"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "TABLE-3.3",
+      "section": "3/4",
+      "role": "Context",
+      "coverage": "Informative",
+      "scope": "Explicitly non-normative example; surrounding normative packet/FSM rules remain applicable.",
+      "tests": [],
+      "validation_status": "NotRun",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "TABLE-3.5",
+      "section": "3/4",
+      "role": "Context",
+      "coverage": "Informative",
+      "scope": "Explicitly non-normative example; surrounding normative packet/FSM rules remain applicable.",
+      "tests": [],
+      "validation_status": "NotRun",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "TABLE-3.6",
+      "section": "3/4",
+      "role": "Context",
+      "coverage": "Informative",
+      "scope": "Explicitly non-normative example; surrounding normative packet/FSM rules remain applicable.",
+      "tests": [],
+      "validation_status": "NotRun",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "TABLE-3.7",
+      "section": "3/4",
+      "role": "Context",
+      "coverage": "Informative",
+      "scope": "Explicitly non-normative example; surrounding normative packet/FSM rules remain applicable.",
+      "tests": [],
+      "validation_status": "NotRun",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "FIGURE-4.1",
+      "section": "3/4",
+      "role": "Context",
+      "coverage": "Informative",
+      "scope": "Explicitly non-normative example; surrounding normative packet/FSM rules remain applicable.",
+      "tests": [],
+      "validation_status": "NotRun",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "FIGURE-4.2",
+      "section": "3/4",
+      "role": "Context",
+      "coverage": "Informative",
+      "scope": "Explicitly non-normative example; surrounding normative packet/FSM rules remain applicable.",
+      "tests": [],
+      "validation_status": "NotRun",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "FIGURE-4.3",
+      "section": "3/4",
+      "role": "Context",
+      "coverage": "Informative",
+      "scope": "Explicitly non-normative example; surrounding normative packet/FSM rules remain applicable.",
+      "tests": [],
+      "validation_status": "NotRun",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "FSM-QOS2-SENDER-ACK",
+      "section": "4.3.3/4.4",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Complete 4-state x 3-ACK implementation matrix: empty/queued/await-PUBREC/await-PUBCOMP versus PUBACK/PUBREC/PUBCOMP. Does not prove all network/fault/persistence transitions.",
+      "tests": [
+        "state::qos2::tests::sender_ack_transition_matrix_preserves_phase_and_identifier_ownership"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "FSM-CONNECTION-DEADLINES",
+      "section": "3.1.2.10/3.1.4/4.1",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Bounded fault timings: authorization, gate wait, committed receipt wait, CONNECT timeout, mid-frame backpressure, and checked cancellation. Only KeepAlive is the related normative timeout; handshake/write/identity deadlines are local policies. Not a full FSM cross-product or arbitrary scheduler/storage/platform timing guarantee.",
+      "tests": [
+        "tests::auth::keepalive_and_principal_expiry_close_during_authorization_and_ignore_late_grants",
+        "tests::auth::principal_deadline_preserves_long_lifetimes_and_unlimited_expiry",
+        "tests::storage::keepalive_closes_socket_during_commit_then_drains_without_poison_or_qos2_reroute",
+        "tests::storage::handshake_deadline_during_attach_commit_drains_and_preserves_the_session",
+        "tests::storage::handshake_deadline_while_waiting_for_store_gate_never_attaches_late",
+        "tests::storage::keepalive_while_waiting_for_store_gate_rejects_publish_after_network_close",
+        "tests::storage::tls_keepalive_closes_during_commit_without_canceling_the_durable_promise",
+        "tests::storage::shutdown_closes_socket_and_waits_for_committed_receipt_before_releasing_resources",
+        "connection::tests::stalled_frame_write_expires_despite_incoming_ping_traffic",
+        "connection::tests::partial_publish_write_timeout_preserves_qos1_and_qos2_for_dup_reconnect"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "FSM-COMPLETE",
+      "section": "3/4",
+      "role": "Server",
+      "coverage": "NotRun",
+      "scope": "Complete cross-product of CONNECT/Session/Will/subscription/QoS FSM, fault timing and all outbound packet layouts is not audited by the packet/ACK tables.",
+      "tests": [],
+      "validation_status": "NotRun",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "FSM-SERVER-OUTBOUND",
+      "section": "2/3/4",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Independent literal layout vectors for nine Server output kinds,14 Publish flag/field vectors,16 control replies,12 RL boundary cases and7 CONNACK session/rejection contexts. Real memory TCP/reconnect plus encoding checks; no all-values, all-FSM or storage/TLS/platform approval.",
+      "tests": [
+        "tests::outbound::outgoing_publish_flags_binary_utf8_and_length_boundaries_match_literal_vectors",
+        "tests::outbound::outgoing_control_responses_have_exact_flags_lengths_identifiers_and_codes",
+        "tests::outbound::outgoing_connack_new_resumed_clean_and_rejected_frames_preserve_existing_session",
+        "tests::outbound::outgoing_live_retained_and_reconnected_qos_flows_match_literal_frames",
+        "tests::outbound::outgoing_publish_remaining_lengths_cross_boundaries_on_real_tcp"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    },
+    {
+      "id": "FSM-QOS2-SLOW-CONSUMER",
+      "section": "4.3.3/4.4",
+      "role": "Server",
+      "coverage": "TargetedEvidence",
+      "scope": "Memory TCP, window1/backlog2, held PUBCOMP: all-target/Retained rejection before PUBREC, no ghost inbound exchange, capacity release and same-ID retry. Bounded correctness fault; not representative performance/long-run/loaded-shutdown approval.",
+      "tests": [
+        "tests::qos2::qos2_slow_consumer_pubcomp_backlog_rejects_atomically_and_same_id_retry_can_commit"
+      ],
+      "validation_status": "Passed",
+      "missing_pass_evidence": []
+    }
+  ],
+  "clause_coverage": [
+    {
+      "id": "MQTT-1.5.3-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-1.5.3-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-1.5.3-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-2.2.2-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-2.2.2-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-2.3.1-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-2.3.1-2",
+      "coverage": "NotRun",
+      "applicability": {
+        "category": "ClientOnly",
+        "reason": "Client chooses unused Packet IDs; server inheritance is covered by MQTT-2.3.1-4."
+      }
+    },
+    {
+      "id": "MQTT-2.3.1-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-2.3.1-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-2.3.1-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-2.3.1-6",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-2.3.1-7",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3-8.3-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.0-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.0-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-10",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-11",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-12",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-13",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-14",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-15",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-16",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-17",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-18",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-19",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-20",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-21",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-22",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-23",
+      "coverage": "NotRun",
+      "applicability": {
+        "category": "ClientOnly",
+        "reason": "Client sends PINGREQ when no other control packet is sent."
+      }
+    },
+    {
+      "id": "MQTT-3.1.2-24",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-6",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-8",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.2-9",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.3-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.3-10",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.3-11",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.3-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.3-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.3-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.3-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.3-6",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.3-7",
+      "coverage": "NotRun",
+      "applicability": {
+        "category": "ClientOnly",
+        "reason": "Client supplying empty ClientID must set CleanSession1; server rejection is covered separately."
+      }
+    },
+    {
+      "id": "MQTT-3.1.3-8",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.3-9",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.4-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.4-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.4-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.4-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.1.4-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.1-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.3-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.3-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.4-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.4-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.4-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.4-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.4-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.10.4-6",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.12.4-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.14.1-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.14.4-1",
+      "coverage": "NotRun",
+      "applicability": {
+        "category": "ClientOnly",
+        "reason": "Client closes after sending DISCONNECT; server receiving obligations are in3.14.4-3."
+      }
+    },
+    {
+      "id": "MQTT-3.14.4-2",
+      "coverage": "NotRun",
+      "applicability": {
+        "category": "ClientOnly",
+        "reason": "Client sends no further packets after DISCONNECT."
+      }
+    },
+    {
+      "id": "MQTT-3.14.4-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.2.0-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.2.2-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.2.2-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.2.2-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.2.2-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.2.2-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.2.2-6",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.1-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.1-10",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.1-11",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.1-12",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.1-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.1-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.1-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.1-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.1-6",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.1-7",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.1-8",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.1-9",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.2-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.2-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.2-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.4-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.5-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.3.5-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.6.1-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.1-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.3-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.3-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.3-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.4-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.4-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.4-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.4-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.4-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.8.4-6",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.9.3-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-3.9.3-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.1.0-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.1.0-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.3.1-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.3.2-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.3.2-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.3.3-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.3.3-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.4.0-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.5.0-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.5.0-2",
+      "coverage": "NotRun",
+      "applicability": {
+        "category": "ClientOnly",
+        "reason": "Client acknowledges PUBLISH regardless of matching subscriptions."
+      }
+    },
+    {
+      "id": "MQTT-4.6.0-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.6.0-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.6.0-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.6.0-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.6.0-5",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.6.0-6",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.7.1-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.7.1-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.7.1-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.7.2-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.7.3-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.7.3-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.7.3-3",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.7.3-4",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.8.0-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-4.8.0-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-6.0.0-1",
+      "coverage": "NotRun",
+      "applicability": {
+        "category": "OptionalWebSocket",
+        "reason": "WebSocket is implemented as an optional experimental transport; excluded from the mqtt311-tcp-tls-sqlite release profile. Limited evidence is in optional-functional.json; full WebSocket conformance is unapproved."
+      }
+    },
+    {
+      "id": "MQTT-6.0.0-2",
+      "coverage": "NotRun",
+      "applicability": {
+        "category": "OptionalWebSocket",
+        "reason": "WebSocket is implemented as an optional experimental transport; excluded from the mqtt311-tcp-tls-sqlite release profile. Limited evidence is in optional-functional.json; full WebSocket conformance is unapproved."
+      }
+    },
+    {
+      "id": "MQTT-6.0.0-3",
+      "coverage": "NotRun",
+      "applicability": {
+        "category": "OptionalWebSocket",
+        "reason": "WebSocket is implemented as an optional experimental transport; excluded from the mqtt311-tcp-tls-sqlite release profile. Limited evidence is in optional-functional.json; full WebSocket conformance is unapproved."
+      }
+    },
+    {
+      "id": "MQTT-6.0.0-4",
+      "coverage": "NotRun",
+      "applicability": {
+        "category": "OptionalWebSocket",
+        "reason": "WebSocket is implemented as an optional experimental transport; excluded from the mqtt311-tcp-tls-sqlite release profile. Limited evidence is in optional-functional.json; full WebSocket conformance is unapproved."
+      }
+    },
+    {
+      "id": "MQTT-7.0.0-1",
+      "coverage": "NotRun",
+      "applicability": {
+        "category": "ConditionalBridge",
+        "reason": "The optional experimental Bridge uses MQTT5 clients; excluded from this MQTT3.1.1 TCP/TLS/SQLite profile. Separate client/Bridge conformance remains unapproved."
+      }
+    },
+    {
+      "id": "MQTT-7.0.0-2",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-7.1.1-1",
+      "coverage": "TargetedEvidence"
+    },
+    {
+      "id": "MQTT-7.1.2-1",
+      "coverage": "NotRun",
+      "applicability": {
+        "category": "ClientOnly",
+        "reason": "Conformant Client provides ordered lossless transport; server counterpart7.1.1-1 is mapped."
+      }
+    }
+  ],
+  "inputs": {
+    "matrix": "contracts/mqtt311.json",
+    "matrix_sha256": "bb1ca41d3005bc42a9689ff316c45a30fcf0e0ba05bca2259f3e578d9dd6ce8c",
+    "results": "docs/validation/2026-11-08-remaining-fixes/check-final.log",
+    "results_sha256": "f0960b7c257f0d7bff76d78fcd72994fffaeeee05bb5f4da084aca51a08d1e95",
+    "audit": "contracts/mqtt311-audit.json",
+    "audit_sha256": "e2d35d489b8504487f2e5fc1d31d95c3d55e803aeccb8e03ed3e19a669199b72"
+  }
+}

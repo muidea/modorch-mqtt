@@ -1,0 +1,17 @@
+test_changed_html_inventory_and_missing_boundary_are_rejected (test_audit.AuditTests.test_changed_html_inventory_and_missing_boundary_are_rejected) ... ok
+test_main_body_only_preserves_inline_text_and_excludes_numbered_and_appendix (test_audit.AuditTests.test_main_body_only_preserves_inline_text_and_excludes_numbered_and_appendix) ... ok
+test_audit_scope_does_not_upgrade_unexecuted_aggregate_and_missing_test_fails (test_conformance.EvidenceTests.test_audit_scope_does_not_upgrade_unexecuted_aggregate_and_missing_test_fails) ... ok
+test_client_or_optional_role_does_not_turn_missing_evidence_into_pass (test_conformance.EvidenceTests.test_client_or_optional_role_does_not_turn_missing_evidence_into_pass) ... ok
+test_duplicate_or_conflicting_ignored_evidence_is_rejected (test_conformance.EvidenceTests.test_duplicate_or_conflicting_ignored_evidence_is_rejected) ... ok
+test_empty_ignored_substring_and_failed_results_do_not_count_as_pass (test_conformance.EvidenceTests.test_empty_ignored_substring_and_failed_results_do_not_count_as_pass) ... ok
+test_incomplete_or_invented_applicability_is_rejected (test_conformance.EvidenceTests.test_incomplete_or_invented_applicability_is_rejected) ... ok
+test_later_failure_invalidates_earlier_passing_line (test_conformance.EvidenceTests.test_later_failure_invalidates_earlier_passing_line) ... ok
+test_passed_trace_never_upgrades_unmapped_clauses_or_overall_conformance (test_conformance.EvidenceTests.test_passed_trace_never_upgrades_unmapped_clauses_or_overall_conformance) ... ok
+test_release_mode_rejects_partial_and_failed_even_with_passing_scenarios (test_conformance.EvidenceTests.test_release_mode_rejects_partial_and_failed_even_with_passing_scenarios) ... ok
+test_unknown_clauses_and_empty_or_duplicate_mappings_are_rejected (test_conformance.EvidenceTests.test_unknown_clauses_and_empty_or_duplicate_mappings_are_rejected) ... ok
+test_missing_deliverables_and_broken_local_links_are_rejected (test_project.ProjectTests.test_missing_deliverables_and_broken_local_links_are_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.016s
+
+OK

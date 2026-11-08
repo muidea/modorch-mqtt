@@ -1,0 +1,16 @@
+{
+  "status": "Passed",
+  "source_and_probe_files": 172,
+  "source_mismatches": [],
+  "release_plan_current": true,
+  "release_log_matches": true,
+  "historical_evidence_counts": [
+    89,
+    16,
+    30,
+    22,
+    37,
+    16
+  ],
+  "skill_project_archive_identical": true
+}

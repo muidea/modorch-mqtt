@@ -1,0 +1,7 @@
+{
+  "status": "Passed",
+  "only_change": "secure-modorch-server adds existing getrandom 0.3.4 dependency",
+  "prior_sha256": "2e7062598adf45361c4c46f8c781f4aa83ca3ecb0e8a54f4b0c5baf1141a98b3",
+  "reconstructed_prior_sha256": "2e7062598adf45361c4c46f8c781f4aa83ca3ecb0e8a54f4b0c5baf1141a98b3",
+  "packages_updated": []
+}

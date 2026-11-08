@@ -1,0 +1,176 @@
+{
+  "result": {
+    "task": "设计§9 Core TOML配置、显式宿主Provider引用装配及期限指标回归修复",
+    "framework_version": "0.0.3",
+    "skill": "modorch-app-development",
+    "skill_revision": "1.0.7",
+    "changed_files": [
+      ".github/workflows/check.yml",
+      "Cargo.lock",
+      "README.md",
+      "contracts/README.md",
+      "crates/modorch-mqtt-core/src/connection.rs",
+      "crates/modorch-mqtt-core/src/tests/storage.rs",
+      "crates/modorch-mqtt/Cargo.toml",
+      "crates/modorch-mqtt/src/file_config.rs",
+      "crates/modorch-mqtt/src/lib.rs",
+      "crates/modorch-mqtt/tests/config.rs",
+      "docs/api.md",
+      "docs/configuration.md",
+      "docs/getting-started.md",
+      "docs/modorch_mqtt_broker_full_design_0.0.3.md",
+      "docs/remaining-work.md",
+      "docs/toml.md",
+      "examples/standalone-broker/Cargo.toml",
+      "examples/standalone-broker/mqtt.toml",
+      "examples/standalone-broker/src/main.rs",
+      "scripts/check-project.py",
+      "scripts/check.sh",
+      "scripts/verify-toml.py"
+    ],
+    "validation": [
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo python3 .agents/skills/modorch-app-development/scripts/preflight.py --manifest-path Cargo.toml",
+        "status": "Passed",
+        "evidence": "framework-preflight-final.json"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo CARGO_NET_OFFLINE=true ./scripts/check.sh",
+        "status": "Passed",
+        "evidence": "check.log: 122 Rust + 2 doctest + 12 Python; fmt/check/clippy/doc, host smokes, TOML CLI and SIGKILL"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo cargo +1.85.0 check --workspace --all-targets --all-features --locked --offline",
+        "status": "Passed",
+        "evidence": "msrv.log; build-status.json"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo cargo check -p modorch-mqtt --no-default-features --locked --offline; default-feature dependency tree",
+        "status": "Passed",
+        "evidence": "default-feature.log; default-feature-tree.log: no toml parser dependency"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo cargo test -p modorch-mqtt --no-default-features --features toml --test config --locked --offline",
+        "status": "Passed",
+        "evidence": "toml-only.log: 7 tests, without TLS or built-in provider features"
+      },
+      {
+        "command": "CARGO_HOME=/tmp/modorch-mqtt-storage-cargo cargo build -p standalone-broker -p secure-modorch-server -p durable-broker --locked --offline",
+        "status": "Passed",
+        "evidence": "examples-build.log; build-status.json"
+      },
+      {
+        "command": "python3 scripts/verify-toml.py",
+        "status": "Passed",
+        "evidence": "toml-cli.log: reject/disabled/enabled CLI, errors redaction, QoS2 retained and checked SIGINT shutdown"
+      },
+      {
+        "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho.py",
+        "status": "Passed",
+        "evidence": "paho.log"
+      },
+      {
+        "command": "/tmp/modorch-mqtt-interop-venv/bin/python scripts/verify-paho-tls.py",
+        "status": "Passed",
+        "evidence": "paho-tls.log"
+      },
+      {
+        "command": "python3 scripts/check-conformance.py --results docs/validation/2026-11-08-toml-config/check.log --output docs/validation/2026-11-08-toml-config/scenarios.json",
+        "status": "Passed",
+        "evidence": "scenarios.json; matrix.log: 37 bounded scenarios and 15 audit entries; overall Partial"
+      },
+      {
+        "command": "Assert check-conformance.py --require-complete rejects Partial with exit1",
+        "status": "Passed",
+        "evidence": "release-gate.json; release-scenarios.json"
+      },
+      {
+        "command": "Compare 8 exact TOML test names to check.log Passed evidence",
+        "status": "Passed",
+        "evidence": "configuration-tests.json: source and execution log digests"
+      },
+      {
+        "command": "python3 scripts/check-project.py; Python compile; sh -n scripts/check.sh; git diff --check; final source digests",
+        "status": "Passed",
+        "evidence": "auxiliary.log; final-docs.log; source-hashes.json; environment.json"
+      },
+      {
+        "command": "Remote CI, cross-platform/power failure, magicCommon JSON consumer, independent Agent and production performance gates",
+        "status": "NotRun",
+        "evidence": "No new external execution evidence; docs/remaining-work.md"
+      }
+    ],
+    "contract_checks": [
+      {
+        "rule_id": "MQTT-CONFIG-001/strict-schema",
+        "status": "Passed",
+        "evidence": "configuration-tests.json; check.log: all Core fields, fixed policies, unknown/unsupported/ambiguous/unsafe settings and source-redacted diagnostics"
+      },
+      {
+        "rule_id": "MQTT-COMP-001/explicit-assembly",
+        "status": "Passed",
+        "evidence": "check.log: configuration_and_registration_never_enable_components_implicitly; provider_references_require_host_capability_and_do_not_register_factories"
+      },
+      {
+        "rule_id": "MQTT-STATE-002/TOML-host-storage",
+        "status": "Passed",
+        "evidence": "check.log: explicit_host_factories_match_toml_refs_tls_and_prelisten_storage_recovery; no DB/listen before start, real SQLite recovery and Metrics"
+      },
+      {
+        "rule_id": "MQTT-BOUND-001/input-and-deadline-metrics",
+        "status": "Passed",
+        "evidence": "check.log: parser byte boundary and keepalive_closes_socket_during_commit_then_drains_without_poison_or_qos2_reroute now checks timeouts=1; stalled-frame test checks slow-writer reason"
+      },
+      {
+        "rule_id": "MQTT-SEC-001/configuration",
+        "status": "Passed",
+        "evidence": "check.log: defaults deny anonymous, unsafe listener/grant configuration rejected, capability injected by host; toml-only.log rejects TLS when not compiled"
+      },
+      {
+        "rule_id": "MQTT-LIFE-001/configured-host",
+        "status": "Passed",
+        "evidence": "toml-cli.log: real configured QoS2 exchange and checked shutdown with port release"
+      },
+      {
+        "rule_id": "MQTT-COMPAT-001",
+        "status": "Passed",
+        "evidence": "framework-preflight-final.json; msrv.log; default-feature-tree.log; toml-only.log"
+      },
+      {
+        "rule_id": "MQTT-DOC-001/bounded-evidence",
+        "status": "Passed",
+        "evidence": "scenarios.json; configuration-tests.json; release-gate.json: bounded tests do not approve complete release"
+      },
+      {
+        "rule_id": "MQTT-QOS-002/full-conformance",
+        "status": "NotRun",
+        "evidence": "scenarios.json: complete normative/FSM audit remains Partial/NotRun"
+      },
+      {
+        "rule_id": "MQTT-DOC-001/full-release",
+        "status": "NotRun",
+        "evidence": "Independent Agent, complete all-MUST/performance/security/platform release gate incomplete"
+      }
+    ],
+    "limitations": [
+      "Local Linux/WSL2 x86_64, Rust1.94 and MSRV1.85 only; remote CI definition is updated but not executed.",
+      "TOML is optional and accepts an isolated 64KiB mqtt document. Core defaults disabled. Provider factories, ACL/account/backend/disk quotas, operator policies and exporters remain host-owned.",
+      "No configuration IO, Runtime/Hub/task creation or component enabling in parser/registration. Relative TLS paths require an explicit host-supplied base directory; actual file loads remain in Core setup.",
+      "Provider references do not compile or register built-ins. Enabled external Storage needs an out-of-band host capability; the Core-only standalone example does not supply one.",
+      "No provider-internal policy file loader, live reload, environment interpolation or include/override merging is claimed by this configuration adapter.",
+      "The configured full-extension test proves assembly/recovery/metrics, not user authentication; external Paho TLS regression separately exercises auth/ACL and QoS2.",
+      "Source hashes cover prior 134 selected inputs plus 5 new sources/config/example/doc inputs. changed_files compare prior evidence, excluding validation artifacts; cumulative uncommitted work and historical evidence are retained. No commit/push.",
+      "Cargo initially updated wasip2/wit-bindgen while resolving TOML; both restored to prior versions. New parser dependencies are locked; Modorch source/rev/fingerprint unchanged.",
+      "Initial test compile typo is retained and explained in README; final check.log is successful for current compiled source.",
+      "Complete MQTT3.1.1, production performance/recovery SLO and independent release approval remain Partial. SQLite format3 migration and shutdown Will deferral are unchanged."
+    ],
+    "unresolved": [
+      "Complete MQTT3.1.1 cross-paragraph semantics, outbound layouts and complete CONNECT/Session/Will/subscription/QoS fault/interoperability audit",
+      "F7 MQTT5 properties/reason codes/session/message expiry/receive maximum/alias/shared subscriptions",
+      "Optional WebSocket/Bridge and later operational policy/certificate updates, provider extensions, persistent audit and HTTP exports",
+      "Production TLS/Auth/Storage/QoS2 load, long-run memory, loaded shutdown and recovery SLO",
+      "Real hardware power failure, filesystem/platform matrix, magicCommon shared JSON consumption, remote CI and independent Agent/full-MUST release gates"
+    ],
+    "overall_status": "Partial"
+  }
+}

@@ -1,0 +1,75 @@
+{
+  "version": 1,
+  "profile": "mqtt311-tcp-tls-sqlite",
+  "claim": "MQTT3.1.1 TCP/TLS/SQLite strict release. MQTT5, WebSocket and Bridge are outside this profile. Policy is a conservative release target, not a claim of existing support.",
+  "gates": {
+    "F8-BUILD": [
+      "workspace",
+      "rustdoc",
+      "host-smokes",
+      "toml-cli"
+    ],
+    "F8-COMPAT": [
+      "framework-fingerprint",
+      "msrv-1.85",
+      "empty-default-features",
+      "toml-only"
+    ],
+    "F8-INTEROP": [
+      "rumqttc",
+      "paho-tcp",
+      "paho-tls",
+      "fault-matrix"
+    ],
+    "F8-SECURITY": [
+      "auth-acl",
+      "tls",
+      "namespace-isolation",
+      "resource-abuse",
+      "review"
+    ],
+    "F8-PERFORMANCE": [
+      "tls-auth-storage-qos2",
+      "long-run-rss",
+      "slow-consumer",
+      "loaded-shutdown",
+      "slo-review"
+    ],
+    "F8-RECOVERY": [
+      "sigkill",
+      "capacity-peak",
+      "hardware-power-loss",
+      "filesystem-matrix"
+    ],
+    "F8-PLATFORMS": [
+      "linux",
+      "macos",
+      "windows"
+    ],
+    "F8-TOPIC-CROSSIMPL": [
+      "modorch",
+      "magicCommon"
+    ],
+    "F8-REMOTE-CI": [
+      "immutable-run"
+    ],
+    "F8-INDEPENDENT-AGENT": [
+      "integration",
+      "lifecycle",
+      "faults",
+      "report"
+    ]
+  },
+  "scopes": {
+    "F8-BUILD": "全工作区fmt/check/clippy/test/doc、两类宿主和TOML子进程冒烟的原始执行日志。",
+    "F8-COMPAT": "固定Modorch来源指纹、Rust1.85、默认空Feature及仅TOML配置组合。",
+    "F8-INTEROP": "rumqttc与Paho TCP/TLS及完整协议故障互操作矩阵。",
+    "F8-SECURITY": "Auth/ACL、TLS、命名空间、资源攻击与独立安全审查。",
+    "F8-PERFORMANCE": "TLS/Auth/Storage/QoS2数据、长期RSS、慢消费者、高负载退出及基于测量的SLO评审。",
+    "F8-RECOVERY": "SIGKILL、容量与恢复峰值、真实硬件断电及文件系统矩阵；模拟不能替代断电。",
+    "F8-PLATFORMS": "Linux/macOS/Windows实际执行证据；编译不代替运行。",
+    "F8-TOPIC-CROSSIMPL": "固定JSON向量由Modorch及magicCommon真实消费，不能只比较匹配器实现。",
+    "F8-REMOTE-CI": "远端CI不可变run URL/commit及原始归档，工作流定义不计作执行。",
+    "F8-INDEPENDENT-AGENT": "独立Agent接入、生命周期和故障场景的真实命令、diff及报告；fixture replay不替代。"
+  }
+}
