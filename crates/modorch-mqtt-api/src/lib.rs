@@ -302,6 +302,14 @@ pub enum MqttError {
     /// Invalid control packet, Topic, or state transition.
     #[error("protocol error: {0}")]
     Protocol(&'static str),
+    /// Sanitized persistent request failure, retaining operation and uncertainty class.
+    #[error("persistent storage {operation} failed: {failure:?}")]
+    Storage {
+        /// Fixed protocol operation name, without application data.
+        operation: &'static str,
+        /// Admission, execution uncertainty, transport or Provider failure.
+        failure: StoreCallFailure,
+    },
     /// Capability intentionally excluded from the declared subset.
     #[error("unsupported experimental capability: {0}")]
     Unsupported(&'static str),

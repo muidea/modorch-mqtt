@@ -1,2 +1,0 @@
-PASS: Paho MQTT5 TCP QoS0/1/2, properties, alias and subscription identifier
-PASS: Paho MQTT5 WebSocket QoS0/1/2, properties, alias and subscription identifier

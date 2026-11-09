@@ -4,6 +4,7 @@
 Install the optional test dependency in a virtual environment, build the example,
 then run this script. This script does not install anything or modify global state.
 """
+import os
 import queue
 import re
 import selectors
@@ -34,7 +35,7 @@ def client(port, identity):
 
 def main():
     process = subprocess.Popen(
-        [str(ROOT / "target/debug/standalone-broker"), "127.0.0.1:0"],
+        [str(ROOT / os.environ.get("CARGO_TARGET_DIR", "target") / "debug/standalone-broker"), "127.0.0.1:0"],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
     )
     clients = []

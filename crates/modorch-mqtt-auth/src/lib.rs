@@ -7,9 +7,11 @@ use modorch::{prelude::*, *};
 use modorch_mqtt_api::*;
 use std::{
     collections::BTreeSet,
+    num::NonZeroUsize,
     sync::{Arc, Mutex, RwLock},
     time::Duration,
 };
+use tokio::sync::Semaphore;
 
 /// Explicit permission for normal, retained and Will publications.
 #[derive(Clone, Debug)]
@@ -182,6 +184,25 @@ impl PasswordAuthConfig {
 pub struct PasswordAuthFactory {
     config: Arc<PasswordAuthConfig>,
     policy: PasswordAuthHandle,
+    password_slots: Arc<PasswordSlots>,
+}
+// Four admitted password requests, one physical hash. Independent lightweight
+// decisions retain worker capacity even while these four wait for CPU work.
+struct PasswordSlots {
+    admission: Arc<Semaphore>,
+    execution: Arc<Semaphore>,
+    #[cfg(test)]
+    probe: Mutex<Option<Arc<tests::PasswordProbe>>>,
+}
+impl Default for PasswordSlots {
+    fn default() -> Self {
+        Self {
+            admission: Arc::new(Semaphore::new(4)),
+            execution: Arc::new(Semaphore::new(1)),
+            #[cfg(test)]
+            probe: Mutex::new(None),
+        }
+    }
 }
 /// Host-owned policy replacement capability. Never expose it over MQTT.
 #[derive(Clone)]
@@ -218,6 +239,7 @@ impl PasswordAuthFactory {
         Ok(Self {
             policy: PasswordAuthHandle(Arc::new(RwLock::new(config.clone()))),
             config,
+            password_slots: Arc::new(PasswordSlots::default()),
         })
     }
 }
@@ -229,30 +251,54 @@ impl PasswordAuthFactory {
 }
 impl ModuleFactory for PasswordAuthFactory {
     fn descriptor(&self) -> ComponentDescriptor {
-        descriptor(&self.config)
+        self.password_slots.descriptor(&self.config)
     }
     fn create(&self, _: &ComponentConfig) -> FrameworkResult<Box<dyn Module>> {
         Ok(Box::new(AuthModule {
             config: self.config.clone(),
             policy: self.policy.clone(),
             tasks: Arc::new(Mutex::new(None)),
+            password_slots: self.password_slots.clone(),
         }))
     }
 }
-fn descriptor(config: &PasswordAuthConfig) -> ComponentDescriptor {
-    let mut d = ComponentDescriptor::new(ComponentRef::module(&config.name));
-    d.queue_capacity = 64;
-    d
+impl PasswordSlots {
+    fn descriptor(&self, config: &PasswordAuthConfig) -> ComponentDescriptor {
+        let mut d = ComponentDescriptor::new(ComponentRef::module(&config.name));
+        d.queue_capacity = 64;
+        d.execution = ExecutionPolicy::Concurrent {
+            max_in_flight: NonZeroUsize::new(8).unwrap(),
+        };
+        #[cfg(test)]
+        if self
+            .probe
+            .lock()
+            .unwrap()
+            .as_ref()
+            .is_some_and(|p| p.restart)
+        {
+            d.failure = FailurePolicy::Restart {
+                max_attempts: 1,
+                backoff: Duration::from_millis(1),
+            };
+        }
+        d
+    }
 }
 struct AuthModule {
     config: Arc<PasswordAuthConfig>,
     policy: PasswordAuthHandle,
     tasks: Arc<Mutex<Option<TaskScheduler>>>,
+    password_slots: Arc<PasswordSlots>,
 }
 #[async_trait]
 impl Lifecycle for AuthModule {
     async fn start(&mut self, ctx: &RuntimeContext) -> FrameworkResult<()> {
         *self.tasks.lock().unwrap() = Some(ctx.tasks.clone());
+        #[cfg(test)]
+        if let Some(probe) = self.password_slots.probe.lock().unwrap().as_ref() {
+            probe.schedulers.lock().unwrap().push(ctx.tasks.clone());
+        }
         Ok(())
     }
     async fn teardown(&mut self, _: &ShutdownContext) -> FrameworkResult<()> {
@@ -262,14 +308,15 @@ impl Lifecycle for AuthModule {
 }
 impl Module for AuthModule {
     fn descriptor(&self) -> ComponentDescriptor {
-        descriptor(&self.config)
+        self.password_slots.descriptor(&self.config)
     }
     fn handlers(&mut self) -> FrameworkResult<Option<HandlerRegistration>> {
-        Ok(Some(HandlerRegistration::Serial {
-            handler: Box::new(AuthHandler {
-                config: self.config.clone(),
+        Ok(Some(HandlerRegistration::Concurrent {
+            max_in_flight: NonZeroUsize::new(8).unwrap(),
+            handler: Arc::new(AuthHandler {
                 policy: self.policy.clone(),
                 tasks: self.tasks.clone(),
+                password_slots: self.password_slots.clone(),
             }),
             subscriptions: vec![SubscriptionSpec::new(
                 self.config.subscription_id,
@@ -280,84 +327,110 @@ impl Module for AuthModule {
     }
 }
 struct AuthHandler {
-    config: Arc<PasswordAuthConfig>,
     policy: PasswordAuthHandle,
     tasks: Arc<Mutex<Option<TaskScheduler>>>,
+    password_slots: Arc<PasswordSlots>,
 }
 #[async_trait]
-impl SerialHandler for AuthHandler {
+impl ConcurrentHandler for AuthHandler {
     async fn handle(
-        &mut self,
+        &self,
         _: &HandlerContext,
         message: MessageEnvelope,
     ) -> FrameworkResult<HandlerReply> {
-        if message.kind != MessageKind::Request {
-            return Ok(Arc::new(()));
-        }
-        // Snapshot one revision for the whole decision, including CPU work.
-        self.config = self.policy.0.read().unwrap().clone();
-        let request = message.payload::<AuthRequest>()?;
-        let result = if let AuthRequest::Authenticate(auth) = request.as_ref() {
-            if auth.username.as_ref().is_none_or(|s| s.len() > 256)
-                || auth.password.as_ref().is_none_or(|p| p.len() > 1024)
-            {
-                Err(AuthError::Denied)
-            } else {
-                let user = self
-                    .config
-                    .users
-                    .iter()
-                    .find(|u| Some(&u.username) == auth.username.as_ref())
-                    .cloned();
-                if let Some(user) = user {
-                    let password = auth.password.clone().unwrap();
-                    let config = self.config.clone();
-                    let tasks = self.tasks.lock().unwrap().clone();
-                    match tasks.and_then(|tasks| {
-                        tasks
-                            .spawn_cpu(move |cancel| {
-                                if cancel.is_cancelled() {
-                                    return Ok(Err(AuthError::Unavailable));
-                                }
-                                let verified =
-                                    PasswordHash::new(&user.password_hash).is_ok_and(|hash| {
-                                        Argon2::default().verify_password(&password, &hash).is_ok()
-                                    });
-                                Ok(if verified && !cancel.is_cancelled() {
-                                    Ok(AuthDecision::Principal(Principal {
-                                        key: PrincipalKey {
-                                            domain: config.domain.clone(),
-                                            subject: user.subject,
-                                        },
-                                        policy_version: config.policy_version,
-                                        expires_at_ms:
-                                            unix_time_ms().saturating_add(
-                                                config.principal_ttl.as_millis() as u64,
-                                            ),
-                                    }))
-                                } else {
-                                    Err(AuthError::Denied)
-                                })
-                            })
-                            .ok()
-                    }) {
-                        Some(task) => task
-                            .wait_finished()
-                            .await
-                            .unwrap_or(Err(AuthError::Unavailable)),
-                        None => Err(AuthError::Unavailable),
-                    }
-                } else {
-                    Err(AuthError::Denied)
-                }
-            }
-        } else {
-            self.decide(&message, request.as_ref())
-        };
-        Ok(Arc::new(result))
+        self.reply(message).await
     }
 }
 impl AuthHandler {
+    async fn reply(&self, message: MessageEnvelope) -> FrameworkResult<HandlerReply> {
+        if message.kind != MessageKind::Request {
+            return Ok(Arc::new(()));
+        }
+        // A per-operation immutable revision, never shared mutable handler state.
+        let config = self.policy.0.read().unwrap().clone();
+        let request = message.payload::<AuthRequest>()?;
+        let result = if let AuthRequest::Authenticate(auth) = request.as_ref() {
+            self.authenticate(auth, config).await
+        } else {
+            PolicyDecision { config }.decide(&message, request.as_ref())
+        };
+        Ok(Arc::new(result))
+    }
+    async fn authenticate(
+        &self,
+        auth: &Authenticate,
+        config: Arc<PasswordAuthConfig>,
+    ) -> AuthResult {
+        if auth.username.as_ref().is_none_or(|s| s.len() > 256)
+            || auth.password.as_ref().is_none_or(|p| p.len() > 1024)
+        {
+            return Err(AuthError::Denied);
+        }
+        let user = config
+            .users
+            .iter()
+            .find(|u| Some(&u.username) == auth.username.as_ref())
+            .cloned()
+            .ok_or(AuthError::Denied)?;
+        let admission = self
+            .password_slots
+            .admission
+            .clone()
+            .try_acquire_owned()
+            .map_err(|_| AuthError::Unavailable)?;
+        let execution = self
+            .password_slots
+            .execution
+            .clone()
+            .acquire_owned()
+            .await
+            .map_err(|_| AuthError::Unavailable)?;
+        let tasks = self
+            .tasks
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or(AuthError::Unavailable)?;
+        let password = auth.password.clone().unwrap();
+        #[cfg(test)]
+        let probe = self.password_slots.probe.lock().unwrap().clone();
+        let task = tasks
+            .spawn_cpu(move |cancel| {
+                // The physical job owns both permits until actual exit, including
+                // handler abort or a Running request whose caller timed out.
+                let _permits = (admission, execution);
+                // A test-only physical-job barrier; no production timing hook.
+                #[cfg(test)]
+                let _probe = probe.as_ref().map(|p| p.enter(cancel.clone()));
+                if cancel.is_cancelled() {
+                    return Ok(Err(AuthError::Unavailable));
+                }
+                let verified = PasswordHash::new(&user.password_hash)
+                    .is_ok_and(|hash| Argon2::default().verify_password(&password, &hash).is_ok());
+                Ok(if verified && !cancel.is_cancelled() {
+                    Ok(AuthDecision::Principal(Principal {
+                        key: PrincipalKey {
+                            domain: config.domain.clone(),
+                            subject: user.subject,
+                        },
+                        policy_version: config.policy_version,
+                        expires_at_ms: unix_time_ms()
+                            .saturating_add(config.principal_ttl.as_millis() as u64),
+                    }))
+                } else {
+                    Err(AuthError::Denied)
+                })
+            })
+            .map_err(|_| AuthError::Unavailable)?;
+        task.wait_finished()
+            .await
+            .unwrap_or(Err(AuthError::Unavailable))
+    }
+}
+struct PolicyDecision {
+    config: Arc<PasswordAuthConfig>,
+}
+impl PolicyDecision {
     fn user(&self, principal: &Principal) -> Option<&UserPolicy> {
         (principal.is_valid()
             && principal.key.domain == self.config.domain
@@ -464,3 +537,6 @@ pub fn filter_covers(allowed: &str, requested: &str) -> bool {
         }
     }
 }
+
+#[cfg(test)]
+mod tests;

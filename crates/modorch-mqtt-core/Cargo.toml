@@ -27,6 +27,7 @@ sha2.workspace = true
 getrandom = "0.3"
 
 [dev-dependencies]
+tokio = { workspace = true, features = ["test-util"] }
 modorch-mqtt-storage = { path = "../modorch-mqtt-storage" }
 
 [dependencies.tokio-tungstenite]

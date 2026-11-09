@@ -28,7 +28,7 @@ F4 的 `MqttInbound` 在网络 PUBLISH 完成内存原子接纳后，以原 MQTT
 
 期限到达或任务收到取消时先关闭 TCP/TLS，并使连接令牌失效。尚未获得 gate 的等待可以取消；获得事务后必须确认提交结果再退出，不用 timeout 丢弃已开始的 durable promise。任务、连接许可及内存预留在实际完成前持续占用；因此网络关闭不等于资源已经归还。迟到的鉴权或 gate 结果不能继续接纳消息/会话。已接纳 QoS2 在确认提交后仍可恢复，重传原 Packet ID 不重复路由；超时关闭不发送迟到成功 ACK。
 
-这些期限依赖执行器能够获得调度和短同步临界区正常执行，不是实时系统保证。等待后端时不并发解析新网络包；接收内核中尚未解析的 PING 不会延长期限。Will 的持久收尾也需等待事务 gate/提交，网络关闭与 Will 到达不能视为同一时刻。故障测试及限定范围见[连接期限验证](validation/2026-11-08-f6-deadlines/README.md)。
+这些期限依赖执行器能够获得调度和短同步临界区正常执行，不是实时系统保证。等待后端时不并发解析新网络包；接收内核中尚未解析的 PING 不会延长期限。Will 的持久收尾也需等待事务 gate/提交，网络关闭与 Will 到达不能视为同一时刻。故障测试及限定范围见[验证结论摘要](validation/README.md#verification)。
 
 ## 启用 Storage 时
 
@@ -36,7 +36,7 @@ Core 通过独立 SQLite Module 的定向 Request 提交完整有界状态 image
 
 提交丢回执时查询同 operation_id/digest，未知才重试同操作；仍不确定则关闭本代入口和连接，禁止 ACK。恢复只信最后 committed image，检查 epoch/version、分页偏移/进度/结束标记、摘要、身份引用和配额。离线订阅在 listen 前全部恢复；预算变小导致不满足时拒绝启动，不删已承诺数据。持久会话 owner、Will Grant 和同源业务幂等结果跨新 Application 恢复，成功内部回执为 `DurableCommitted`。
 
-宿主停止时取消先于新 CPU/I/O 任务准入，Core 等待已有连接真实退出，不在 quiesce/teardown 新建关键磁盘提交。停止前已保存的 armed Will 在下次启动时收尾，并在监听前提交；因此停止导致的 Will 可延迟到重启发布。运行期正常 DISCONNECT 仍先持久清除 Will。SQLite 使用 FULL + DELETE journal；SIGKILL 恢复验证不等于已验证真实硬件断电或任意文件系统。详见 [持久化接入](storage.md)及 [Storage 验证](validation/2026-11-07-f5-storage/README.md)。
+宿主停止时取消先于新 CPU/I/O 任务准入，Core 等待已有连接真实退出，不在 quiesce/teardown 新建关键磁盘提交。停止前已保存的 armed Will 在下次启动时收尾，并在监听前提交；因此停止导致的 Will 可延迟到重启发布。运行期正常 DISCONNECT 仍先持久清除 Will。SQLite 使用 FULL + DELETE journal；SIGKILL 恢复验证不等于已验证真实硬件断电或任意文件系统。详见 [持久化接入](storage.md)及 [验证结论摘要](validation/README.md#implementation)。
 
 ## QoS2 的协议边界
 
@@ -49,6 +49,6 @@ Core 通过独立 SQLite Module 的定向 Request 提交完整有界状态 image
 
 ## 出站重试与慢消费者的限定故障证据
 
-[本轮回归](validation/2026-11-08-f6-wire-fsm/README.md)验证PUBLISH只写出前缀后被本地写超时关闭：内存持久Session仍保留QoS1/2所有权，新连接按原PacketID和DUP重试，直至相应ACK完成。QoS0不享有重连重传保证。此项使用确定性duplex流，不代表真实TCP/TLS或SQLite所有中断时序均已验证。
+[验证结论摘要](validation/README.md#protocol)验证PUBLISH只写出前缀后被本地写超时关闭：内存持久Session仍保留QoS1/2所有权，新连接按原PacketID和DUP重试，直至相应ACK完成。QoS0不享有重连重传保证。此项使用确定性duplex流，不代表真实TCP/TLS或SQLite所有中断时序均已验证。
 
 真实TCP慢消费者在AwaitPubComp阶段继续占用窗口和可靠积压，容量不足时新的可靠发布（包括Retained替换）整体拒绝，不发送成功PUBREC，不向其他目标部分投递，也不建立已成功接纳的入站QoS2记录。容量释放后同ID重试可正常接纳；其后重复PUBLISH不再次路由。有限状态正确性不等于生产背压/RSS/SLO验收。

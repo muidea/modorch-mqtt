@@ -55,6 +55,10 @@ impl SerialHandler for Policy {
         let mode = self.mode.load(Ordering::SeqCst);
         let result: AuthResult = match request.as_ref() {
             AuthRequest::Authenticate(a) => {
+                if mode == 8 {
+                    self.entered.add_permits(1);
+                    self.gate.acquire().await.unwrap().forget();
+                }
                 if mode == 2 {
                     tokio::time::sleep(Duration::from_millis(200)).await;
                 }
@@ -215,6 +219,104 @@ async fn authorization_timeout_and_mismatched_grant_never_commit_or_restart_core
     assert_eq!(handle.status().retained, 0);
     assert_eq!(handle.status().generation, 1);
     stop(&app).await;
+}
+
+#[tokio::test]
+async fn handshake_deadline_during_authentication_closes_tcp_and_tls_without_late_session() {
+    handshake_deadline_at_auth_stage(false).await;
+}
+
+#[tokio::test]
+async fn handshake_deadline_during_session_authorization_closes_tcp_and_tls_without_late_session() {
+    handshake_deadline_at_auth_stage(true).await;
+}
+
+async fn handshake_deadline_at_auth_stage(session_authorization: bool) {
+    async fn stream(addr: SocketAddr, tls: bool) -> crate::transport::Stream {
+        let socket = TcpStream::connect(addr).await.unwrap();
+        #[cfg(feature = "tls")]
+        if tls {
+            return Box::new(
+                super::tls::connector(true)
+                    .connect(
+                        tokio_rustls::rustls::pki_types::ServerName::try_from("localhost").unwrap(),
+                        socket,
+                    )
+                    .await
+                    .unwrap(),
+            );
+        }
+        let _ = tls;
+        Box::new(socket)
+    }
+    for tls in [false, cfg!(feature = "tls")]
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>()
+    {
+        let policy = Policy::default();
+        let mut cfg = config();
+        cfg.anonymous_access = false;
+        cfg.handshake_timeout = Duration::from_secs(5);
+        cfg.auth = Some(AuthProviderConfig {
+            component: "auth".into(),
+            timeout: Duration::from_secs(5),
+        });
+        #[cfg(feature = "tls")]
+        if tls {
+            cfg.tls = super::tls::tls_config().tls;
+        }
+        let (app, broker) = setup_config(policy.clone(), cfg).await;
+        let addr = broker.local_addr().unwrap();
+        manual_clock(async {
+            policy
+                .mode
+                .store(if session_authorization { 0 } else { 8 }, Ordering::SeqCst);
+            policy
+                .pause_attach
+                .store(session_authorization, Ordering::SeqCst);
+            let mut socket = stream(addr, tls).await;
+            let mut body = string("MQTT");
+            body.extend([4, 128, 0, 0]);
+            body.extend(string("late-auth"));
+            body.extend(string("alice"));
+            socket.write_all(&codec::frame(0x10, &body)).await.unwrap();
+            policy.entered.acquire().await.unwrap().forget();
+            tokio::time::advance(Duration::from_millis(4999)).await;
+            {
+                let mut read = std::pin::pin!(socket.read_u8());
+                assert!(
+                    std::future::poll_fn(|cx| std::task::Poll::Ready(
+                        read.as_mut().poll(cx).is_pending()
+                    ))
+                    .await,
+                    "network closed before the five-second handshake boundary"
+                );
+            }
+            tokio::time::advance(Duration::from_millis(2)).await;
+            assert!(
+                socket.read_u8().await.is_err(),
+                "late authentication/session authorization must not send CONNACK"
+            );
+            assert_eq!(broker.status().sessions, 0);
+            policy.mode.store(0, Ordering::SeqCst);
+            policy.gate.add_permits(1);
+            // Same identity and ClientID: a late provider reply must not have
+            // attached a hidden persistent session after network cancellation.
+            let mut healthy = stream(addr, tls).await;
+            healthy.write_all(&codec::frame(0x10, &body)).await.unwrap();
+            let mut reply = [0; 4];
+            healthy.read_exact(&mut reply).await.unwrap();
+            assert_eq!(reply, [0x20, 2, 0, 0]);
+            healthy.write_all(&[0xc0, 0]).await.unwrap();
+            let mut pong = [0; 2];
+            healthy.read_exact(&mut pong).await.unwrap();
+            assert_eq!(pong, [0xd0, 0]);
+            assert_eq!(broker.status().sessions, 1);
+            assert_eq!(broker.status().generation, 1);
+        })
+        .await;
+        stop(&app).await;
+    }
 }
 
 #[tokio::test]

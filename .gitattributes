@@ -1,6 +1,6 @@
 * text=auto eol=lf
 
-# Raw validation artifacts are hash-bound; preserve their original bytes and whitespace.
+# Local validation artifacts keep raw bytes; only the final record is archived.
 /docs/validation/** -text -whitespace
-# The index is maintained documentation, not a raw artifact.
+# The final record is maintained documentation, not a raw artifact.
 /docs/validation/README.md text eol=lf whitespace

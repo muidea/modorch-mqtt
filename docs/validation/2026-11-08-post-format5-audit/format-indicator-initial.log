@@ -1,5 +1,0 @@
-Binary sha256: 8bf16c76a36c94870e0f18e8b3d5e753b8f4402c8f37f99ad418d38be21044b0
-CONTROL: indicator=None, outgoing properties=
-CONTROL: indicator=1, outgoing properties=0101
-REPRODUCED R-09: incoming Payload Format Indicator=0 is omitted in outgoing PUBLISH (properties length 0)
-Broker checked shutdown: exit 0

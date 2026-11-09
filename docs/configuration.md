@@ -21,7 +21,7 @@ Factory 先校验配置；Application build 不创建对象或监听。setup 最
 | max_inflight_per_client | 16 | 当前连接已发送的可靠 PUBLISH 上限，QoS2 到 PUBCOMP 才释放；PUBREL控制帧优先收尾 |
 | max_offline_messages_per_client | 2048 | 在线/离线可靠 Pending + Inflight 总数，范围 1..65535 |
 | max_pending_bytes_per_client | 16777216 | 可靠消息 payload + Topic + 元数据的逻辑记账字节上限 |
-| max_inbound_qos2_per_client | 128 | 单Session已接纳且待PUBREL的QoS2接收交换数，1..65535；独立于下行积压 |
+| max_inbound_qos2_per_client | 128 | 单Session已接纳且待PUBREL的QoS2接收交换数，1..65535；MQTT5同时以此宣告连接级QoS1/2 Receive Maximum，完整写出PUBACK/PUBCOMP才归还网络额度；独立于下行积压 |
 | max_inbound_qos2_bytes_per_client | 16777216 | 接收交换的逻辑字节总额，每条 `256 + topic.len() + payload.len()`，同时计入全局预算 |
 | max_retained_topics / max_will_records | 10000 / 500 | Retained Topic 数 / 已安装及已触发待发 Will 数 |
 | max_publish_records | 10000 | 内部发布终态幂等记录总数；不淘汰，满额拒绝新 ID；Storage 模式跨进程恢复 |

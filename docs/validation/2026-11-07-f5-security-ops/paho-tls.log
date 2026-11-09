@@ -1,2 +1,0 @@
-PASS: verified TLS certificate, Argon2id authentication, QoS1 delivery, wildcard ACL denial and bad-password isolation
-PASS: secure composition checked shutdown and port release

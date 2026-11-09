@@ -18,14 +18,18 @@ use tokio::{
 use crate::{
     budget::Charge,
     codec::{self, Packet},
+    diagnostics::{self, Stage},
     state::State,
 };
+
+mod receive;
 
 pub(crate) type SharedState = Arc<Mutex<State>>;
 
 /// RAII owns the socket task's session, quota and memory until actual task exit,
 /// including panic/abort and executor rejection before its first poll.
 pub(crate) struct ConnectionLifetime {
+    pub diagnostics: diagnostics::Diagnostics,
     pub state: SharedState,
     pub drained: Arc<Notify>,
     pub generation: u64,
@@ -80,6 +84,7 @@ pub(crate) fn spawn(
         // A malformed client, IO failure or quota rejection closes only this
         // connection. It must never restart/fail the whole component.
         let result = async {
+            diagnostics::phase(&lifetime.diagnostics, Stage::Transport);
             stream.set_nodelay(true)?;
             let peer_ip = stream.peer_addr()?.ip();
             let stream = transport.accept(stream, &cancel, deadline).await?;
@@ -87,6 +92,7 @@ pub(crate) fn spawn(
         }
         .await;
         if let Err(error) = result {
+            diagnostics::failure(&lifetime.diagnostics, &error);
             lifetime.state.lock().unwrap().record_client_error(&error);
         }
         Ok(())
@@ -117,6 +123,7 @@ async fn run(
     peer_ip: std::net::IpAddr,
     handshake_deadline: Instant,
 ) -> Result<(), MqttError> {
+    let trace = life.diagnostics.clone();
     let socket = crate::transport::Interruptible::new(stream);
     let local_cancel = cancel.child_token();
     let (deadlines, mut updates) = watch::channel(Deadlines {
@@ -150,8 +157,6 @@ async fn run(
                     None => std::future::pending().await,
                 }
             } => {
-                socket.close();
-                local_cancel.cancel();
                 let reason = if limits.write == deadline {
                     MqttError::Protocol("slow writer timeout")
                 } else if limits.identity == deadline {
@@ -159,6 +164,9 @@ async fn run(
                 } else {
                     MqttError::Protocol("handshake/keepalive timeout")
                 };
+                diagnostics::failure(&trace, &reason);
+                socket.close();
+                local_cancel.cancel();
                 // Canceled-state fencing is expected after a deadline; preserve
                 // the timeout reason for metrics rather than reporting Closed.
                 return match protocol.await {
@@ -181,6 +189,7 @@ async fn run_protocol(
     handshake_deadline: Instant,
     deadlines: watch::Sender<Deadlines>,
 ) -> Result<(), MqttError> {
+    diagnostics::phase(&life.diagnostics, Stage::Connect);
     let (mut reader, mut writer) = tokio::io::split(stream);
     let mut principal: Option<Principal> = None;
     let config = life.state.lock().unwrap().config.clone();
@@ -189,12 +198,13 @@ async fn run_protocol(
     // bound. The connection reservation is acquired before allocating this.
     let mut input = Vec::with_capacity(config.max_packet_bytes);
     let mut read = [0u8; 4096];
-    let mut control = VecDeque::<Vec<u8>>::new();
-    let mut current: Option<(Vec<u8>, usize)> = None;
+    let mut control = VecDeque::<receive::Frame>::new();
+    let mut receive_window = receive::Window::default();
+    let mut current: Option<(receive::Frame, usize)> = None;
     let mut notify = Arc::new(Notify::new());
     let mut keep_alive = None;
     let mut close_after_write = false;
-    loop {
+    'connection: loop {
         if principal.as_ref().is_some_and(|p| !p.is_valid()) {
             return Err(MqttError::NotAuthorized);
         }
@@ -245,20 +255,20 @@ async fn run_protocol(
                                     principal = Some(identity);
                                     life.attached = Some((client, id));
                                     notify = session_notify;
-                                    control.push_back(vec![0x20, 2, u8::from(present), 0]);
+                                    control.push_back(vec![0x20, 2, u8::from(present), 0].into());
                                 }
                                 Err(error) => {
                                     let Some(frame) = connack_failure(&error) else {
                                         return Err(error);
                                     };
                                     life.state.lock().unwrap().record_client_error(&error);
-                                    control.push_back(frame);
+                                    control.push_back(frame.into());
                                     close_after_write = true;
                                 }
                             }
                         }
                         Err(MqttError::Unsupported("MQTT protocol level")) => {
-                            control.push_back(vec![0x20, 2, 0, 1]);
+                            control.push_back(vec![0x20, 2, 0, 1].into());
                             close_after_write = true;
                         }
                         _ => {
@@ -284,6 +294,28 @@ async fn run_protocol(
                         } else {
                             false
                         };
+                        if wire.is_v5() {
+                            if let Packet::Publish {
+                                message,
+                                packet_id: Some(id),
+                            } = &packet
+                            {
+                                let budget = life.state.lock().unwrap().budget.clone();
+                                if !receive_window.admit(
+                                    message.qos,
+                                    *id,
+                                    config.max_inbound_qos2_per_client,
+                                    duplicate,
+                                    &budget,
+                                )? {
+                                    // Do not authorize, route or persist the violating message.
+                                    // Finish earlier frames in FIFO order before DISCONNECT.
+                                    control.push_back(vec![0xe0, 2, 0x93, 0].into());
+                                    close_after_write = true;
+                                    continue 'connection;
+                                }
+                            }
+                        }
                         if let (Some(identity), Some(provider)) = (&principal, &config.auth) {
                             let authorize = async {
                                 match &mut packet {
@@ -324,158 +356,177 @@ async fn run_protocol(
                                 result = authorize => result?,
                             }
                         }
-                        let mut observation = None;
-                        let transaction = tokio::select! { biased;
-                            _ = cancel.cancelled() => return Ok(()),
-                            result = life.persistence.begin(&life.state) => result?,
-                        };
-                        let mut disconnected = false;
-                        let result = (|| -> Result<(), MqttError> {
-                            let mut state = life.state.lock().unwrap();
-                            state.check(life.generation, client, *connection)?;
-                            match packet {
-                                Packet::Publish { message, packet_id } => {
-                                    let first = if message.qos == Qos::ExactlyOnce {
-                                        state.receive_qos2(
+                        if matches!(packet, Packet::Ping) {
+                            // PING confirms only network liveness. It changes no
+                            // durable ownership and must not queue CPU/image work
+                            // behind another connection's accepted Store promise.
+                            // Earlier packets on this connection have already
+                            // completed their durable barriers before this point.
+                            life.state.lock().unwrap().check(
+                                life.generation,
+                                client,
+                                *connection,
+                            )?;
+                            control.push_back(vec![0xd0, 0].into());
+                        } else {
+                            let mut observation = None;
+                            diagnostics::phase(&life.diagnostics, Stage::PacketGate);
+                            let transaction = tokio::select! { biased;
+                                _ = cancel.cancelled() => return Ok(()),
+                                result = life.persistence.begin(&life.state) => result?,
+                            };
+                            let mut disconnected = false;
+                            let result = (|| -> Result<(), MqttError> {
+                                let mut state = life.state.lock().unwrap();
+                                state.check(life.generation, client, *connection)?;
+                                match packet {
+                                    Packet::Publish { message, packet_id } => {
+                                        let first = if message.qos == Qos::ExactlyOnce {
+                                            state.receive_qos2(
+                                                life.generation,
+                                                client,
+                                                *connection,
+                                                packet_id.unwrap(),
+                                                message.clone(),
+                                            )?
+                                        } else {
+                                            state.publish(
+                                                life.generation,
+                                                client,
+                                                *connection,
+                                                message.clone(),
+                                            )?;
+                                            true
+                                        };
+                                        let qos = message.qos;
+                                        if first {
+                                            observation = Some(MqttInbound {
+                                                properties: message.properties.clone(),
+                                                broker: config.name.clone(),
+                                                generation: life.generation,
+                                                connection_id: *connection,
+                                                client_id: client.clone(),
+                                                topic: message.topic,
+                                                payload: message.payload,
+                                                qos: message.qos,
+                                                retain: message.retain,
+                                                packet_id,
+                                                received_at_ms: std::time::SystemTime::now()
+                                                    .duration_since(std::time::UNIX_EPOCH)
+                                                    .unwrap_or_default()
+                                                    .as_millis()
+                                                    .min(u128::from(u64::MAX))
+                                                    as u64,
+                                            });
+                                        }
+                                        if let Some(id) = packet_id {
+                                            control.push_back(receive::Frame::releasing(
+                                                codec::frame(
+                                                    if qos == Qos::ExactlyOnce {
+                                                        0x50
+                                                    } else {
+                                                        0x40
+                                                    },
+                                                    &id.to_be_bytes(),
+                                                ),
+                                                (wire.is_v5() && qos == Qos::AtLeastOnce)
+                                                    .then_some(receive::Receipt::Qos1),
+                                            ));
+                                        }
+                                    }
+                                    Packet::PubAck(id) => {
+                                        state.ack(life.generation, client, *connection, id)?
+                                    }
+                                    Packet::PubRec(id) => {
+                                        if wire.negative_rec(id) {
+                                            state.reject_received(
+                                                life.generation,
+                                                client,
+                                                *connection,
+                                                id,
+                                            )?;
+                                        } else if let Some(frame) = state.outgoing_received(
                                             life.generation,
                                             client,
                                             *connection,
-                                            packet_id.unwrap(),
-                                            message.clone(),
-                                        )?
-                                    } else {
-                                        state.publish(
-                                            life.generation,
-                                            client,
-                                            *connection,
-                                            message.clone(),
-                                        )?;
-                                        true
-                                    };
-                                    let qos = message.qos;
-                                    if first {
-                                        observation = Some(MqttInbound {
-                                            properties: message.properties.clone(),
-                                            broker: config.name.clone(),
-                                            generation: life.generation,
-                                            connection_id: *connection,
-                                            client_id: client.clone(),
-                                            topic: message.topic,
-                                            payload: message.payload,
-                                            qos: message.qos,
-                                            retain: message.retain,
-                                            packet_id,
-                                            received_at_ms: std::time::SystemTime::now()
-                                                .duration_since(std::time::UNIX_EPOCH)
-                                                .unwrap_or_default()
-                                                .as_millis()
-                                                .min(u128::from(u64::MAX))
-                                                as u64,
-                                        });
+                                            id,
+                                        )? {
+                                            control.push_back(frame.into());
+                                        }
                                     }
-                                    if let Some(id) = packet_id {
-                                        control.push_back(codec::frame(
-                                            if qos == Qos::ExactlyOnce { 0x50 } else { 0x40 },
-                                            &id.to_be_bytes(),
-                                        ));
-                                    }
-                                }
-                                Packet::PubAck(id) => {
-                                    state.ack(life.generation, client, *connection, id)?
-                                }
-                                Packet::PubRec(id) => {
-                                    if wire.negative_rec(id) {
-                                        state.reject_received(
+                                    Packet::PubRel(id) => {
+                                        state.incoming_release(
                                             life.generation,
                                             client,
                                             *connection,
                                             id,
                                         )?;
-                                    } else if let Some(frame) = state.outgoing_received(
+                                        control.push_back(receive::Frame::releasing(
+                                            codec::frame(0x70, &id.to_be_bytes()),
+                                            receive_window.completion(id),
+                                        ));
+                                    }
+                                    Packet::PubComp(id) => state.outgoing_completed(
                                         life.generation,
                                         client,
                                         *connection,
                                         id,
-                                    )? {
-                                        control.push_back(frame);
+                                    )?,
+                                    Packet::Subscribe { id, filters } => {
+                                        let subscription_options = wire.subscribe_options();
+                                        let codes = state.subscribe_with_options(
+                                            life.generation,
+                                            client,
+                                            *connection,
+                                            filters,
+                                            subscription_options,
+                                        )?;
+                                        let mut reply = id.to_be_bytes().to_vec();
+                                        reply.extend(codes);
+                                        control.push_back(codec::frame(0x90, &reply).into());
+                                    }
+                                    Packet::Unsubscribe { id, filters } => {
+                                        let reasons = state.unsubscribe(
+                                            life.generation,
+                                            client,
+                                            *connection,
+                                            filters,
+                                        )?;
+                                        let mut body = id.to_be_bytes().to_vec();
+                                        if wire.is_v5() {
+                                            body.extend(reasons);
+                                        }
+                                        control.push_back(codec::frame(0xb0, &body).into());
+                                    }
+                                    Packet::Ping => {
+                                        unreachable!("PING handled without durable mutation")
+                                    }
+                                    Packet::Disconnect => {
+                                        if let Some(seconds) = wire.disconnect_expiry() {
+                                            state.set_disconnect_expiry(client, seconds)?;
+                                        }
+                                        state.detach(client, *connection, !wire.disconnect_will());
+                                        disconnected = true;
+                                    }
+                                    Packet::Connect(_) => {
+                                        return Err(MqttError::Protocol("second CONNECT"));
                                     }
                                 }
-                                Packet::PubRel(id) => {
-                                    state.incoming_release(
-                                        life.generation,
-                                        client,
-                                        *connection,
-                                        id,
-                                    )?;
-                                    control.push_back(codec::frame(0x70, &id.to_be_bytes()));
-                                }
-                                Packet::PubComp(id) => state.outgoing_completed(
-                                    life.generation,
-                                    client,
-                                    *connection,
-                                    id,
-                                )?,
-                                Packet::Subscribe { id, filters } => {
-                                    let subscription_options = wire.subscribe_options();
-                                    let codes = state.subscribe_with_options(
-                                        life.generation,
-                                        client,
-                                        *connection,
-                                        filters,
-                                        subscription_options,
-                                    )?;
-                                    let mut reply = id.to_be_bytes().to_vec();
-                                    reply.extend(codes);
-                                    control.push_back(codec::frame(0x90, &reply));
-                                }
-                                Packet::Unsubscribe { id, filters } => {
-                                    let reasons = filters
-                                        .iter()
-                                        .map(|f| {
-                                            if state.has_subscription(client, f) {
-                                                0
-                                            } else {
-                                                0x11
-                                            }
-                                        })
-                                        .collect::<Vec<u8>>();
-                                    state.unsubscribe(
-                                        life.generation,
-                                        client,
-                                        *connection,
-                                        filters,
-                                    )?;
-                                    let mut body = id.to_be_bytes().to_vec();
-                                    if wire.is_v5() {
-                                        body.extend(reasons);
-                                    }
-                                    control.push_back(codec::frame(0xb0, &body));
-                                }
-                                Packet::Ping => control.push_back(vec![0xd0, 0]),
-                                Packet::Disconnect => {
-                                    if let Some(seconds) = wire.disconnect_expiry() {
-                                        state.set_disconnect_expiry(client, seconds)?;
-                                    }
-                                    state.detach(client, *connection, !wire.disconnect_will());
-                                    disconnected = true;
-                                }
-                                Packet::Connect(_) => {
-                                    return Err(MqttError::Protocol("second CONNECT"));
-                                }
+                                Ok(())
+                            })();
+                            diagnostics::phase(&life.diagnostics, Stage::PacketCommit);
+                            transaction
+                                .commit(crate::persistence::Hub::External(hub))
+                                .await?;
+                            result?;
+                            if disconnected {
+                                life.graceful = true;
+                                life.attached = None;
+                                return Ok(());
                             }
-                            Ok(())
-                        })();
-                        transaction
-                            .commit(crate::persistence::Hub::External(hub))
-                            .await?;
-                        result?;
-                        if disconnected {
-                            life.graceful = true;
-                            life.attached = None;
-                            return Ok(());
-                        }
-                        if let Some(event) = observation {
-                            observe(life, hub, event);
+                            if let Some(event) = observation {
+                                observe(life, hub, event);
+                            }
                         }
                     }
                 }
@@ -483,28 +534,40 @@ async fn run_protocol(
         }
 
         if current.is_none() {
-            let next = if let Some(frame) = control.pop_front() {
-                Some(wire.response(
-                    frame,
+            let next = if let Some(mut frame) = control.pop_front() {
+                frame.bytes = wire.response(
+                    frame.bytes,
                     life.attached.as_ref().map(|(c, _)| c.as_str()),
                     config.max_packet_bytes,
                     config.max_inbound_qos2_per_client,
-                ))
+                );
+                Some(frame)
             } else if !close_after_write {
                 if let Some((client, id)) = &life.attached {
-                    let transaction = tokio::select! { biased;
-                        _ = cancel.cancelled() => return Ok(()),
-                        result = life.persistence.begin(&life.state) => result?,
-                    };
-                    let next =
+                    let ready =
                         life.state
                             .lock()
                             .unwrap()
-                            .next_outbound(life.generation, client, *id);
-                    transaction
-                        .commit(crate::persistence::Hub::External(hub))
-                        .await?;
-                    next?
+                            .has_outbound(life.generation, client, *id)?;
+                    if ready {
+                        diagnostics::phase(&life.diagnostics, Stage::OutboundGate);
+                        let transaction = tokio::select! { biased;
+                            _ = cancel.cancelled() => return Ok(()),
+                            result = life.persistence.begin(&life.state) => result?,
+                        };
+                        let next =
+                            life.state
+                                .lock()
+                                .unwrap()
+                                .next_outbound(life.generation, client, *id);
+                        diagnostics::phase(&life.diagnostics, Stage::OutboundCommit);
+                        transaction
+                            .commit(crate::persistence::Hub::External(hub))
+                            .await?;
+                        next?.map(Into::into)
+                    } else {
+                        None
+                    }
                 } else {
                     None
                 }
@@ -512,7 +575,9 @@ async fn run_protocol(
                 None
             };
             if let Some(frame) = next {
-                if frame.len() > config.max_packet_bytes || frame.len() > wire.max_packet() {
+                if frame.bytes.len() > config.max_packet_bytes
+                    || frame.bytes.len() > wire.max_packet()
+                {
                     return Err(MqttError::Capacity("outbound packet"));
                 }
                 let write_deadline = Instant::now() + config.write_timeout;
@@ -523,6 +588,9 @@ async fn run_protocol(
             }
         }
 
+        if life.attached.is_some() {
+            diagnostics::phase(&life.diagnostics, Stage::Connected);
+        }
         // Buffered complete frames should make progress without waiting for a new
         // TCP read; still poll IO each turn so a flood cannot starve ACK writes.
         let buffered = !close_after_write
@@ -534,14 +602,15 @@ async fn run_protocol(
             _ = cancel.cancelled() => return Ok(()),
             result = async {
                 let (bytes, offset) = current.as_ref().unwrap();
-                writer.write(&bytes[*offset..]).await
+                writer.write(&bytes.bytes[*offset..]).await
             }, if current.is_some() => {
                 let written = result?;
                 life.state.lock().unwrap().record_io(0, written);
                 if written == 0 { return Err(MqttError::Protocol("socket write closed")); }
                 let (bytes, offset) = current.as_mut().unwrap();
                 *offset += written;
-                if *offset == bytes.len() {
+                if *offset == bytes.bytes.len() {
+                    receive_window.written(bytes.receipt);
                     current = None;
                     deadlines.send_modify(|d| d.write = None);
                 }
@@ -569,6 +638,7 @@ fn connack_failure(error: &MqttError) -> Option<Vec<u8>> {
         MqttError::Capacity(_)
         | MqttError::Closed
         | MqttError::SessionConflict
+        | MqttError::Storage { .. }
         | MqttError::Protocol("persistent storage unavailable") => 3,
         MqttError::Protocol("reserved internal namespace") | MqttError::NotAuthorized => 5,
         _ => return None,
@@ -656,6 +726,7 @@ mod tests {
         state.generation = 1;
         state.connections = 1;
         let mut life = ConnectionLifetime {
+            diagnostics: None,
             state: Arc::new(Mutex::new(state)),
             drained: Arc::new(Notify::new()),
             generation: 1,
@@ -722,6 +793,7 @@ mod tests {
             initial.connections = 1;
             let state = Arc::new(Mutex::new(initial));
             let make_life = || ConnectionLifetime {
+                diagnostics: None,
                 state: state.clone(),
                 drained: Arc::new(Notify::new()),
                 generation: 1,
@@ -871,3 +943,7 @@ mod tests {
         }
     }
 }
+
+#[cfg(all(test, feature = "mqtt5"))]
+#[path = "connection/receive_tests.rs"]
+mod receive_tests;

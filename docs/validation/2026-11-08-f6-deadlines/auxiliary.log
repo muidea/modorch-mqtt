@@ -1,9 +1,0 @@
-$ python3 scripts/check-project.py
-Project deliverables and local links: Passed
-exit=0
-$ python3 -m py_compile scripts/audit-mqtt311.py scripts/benchmark.py scripts/check-conformance.py scripts/check-project.py scripts/verify-paho-tls.py scripts/verify-paho.py scripts/verify-storage.py scripts/tests/test_audit.py scripts/tests/test_conformance.py scripts/tests/test_project.py
-exit=0
-$ sh -n scripts/check.sh
-exit=0
-$ git diff --check
-exit=0

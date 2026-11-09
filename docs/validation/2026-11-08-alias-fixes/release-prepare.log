@@ -1,2 +1,0 @@
-$ python3 scripts/check-release.py --prepare --results docs/validation/2026-11-08-alias-fixes/check-final.log --bundle docs/validation/2026-11-08-alias-fixes/release-plan.json
-Unapproved evidence plan: 178 obligations; all reviews NotRun

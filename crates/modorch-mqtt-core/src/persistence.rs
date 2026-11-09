@@ -30,11 +30,26 @@ pub(crate) enum Hub<'a> {
 fn failed() -> MqttError {
     MqttError::Protocol("persistent storage unavailable")
 }
-async fn call(
+pub(crate) async fn call(
     hub: Hub<'_>,
     config: &StorageProviderConfig,
     request: StoreRequest,
 ) -> Result<StoreReply, MqttError> {
+    let operation = match &request {
+        StoreRequest::Begin { .. } => "begin",
+        StoreRequest::Page { .. } => "page",
+        StoreRequest::Complete { .. } => "complete",
+        StoreRequest::Abort { .. } => "abort",
+        StoreRequest::Commit { .. } => "commit",
+        StoreRequest::Query { .. } => "query",
+    };
+    let failure = |failure| {
+        // Keep diagnostics typed and sanitized; never retain Hub error detail,
+        // SQL, paths, capabilities, image bytes or application identifiers.
+        #[cfg(test)]
+        eprintln!("store diagnostic: operation={operation} failure={failure:?}");
+        MqttError::Storage { operation, failure }
+    };
     let bytes = match &request {
         StoreRequest::Commit { image, .. } => image.len() + 512,
         _ => 512,
@@ -56,14 +71,22 @@ async fn call(
             h.request::<_, StoreResult>(STORAGE_TOPIC, destination, envelope, options)
         }
     }
-    .map_err(|_| failed())?;
+    .map_err(|_| failure(StoreCallFailure::Admission))?;
     handle
         .wait(config.timeout)
         .await
-        .map_err(|_| failed())?
+        .map_err(|error| {
+            failure(match error {
+                modorch::FrameworkError::CanceledBeforeStart(_) => {
+                    StoreCallFailure::CanceledBeforeStart
+                }
+                modorch::FrameworkError::Indeterminate(_) => StoreCallFailure::Indeterminate,
+                _ => StoreCallFailure::Transport,
+            })
+        })?
         .as_ref()
         .clone()
-        .map_err(|_| failed())
+        .map_err(|error| failure(StoreCallFailure::Provider(error)))
 }
 // Cap serialization before Vec growth; the caller reserves four image bounds for
 // DTOs, serialization, transport and recovery scratch against the same Budget.
@@ -130,6 +153,8 @@ impl Persistence {
             .collect::<String>();
         let external = hub.external();
         let mut epoch_to_abort = None;
+        #[cfg(test)]
+        let (mut recovered_pages, mut recovered_bytes) = (0, 0);
         let work = async {
             let reply = call(
                 Hub::External(&external),
@@ -188,6 +213,11 @@ impl Persistence {
                     return Err(failed());
                 }
                 image.extend_from_slice(&data);
+                #[cfg(test)]
+                {
+                    recovered_pages += 1;
+                    recovered_bytes = image.len();
+                }
                 done = end;
             }
             if image.len() != bytes || Sha256::digest(&image).as_slice() != digest {
@@ -238,9 +268,19 @@ impl Persistence {
             });
             Ok(())
         };
-        let result = tokio::time::timeout(config.recovery_timeout, work)
-            .await
-            .unwrap_or_else(|_| Err(failed()));
+        let result = match tokio::time::timeout(config.recovery_timeout, work).await {
+            Ok(result) => result,
+            Err(_) => {
+                #[cfg(test)]
+                eprintln!(
+                    "store diagnostic: operation=recovery failure=RecoveryDeadline pages={recovered_pages} bytes={recovered_bytes}"
+                );
+                Err(MqttError::Storage {
+                    operation: "recovery",
+                    failure: StoreCallFailure::RecoveryDeadline,
+                })
+            }
+        };
         if result.is_err() {
             state.lock().unwrap().storage_poisoned = true;
             if let Some(epoch) = epoch_to_abort {
@@ -310,9 +350,13 @@ impl Transaction {
                 image,
             };
             let result = call(hub, &config, request.clone()).await;
+            let mut last_failure = None;
             let confirmed = match result {
                 Ok(StoreReply::Committed { version: v }) if v == version + 1 => true,
-                _ => {
+                original => {
+                    if let Err(error) = original {
+                        last_failure = Some(error);
+                    }
                     // Even a business I/O error can follow a disk commit. Resolve the
                     // same operation before any later transaction or ACK is permitted.
                     match call(
@@ -327,15 +371,24 @@ impl Transaction {
                     .await
                     {
                         Ok(StoreReply::Committed { version: v }) if v == version + 1 => true,
-                        Ok(StoreReply::Unknown) => {
-                            matches!(call(hub,&config,request).await,Ok(StoreReply::Committed{version:v}) if v==version+1)
+                        Ok(StoreReply::Unknown) => match call(hub, &config, request).await {
+                            Ok(StoreReply::Committed { version: v }) if v == version + 1 => true,
+                            Err(error) => {
+                                last_failure = Some(error);
+                                false
+                            }
+                            _ => false,
+                        },
+                        Err(error) => {
+                            last_failure = Some(error);
+                            false
                         }
                         _ => false,
                     }
                 }
             };
             if !confirmed {
-                return Err(failed());
+                return Err(last_failure.unwrap_or_else(failed));
             }
             *self.persistence.writer.lock().unwrap() = Some(Writer {
                 epoch,

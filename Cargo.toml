@@ -20,3 +20,12 @@ modorch = { git = "https://github.com/muidea/modorch-rs", rev = "336ba20196044e1
 modorch-mqtt-api = { path = "crates/modorch-mqtt-api", version = "0.1.0-alpha.1" }
 modorch-mqtt-core = { path = "crates/modorch-mqtt-core", version = "0.1.0-alpha.1" }
 modorch-mqtt = { path = "crates/modorch-mqtt", version = "0.1.0-alpha.1" }
+
+# Keep cryptographic work representative in development builds. Unoptimized
+# Argon2 can exhaust CONNECT deadlines even at the bounded four-request window.
+# Algorithm parameters and the single physical password job remain unchanged.
+[profile.dev.package.argon2]
+opt-level = 3
+
+[profile.dev.package.blake2]
+opt-level = 3

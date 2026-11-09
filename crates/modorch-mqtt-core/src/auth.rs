@@ -1,3 +1,4 @@
+use crate::diagnostics::{self, Stage};
 use crate::{codec::Connect, config::MqttBrokerConfig, connection::ConnectionLifetime};
 use modorch::{
     CancellationToken, ComponentRef, Destination, EventHub, ExternalEventHub, MessageOptions,
@@ -72,6 +73,7 @@ pub(crate) async fn attach(
     }
     let authorize = async {
         let principal = if config.auth.is_some() {
+            diagnostics::phase(&life.diagnostics, Stage::Authenticate);
             let request = Authenticate {
                 client_id: connect.client_id.clone(),
                 username: connect.username.take(),
@@ -122,6 +124,7 @@ pub(crate) async fn attach(
         }
         let mut will_grant = None;
         if config.auth.is_some() {
+            diagnostics::phase(&life.diagnostics, Stage::SessionAuthorize);
             if !matches!(
                 call(
                     Hub::External(hub),
@@ -134,10 +137,12 @@ pub(crate) async fn attach(
                 return Err(MqttError::NotAuthorized);
             }
             for filter in subscriptions {
+                diagnostics::phase(&life.diagnostics, Stage::SubscriptionAuthorize);
                 let filter = acl_filter(&filter, connect.v5.is_some());
                 subscribe(hub, &config, &principal, filter).await?;
             }
             if let Some(will) = &connect.will {
+                diagnostics::phase(&life.diagnostics, Stage::WillAuthorize);
                 will_grant = publish(hub, &config, &principal, will, PublishKind::Will).await?;
             }
         }
@@ -150,6 +155,7 @@ pub(crate) async fn attach(
     };
     // Waiting for the gate is cancel-safe; after acquisition even a failed
     // attach must commit deferred detaches. Never drop an in-progress commit.
+    diagnostics::phase(&life.diagnostics, Stage::AttachGate);
     let transaction = tokio::select! { biased;
         _ = cancel.cancelled() => return Err(MqttError::Closed),
         _ = tokio::time::sleep_until(deadline) => return Err(MqttError::NotAuthorized),
@@ -163,6 +169,7 @@ pub(crate) async fn attach(
         expected_version,
         will_grant,
     );
+    diagnostics::phase(&life.diagnostics, Stage::AttachCommit);
     transaction
         .commit(crate::persistence::Hub::External(hub))
         .await?;

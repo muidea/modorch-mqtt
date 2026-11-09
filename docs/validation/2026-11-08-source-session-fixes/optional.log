@@ -1,1 +1,0 @@
-$ python3 scripts/check-feature-evidence.py --results docs/validation/2026-11-08-source-session-fixes/check-final.log --output docs/validation/2026-11-08-source-session-fixes/optional.json

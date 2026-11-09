@@ -79,6 +79,31 @@ def checked_file(root, reference):
     return path
 
 
+def file_identity(path):
+    """Compare actual files, including dot paths, symlinks and hard links."""
+    stat = path.stat()
+    return stat.st_dev, stat.st_ino
+
+
+def excluded_evidence(root, references):
+    identities, digests = set(), set()
+    for reference in references:
+        path = checked_file(root, reference)
+        identities.add(file_identity(path))
+        digests.add(reference['sha256'])
+    return identities, digests
+
+
+def execution_file(root, reference, forbidden):
+    path = local_file(root, reference['path'])
+    if file_identity(path) in forbidden[0]:
+        raise ValueError('execution evidence cannot be a review or the report itself')
+    path = checked_file(root, reference)
+    if reference['sha256'] in forbidden[1]:
+        raise ValueError('execution evidence cannot copy a review or the report itself')
+    return path
+
+
 def unique_rows(rows):
     if not rows or len({row["id"] for row in rows}) != len(rows):
         raise ValueError("empty or duplicate obligation IDs")
@@ -99,6 +124,17 @@ def catalog(root):
         raise ValueError("normative sources disagree")
     if set(matrix["clause_inventory"]) != {c for p in text["paragraphs"] for c in p["clauses"]}:
         raise ValueError("normative text and numbered inventory disagree")
+    # These official clause markers follow their normative lists; a paragraph
+    # containing only the marker must never be offered as the whole obligation.
+    for clause, count, role in [
+        ("MQTT-4.3.2-1", 3, "Sender"), ("MQTT-4.3.2-2", 2, "Receiver"),
+        ("MQTT-4.3.3-1", 6, "Sender"), ("MQTT-4.3.3-2", 4, "Receiver"),
+    ]:
+        groups = [p for p in text["paragraphs"] if clause in p["clauses"]]
+        if (len(groups) != 1 or len(groups[0].get("preceding_normative", [])) != count
+                or not groups[0].get("preceding_context", "").endswith(role)
+                or any(not re.search(r"\bMUST\b", p) for p in groups[0]["preceding_normative"])):
+            raise ValueError(f"missing QoS obligation text or sender/receiver context: {clause}")
     section = (root / DESIGN).read_text().split("## 15.", 1)[1].split("\n## ", 1)[0]
     design_rows = dict(re.findall(r"^\| (MQTT-[A-Z]+-\d+) \| (.*?) \|", section, re.MULTILINE))
     rows = unique_rows(project["obligations"])
@@ -149,13 +185,13 @@ def evaluate(root, bundle):
     reviews = bundle["reviews"]
     if set(reviews) != set(rows):
         raise ValueError("review inventory differs from required obligations; omissions are not approvals")
-    log_path = checked_file(root, bundle["results"])
+    review_files = excluded_evidence(root, [ref for ref in reviews.values() if ref is not None])
+    log_path = execution_file(root, bundle["results"], review_files)
     scenarios = load_scenarios().evaluate(
         read_json(root / "contracts/mqtt311.json"), log_path.read_text(),
         read_json(root / "contracts/mqtt311-audit.json"),
     )
     passed = set(re.findall(r"^test ([\w:]+) \.\.\. ok$", log_path.read_text(), re.MULTILINE))
-    review_paths = {ref["path"] for ref in reviews.values() if ref is not None}
     outcomes = []
     for key, row in rows.items():
         missing_tests = sorted(set(row.get("tests", [])) - passed)
@@ -173,14 +209,14 @@ def evaluate(root, bundle):
             if review["decision"] not in {"Approved", "Rejected"} or not review["rationale"].strip() or not review["evidence"]:
                 raise ValueError(f"invalid review decision/rationale/evidence: {key}")
             for evidence in review["evidence"]:
-                if evidence["path"] in review_paths:
-                    raise ValueError("reviews cannot use themselves or other reviews as execution evidence")
-                checked_file(root, evidence)
+                execution_file(root, evidence, review_files)
             if key in GATES:
                 report_ref = review["report"]
                 if report_ref not in review["evidence"]:
                     raise ValueError(f"gate report must be bound as evidence: {key}")
                 report = read_json(checked_file(root, report_ref))
+                report_files = excluded_evidence(root, [report_ref])
+                forbidden = (review_files[0] | report_files[0], review_files[1] | report_files[1])
                 if report["gate_id"] != key or report["source_digest"] != bundle["source_digest"]:
                     raise ValueError(f"stale or wrong gate report: {key}")
                 checks = unique_rows(report["checks"])
@@ -194,9 +230,7 @@ def evaluate(root, bundle):
                     if not check["command"].strip() or not check["evidence"]:
                         raise ValueError(f"missing execution command/log: {key}")
                     for evidence in check["evidence"]:
-                        if evidence["path"] in review_paths or evidence["path"] == report_ref["path"]:
-                            raise ValueError("gate execution evidence cannot be a review or the report itself")
-                        checked_file(root, evidence)
+                        execution_file(root, evidence, forbidden)
             state = "Passed" if review["decision"] == "Approved" and not missing_tests else "Failed"
             reason = review["rationale"] if state == "Passed" else "review rejected or required execution checks failed"
         outcomes.append({"id": key, "status": state, "reason": reason})

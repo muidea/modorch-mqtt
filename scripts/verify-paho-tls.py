@@ -4,6 +4,7 @@
 Uses the same optional Paho virtual environment as verify-paho.py. No dependency
 installation, global TLS changes or externally reachable listeners are created.
 """
+import os
 import queue
 import re
 import selectors
@@ -34,7 +35,7 @@ def connect(port, identity, password):
 
 
 def main():
-    process = subprocess.Popen([str(ROOT / "target/debug/secure-modorch-server"), "--demo"],
+    process = subprocess.Popen([str(ROOT / os.environ.get("CARGO_TARGET_DIR", "target") / "debug/secure-modorch-server"), "--demo"],
                                stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     clients, port = [], None
     try:

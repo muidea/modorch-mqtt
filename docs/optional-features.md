@@ -1,8 +1,10 @@
 # 可选功能接入与交付边界
 
-本轮实现见 [功能验证](validation/2026-11-08-functional/README.md)。所有功能默认关闭；Cargo Feature、配置、Factory 注册和 Selection 分别显式处理。这里记录可运行的实验能力，完整规范符合性和生产发布仍需独立验收。
+本轮实现见 [验证结论摘要](validation/README.md#implementation)。所有功能默认关闭；Cargo Feature、配置、Factory 注册和 Selection 分别显式处理。这里记录可运行的实验能力，完整规范符合性和生产发布仍需独立验收。
 
-后续组合边界修复见[遗留项收口](validation/2026-11-08-remaining-fixes/README.md)。
+后续组合边界修复见[验证结论摘要](validation/README.md#closed-issues)。
+
+[验证结论摘要](validation/README.md#verification)修复R-17：共享组优先在线成员，全离线时将QoS1/2接纳到一个未过期持久成员的可靠积压。QoS0不离线积压；容量不足整次拒绝，不提前确认或改写Retained；所有者在接纳时固定，重连不重新分配已开始交换。订阅标识与RAP沿用目标语义，format5保存恢复不变。唯一成员、多个离线成员、在线优先、普通/共享合并、清理/过期、预算拒绝和SQLite均有定向回归。原审计反例保持原样。
 
 ## 普通 Tokio 宿主
 
@@ -13,10 +15,11 @@ Facade `bootstrap` 导出 `MqttBrokerHost`。宿主提供 Tokio Runtime；`start
 编译 `mqtt5` 并设置 `MqttBrokerConfig.mqtt5=true`，同一监听接受 3.1.1 与 5.0。TOML 写 `protocols=["3.1.1","5.0"]`；省略仍只启用 3.1.1。实现包括：
 
 - Clean Start、Session Expiry、分配 ClientID、连接协商和对应的 CONNACK/SUBACK/UNSUBACK Reason Code；完整 QoS0/1/2 沿用 Core 所有权和持久事务。
+- 入站 Receive Maximum使用`max_inbound_qos2_per_client`，QoS1/2共用连接额度，完整写出PUBACK/PUBCOMP才释放（PUBREC不释放）；超额发布在授权/路由/持久化前拒绝，控制FIFO后发送DISCONNECT 0x93。QoS0不占额度，重连重置网络额度；旧接收记录仍受Session持久额度约束，未知/重复PUBREL不增加额度，排队的旧PUBCOMP不能释放重用ID的新交换。网络记录单独计入全局预算，无持久格式变化。
 - 客户端 Receive Maximum、Maximum Packet Size；超过下行大小的消息按目标丢弃，计入 `dropped_oversized`，不会永久阻塞该 Session。控制响应超过限制时关闭连接。
 - Message Expiry、Payload Format、Content Type、Response Topic、Correlation Data、有序 User Properties；Topic Alias 解析后入库，别名只在当前连接内有效，入站上限32，出站发送完整 Topic。
 - Subscription Identifier、No Local、Retain As Published、Retain Handling；`$share/group/filter` 在 MQTT5 下按组选择一个在线成员，组名禁止空值及通配。3.1.1 的 `$share` 继续是字面前缀。共享订阅不回放 Retained。
-- Will Delay、Will Message Expiry、Disconnect with Will；延迟在 Session 到期时截断，恢复 Session 取消尚未发布的延迟 Will。
+- Will Delay、Will Message Expiry、Disconnect with Will；延迟在 Session 到期时截断，到期前恢复 Session 取消尚未触发的延迟 Will。已到期或已冻结目标、等待可靠容量的 Will 独立保留，恢复/接管不取消，释放容量后继续投递；SQLite 重启保留相同边界，见[验证结论摘要](validation/README.md#closed-issues)。
 
 原始属性在第三方解码前检查长度、方向、单值属性重复、保留位、UTF-8 和非法取值；CONNECT 密码保留二进制。用户名密码可接已有 Auth Provider。Enhanced Authentication/AUTH 不是当前支持的认证机制，不接受声明 Authentication Method 的连接；不声明完整 MQTT5 符合性。
 
@@ -58,13 +61,13 @@ path = "/mqtt"
 
 源Session代际与Transfer绑定。源CONNACK的Session Present=0会隔离所有旧Session的ACK；旧目标工作继续，完成后跳过旧源确认，再订阅新Session。Session Present=1保留原代际，DUP消息沿用原目标交换。断线时再次清理客户端请求队列，避免此前清理后排入的ACK跨重连发送；源重连未确定Session前不排ACK。异常额外可靠投递使连接重试，保持源所有权，不计作QoS0丢弃。
 
-这保持每方向一个在途；新Session订阅等待旧工作完成，新订阅建立前的发布不能依赖已经丢失的Session积压，需由源业务保留/重发。修复不会重建源Broker已经丢失的消息。限定回归与公开API复测见[源会话修复](validation/2026-11-08-source-session-fixes/README.md)。
+这保持每方向一个在途；新Session订阅等待旧工作完成，新订阅建立前的发布不能依赖已经丢失的Session积压，需由源业务保留/重发。修复不会重建源Broker已经丢失的消息。限定回归与公开API复测见[验证结论摘要](validation/README.md#closed-issues)。
 
 目标接纳与源确认之间崩溃可能重复投递，语义为至少一次；QoS0 在 Link 忙时允许丢弃。计数通过 `BridgeHandle::status()` 读取。停机取消并等待全部受管 Link 释放套接字，不宣称断网时已排空全部源积压。Bridge 当前使用 TCP；需要链路加密时由宿主显式部署可信 TLS 代理。
 
 ## 策略与证书更新
 
-`PasswordAuthFactory::handle()` 返回应用内 `PasswordAuthHandle`；`replace(new_config)` 完整校验并原子替换策略，名称、Domain、订阅 ID 不变，revision 严格递增。每个授权决策使用一个完整策略快照。旧 Principal 的后续授权拒绝；已接纳可靠交换和预授权 Will 保留原接纳语义。
+`PasswordAuthFactory::handle()` 返回应用内 `PasswordAuthHandle`；`replace(new_config)` 完整校验并原子替换策略，名称、Domain、订阅 ID 不变，revision 严格递增。每个授权决策使用一个完整策略快照。 密码Provider固定Handler并发上限8、4个密码请求准入及1个物理Argon2任务；密码等待不占满轻量授权容量，超额返回Unavailable。额度持有至实际CPU退出，Running请求超时不能释放；操作开始时固定revision，Core仍逐连接等待授权。旧 Principal 的后续授权拒绝；已接纳可靠交换和预授权 Will 保留原接纳语义。
 
 `BrokerHandle::reload_tls(tls).await` 使用当前 Owner 的 blocking-I/O Scheduler 有界读取 PEM。成功只更新后续握手；现有 TLS 连接继续工作。失败或代际过期保留原证书，不把文件校验失败升级为组件故障。Factory 的配置不是任意热重载接口，其他资源参数仍重新装配。
 
@@ -86,4 +89,6 @@ Facade `http` 导出独立 `HttpFactory`；显式配置回环监听、32..256字
 查询参数按 URL 编码；单请求后关闭连接，不接受请求体、Transfer-Encoding、重复/未知参数。Header 限8192字节/32项，分页1..256，JSON编码不分配中间Value树，响应上限1MiB，超限返回413并要求减小分页。503 可能意味着未执行或结果不确定；条件断连应携原 connection_id 核对，不能推断回滚。TOML 不含 Bearer/Bridge 凭据、Provider内部策略或审计数据库配置，由宿主构建这些 Factory。
 
 
-Topic Alias恢复区分入站线帧与展开后的存储消息：只要合法完整源帧或别名消息帧/绑定帧都可在max_packet_bytes内表示，即可恢复；完整Topic和真实属性仍保存、校验并完整计费。别名只在原连接内有效。MQTT5下行按完整Topic及目标/监听上限在编码前判限，超限丢弃计数；3.1.1连接层超限拒绝策略不变。原8191字节反例、真实属性8192字节边界与SQLite双向QoS2/Retained验证见[别名修复](validation/2026-11-08-alias-fixes/README.md)。
+Topic Alias恢复区分入站线帧与展开后的存储消息：只要合法完整源帧或别名消息帧/绑定帧都可在max_packet_bytes内表示，即可恢复；完整Topic和真实属性仍保存、校验并完整计费。别名只在原连接内有效。MQTT5下行按完整Topic及目标/监听上限在编码前判限，超限丢弃计数；3.1.1连接层超限拒绝策略不变。原8191字节反例、真实属性8192字节边界与SQLite双向QoS2/Retained验证见[验证结论摘要](validation/README.md#closed-issues)。
+
+协议处理补充：MQTT5合法RL=1 DISCONNECT按省略Property Length处理，只有Normal Disconnection取消Will；其他合法客户端原因仍按延迟规则触发Will，Server专用原因按异常输入关闭。重复UNSUBSCRIBE按顺序生成0/0x11原因，已接纳交换保留。原格式5及Feature/API边界不变。规范表、正文索引和验证见[协议完整性](protocol-integrity.md)。

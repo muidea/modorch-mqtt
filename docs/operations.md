@@ -24,7 +24,7 @@ Storage 目录须预先存在，同一数据库只允许一个 Broker 独占。�
 
 ## 升级、备份和退出
 
-检查式停止并确认数据库资源释放后，再由宿主制作离线备份。当前写 format4；format1/3 可升级，format2 每持久 Session 至多一个 Release 可升级，多个 Release 拒绝歧义迁移。旧二进制无法读取 format4，回退应使用升级前备份，期间新接纳数据不能凭空恢复。
+检查式停止并确认数据库资源释放后，再由宿主制作离线备份。当前写 format5；format1/3/4 可升级，format2 每持久 Session 至多一个 Release 可升级，多个 Release 拒绝歧义迁移。旧二进制无法读取 format5，回退应使用升级前备份，期间新接纳数据不能凭空恢复。
 
 宿主收到退出信号后必须等待 `shutdown_checked` 并检查结果。超时、Forced 和 StopIncomplete 均不表示正常排空。存储模式下停止阶段不新建关键 durable promise，已提交 armed Will 可能在下次启动时发布；需要持续运行的接收方应将此延迟计入设计。
 
@@ -47,4 +47,12 @@ python3 scripts/check-conformance.py --results CHECK_LOG --output SCENARIO_REPOR
 
 将大写参数替换为实际文件路径。当前该命令应返回非零，因为未完成完整规范审计；不能将开发检查成功视为发布批准。详细缺口见[剩余需求](remaining-work.md)。SIGKILL 不等于硬件断电；历史 loopback QoS0/1 性能不能用于推断 TLS、持久化、QoS2、长期 RSS 或生产恢复 SLO。
 
-显式HTTP管理/指标、持久审计、Auth/TLS更新与Bridge运维见[可选功能](optional-features.md)。接入新功能前按format4迁移说明备份；Bridge当前为TCP并在源端保留可靠积压。
+显式HTTP管理/指标、持久审计、Auth/TLS更新与Bridge运维见[可选功能](optional-features.md)。接入新功能前按format5迁移说明备份；Bridge当前为TCP并在源端保留可靠积压。
+
+持续流量、慢消费者、负载中退出及原库恢复测量见[本机基线](load-baseline.md)；完整协议评审材料导入见[评审流程](protocol-review.md)。这些本机材料不自动批准生产SLO。
+
+## 连接阶段诊断
+
+定位握手EOF或存储压力等待时，可在启动宿主前显式设置`MODORCH_MQTT_DIAGNOSTICS=1`。默认关闭；每条连接使用固定大小追踪状态，包含在既有连接预算内，不新增任务。stderr记录进程内数字追踪号、固定阶段、实际耗时和脱敏原因；阶段切换超过250ms也记录前一等待阶段。测试构建额外标出测试线程名。无客户端身份/地址、Topic、载荷、密码、capability及原始IO/配置字符串。
+
+诊断属于临时定位输出，不提供稳定日志API，不代表延迟SLO；stderr接收端必须能及时消费。未增加重试、未延长认证/握手/存储期限。五秒Authenticate超时仍拒绝当前连接，迟到Provider结果不得建立Session；可靠提交一经开始继续按原operation_id确认，不能为及时返回PING取消已接纳承诺。无状态变更的PING与空闲出站检查不进入持久事务；同连接的PING继续排在先前可靠报文提交之后。证据及历史归因限制见[验证结论摘要](validation/README.md#closed-issues)。

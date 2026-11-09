@@ -1,5 +1,7 @@
 # modorch-mqtt：基于 Modorch-RS 的可嵌入式 MQTT Broker 库完整架构与实现设计
 
+> 归档说明（2026-11-09）：后续章节保留历轮实现与修复的设计说明；过程验证文件已按用户要求清理，历史链接统一指向[最终结论摘要](validation/README.md)。文中各轮计数和“当时保留材料”等叙述对应历史执行时点，不代表原始材料仍在仓库或当前输入已获批准。当前待办以[待收口计划](f6-f7-closure-plan.md)为准。
+
 > 当前功能实施状态以[§30](#30-功能路径收口2026-11-08)为准；历史章节保留当轮验证边界。
 
 > 文档状态：**完整目标设计，已部分实施；当前实现范围见 §18–§29**
@@ -8,7 +10,7 @@
 > 框架契约：Contract **1.2.0**；Skill **1.0.7**；Rust **>=1.85 / Edition 2024**  
 > 前置框架增强：**已由 Modorch-RS 0.0.3 实现并在其仓库的本地验收范围内验证**，不再阻断本库开发  
 > 文档定位：针对 0.0.3 的 **实现设计/工作分解**，不是 `modorch-mqtt` 已经实现或通过测试的声明  
-> 当前实施进度：`0.1.0-alpha.1` 已实现 F0–F3 的 QoS0/1 内存实验子集、F4 EventHub 集成及 F5 安全/运维和 SQLite 持久化实验子集，并补齐 F6 双向 QoS2及部分规范场景（具体化见 §18–§23）；实际能力以 [README](../README.md)、[当前契约](../contracts/README.md)、[F4 验证记录](validation/2026-11-07-f4/README.md)、[安全运维验证](validation/2026-11-07-f5-security-ops/README.md)、[Storage 验证](validation/2026-11-07-f5-storage/README.md)及[QoS2 验证](validation/2026-11-07-f6-qos2/README.md)为准。Core TOML配置、逐义务发布门禁及出站故障回归见§27–§29；完整符合性和后续阶段仍为目标。
+> 当前实施进度：`0.1.0-alpha.1` 已实现 F0–F3 的 QoS0/1 内存实验子集、F4 EventHub 集成及 F5 安全/运维和 SQLite 持久化实验子集，并补齐 F6 双向 QoS2及部分规范场景（具体化见 §18–§23）；实际能力以 [README](../README.md)、[当前契约](../contracts/README.md)及[最终阶段记录](validation/README.md#implementation)为准。Core TOML配置、逐义务发布门禁及出站故障回归见§27–§29；完整符合性和后续阶段仍为目标。
 > 规范性协议来源：[MQTT 3.1.1 OASIS Standard](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html)、[MQTT 5.0 OASIS Standard](https://docs.oasis-open.org/mqtt/mqtt/v5.0/mqtt-v5.0.html)
 
 ## 0. 执行摘要与决策记录
@@ -1037,7 +1039,7 @@ cargo run -p standalone-broker --locked
 - `max_publish_records` 默认 10000，记录计入全局内存、跨 Factory 内的 Core 重建保留且不淘汰。满额拒绝新 ID，旧记录仍可读；无 TTL/清空接口，新 Factory/进程丢失记录。此保守实验策略后续可由明确的持久 epoch/保留合同替代。
 - Modorch 订阅 ID 是 Application 全局唯一；宿主通过 `control_subscription_ids`（默认 `[1,2,3]`）统一分配，多个 Broker 使用不同 ID。控制 Topic 相同仍用 Destination 选择具体 Broker。
 
-可运行示例为 `existing-modorch-server`，接入说明见 [eventhub.md](eventhub.md)，执行证据见 [F4 验证记录](validation/2026-11-07-f4/README.md)。本节证据记录 F4 时点；后续安全/运维具体化见 §19，Storage 见 §20；可选 Bridge、QoS2、MQTT5 及生产容量门禁仍待开发/验收。
+可运行示例为 `existing-modorch-server`，接入说明见 [eventhub.md](eventhub.md)，历史验证结论见 [验证结论摘要](validation/README.md#implementation)。本节证据记录 F4 时点；后续安全/运维具体化见 §19，Storage 见 §20；可选 Bridge、QoS2、MQTT5 及生产容量门禁仍待开发/验收。
 
 
 ## 19. F5 安全与运维子集（2026-11-07）
@@ -1052,7 +1054,7 @@ cargo run -p standalone-broker --locked
 - Metrics 用一个受管周期任务拉取状态，提供采样时间/失败计数和固定名字 Prometheus 文本，无 ClientID/Topic 标签，无默认 HTTP exporter。计数保留于 Factory，未采用逐消息 Hub 广播。
 - `scripts/benchmark.py` 提供1/10/100/500客户端 × QoS0/1 的 release loopback 基线，记录环境/配置/吞吐/PUB→SUB百分位及采样RSS；TLS/Auth/持久化性能和生产容量门禁仍待验证。
 
-真实接口与装配见 [安全与运维接入](security-and-operations.md)，执行命令、输出及范围见 [本轮验证](validation/2026-11-07-f5-security-ops/README.md)。完整需求状态如下，只有已列出的子集具有当前执行证据。
+真实接口与装配见 [安全与运维接入](security-and-operations.md)，历史执行结论及范围见 [验证结论摘要](validation/README.md#implementation)。完整需求状态如下，只有已列出的子集具有当前执行证据。
 
 | 阶段/需求 | 当前状态 | 剩余工作 |
 |---|---|---|
@@ -1096,7 +1098,7 @@ Commit 超时/错误先 Query 同 ID/digest；Unknown 才重发同操作，仍�
 
 新增固定指标为存储提交成功/失败数、耗时微秒总和和最大值，计时从获得 gate 到确定结果，不包括排队，也不是纯 fsync 延迟。Admin 审计仍限内存。
 
-[本轮验证记录](validation/2026-11-07-f5-storage/README.md)覆盖离线订阅在重连前恢复、Retained、Packet ID/DUP、持久 owner/Will Grant/幂等、回执延迟/丢失查询、失败无 ACK/下行、恢复错误/预算不足不开端口、真实 SQLite 页限 DiskFull、独占库与真实子进程 SIGKILL。SIGKILL 不是硬件断电或任意文件系统验证；历史内存性能基线不适用于存储模式。
+[验证结论摘要](validation/README.md#implementation)覆盖离线订阅在重连前恢复、Retained、Packet ID/DUP、持久 owner/Will Grant/幂等、回执延迟/丢失查询、失败无 ACK/下行、恢复错误/预算不足不开端口、真实 SQLite 页限 DiskFull、独占库与真实子进程 SIGKILL。SIGKILL 不是硬件断电或任意文件系统验证；历史内存性能基线不适用于存储模式。
 
 当前仍缺 F6 QoS2/完整3.1.1符合性、F7 MQTT5、WebSocket/Bridge、生产性能与故障恢复SLO、真实断电/跨平台及独立 Agent/发布门禁。完整需求状态为 Partial，不声明全部 MUST 或完整 F5 已验收。
 
@@ -1121,7 +1123,7 @@ Commit 超时/错误先 Query 同 ID/digest；Unknown 才重发同操作，仍�
 
 ### 21.3 当前验收与剩余项
 
-执行证据见 [QoS2验证](validation/2026-11-07-f6-qos2/README.md)，接入细节见 [qos2.md](qos2.md)。覆盖双向重复报文、ID复用/占用、错误ACK、条数/字节限额、Will/Retained、顺序与窗口、同Factory监督重建、跨Application恢复、四阶段存储屏障/失败、旧快照升级、真实SIGKILL，以及独立rumqttc和Paho TCP/TLS/密码ACL。
+历史验证结论见 [验证结论摘要](validation/README.md#protocol)，接入细节见 [qos2.md](qos2.md)。覆盖双向重复报文、ID复用/占用、错误ACK、条数/字节限额、Will/Retained、顺序与窗口、同Factory监督重建、跨Application恢复、四阶段存储屏障/失败、旧快照升级、真实SIGKILL，以及独立rumqttc和Paho TCP/TLS/密码ACL。
 
 F6尚余完整MQTT3.1.1规范性符合性矩阵及更广协议互操作/故障验证；F7 MQTT5、WebSocket、Bridge、生产吞吐/恢复SLO、真实硬件断电、跨平台和独立Agent/发布门禁仍未完成。SQLite停止时的Will延迟恢复策略沿用§20，不扩大为停机立即持久发布。
 
@@ -1134,13 +1136,13 @@ F6尚余完整MQTT3.1.1规范性符合性矩阵及更广协议互操作/故障�
 - `max_client_id_bytes` 验证改为23..65535，保证配置不排除 MQTT-3.1.3-5 必须支持的1..23字节字母数字ID。低于23的历史配置需修正。
 - 新增连接拒绝后的流水数据隔离、malformed CONNECT 无 CONNACK、首包/二次CONNECT、非法固定标志/ID/UTF8/订阅负载的连接隔离、订阅替换重放Retained/精确取消订阅、入站PUBACK/PUBREC和含重复PUBREC的PUBREL顺序、BOM/Unicode不归一化，以及SQLite逆序确认重启恢复用例。
 - [受控规范清单](../contracts/mqtt311.json)记录官方URL/SHA256及140个编号，13组场景关联62个编号，其余78个仍NotRun。编号清单不含未编号规范性要求的完整审计；关联测试只产生限定场景的 `TargetedEvidence`，不能据此声明完整条款或完整MQTT3.1.1符合性通过。
-- `scripts/check.sh` 接入实际测试日志校验；缺失/ignored/失败不算通过，单独测试总数不算证据。说明见[符合性范围](mqtt311-conformance.md)，实际命令/日志及限制见[本轮验证](validation/2026-11-07-f6-conformance/README.md)。
+- `scripts/check.sh` 接入实际测试日志校验；缺失/ignored/失败不算通过，单独测试总数不算证据。说明见[符合性范围](mqtt311-conformance.md)，历史结论及限制见[验证结论摘要](validation/README.md#protocol)。
 
 剩余：完整3.1.1规范矩阵（含未编号要求及Server/Client/可选传输适用性审计）、更广互操作/异常链路；F7 MQTT5；可选WebSocket/Bridge；生产吞吐/恢复SLO、真实断电、跨平台和独立Agent/发布门禁。SQLite停机Will延迟恢复边界不变。
 
 ## 23. F6 发布/订阅和会话协议收口（2026-11-07）
 
-本节补充§22，完整设计/发布仍为Partial。最新执行见[协议收口验证](validation/2026-11-07-f6-protocol/README.md)，用例与限定范围见[规范清单](../contracts/mqtt311.json)。
+本节补充§22，完整设计/发布仍为Partial。最新执行见[验证结论摘要](validation/README.md#protocol)，用例与限定范围见[规范清单](../contracts/mqtt311.json)。
 
 - CONNECT错误分类不再把所有未知错误兜底为Identifier rejected(2)。仅明确ClientID拒绝使用2；容量/存储不可用使用3；授权拒绝使用5；不匹配标准原因码的错误关闭且不发CONNACK。网络覆盖协议名、ID、Will授权及Session满；线帧分类测试覆盖存储和未知错误。
 - 新增九种发布/订阅QoS组合、二进制载荷与独立DUP标志、QoS0无ACK/ID；混合SUBACK输入顺序、原ID及重复过滤器按序替换；Retained的QoS2→0→1替换、live/replay标志、非Retain不改旧值和空Retain删除。
@@ -1153,7 +1155,7 @@ F6尚余完整MQTT3.1.1规范性符合性矩阵及更广协议互操作/故障�
 
 ## 24. 共享Topic向量与F8开发交付收口（2026-11-07）
 
-本轮不扩大协议版本或生产支持声明。最新执行证据见[共享Topic与开发门禁](validation/2026-11-07-f6-topic-release/README.md)，持续剩余项见[需求清单](remaining-work.md)。
+本轮不扩大协议版本或生产支持声明。最新历史验证结论见[验证结论摘要](validation/README.md#verification)，持续剩余项见[需求清单](remaining-work.md)。
 
 - `contracts/topic-vectors.json`保存固定Modorch-RS rev的39组独立预期，注明上游Rust来源及SHA256；上游没有JSON fixture。Core校验/匹配、Facade helper、真实Hub订阅/Handler及真实MQTT TCP共用此文件。magicCommon端尚无消费执行证据，MQTT5的共享订阅解析仍待开发。
 - F6矩阵增至32组限定场景，128个编号仍仅为TargetedEvidence；未编号义务、表格/FSM完整审计与更广异常链路尚未完成。新命令 `check-conformance.py --require-complete` 在Partial时返回非零，不因限定场景通过而批准完整F6。
@@ -1165,7 +1167,7 @@ F6尚余完整MQTT3.1.1规范性符合性矩阵及更广协议互操作/故障�
 
 ## 25. F6 报文表、未编号候选与发送ACK转换审计（2026-11-08）
 
-本轮实际实现及执行见[报文审计验证](validation/2026-11-08-f6-packet-audit/README.md)，范围见[审计说明](mqtt311-audit.md)。完整设计/发布仍Partial。
+本轮实际实现及执行见[验证结论摘要](validation/README.md#verification)，范围见[审计说明](mqtt311-audit.md)。完整设计/发布仍Partial。
 
 - 修复非法固定头和不可能Remaining Length必须等完整包体才拒绝的问题。现在首字节即可拒绝保留类型、错误方向或非法固定flags；长度解码后按报文布局检查固定/最小值，不等待声称的包体。私有decode必须是一个完整帧；连接层仍按流提帧，支持分片与合并。
 - 独立JSON报文表覆盖16种类型×16种flags、256 CONNECT flags、8个Remaining Length编码边界和所有接收端ID报文的0/1/65535。真实TCP覆盖响应、健康连接隔离、头部错误触发Will及持久Session/QoS2接收阶段保留。
@@ -1178,7 +1180,7 @@ F6尚余完整MQTT3.1.1规范性符合性矩阵及更广协议互操作/故障�
 
 ## 26. F6 后端等待期间的连接期限与安全排空（2026-11-08）
 
-实际代码和故障记录见[连接期限验证](validation/2026-11-08-f6-deadlines/README.md)。本节补充§25，完整设计及发布仍为Partial。
+实际代码和故障记录见[验证结论摘要](validation/README.md#verification)。本节补充§25，完整设计及发布仍为Partial。
 
 - 修复主协议循环等待Auth、存储gate/提交期间无法检查网络期限的缺口。同一个受管任务监督协议Future和期限更新，超时先关闭底层TCP/TLS并取消连接令牌，再等待已开始事务确定结果；没有增加独立后台任务、Runtime或Hub。
 - CONNECT期限从任务准入前计算，包含调度排队/TLS；KeepAlive在解析完整报文时刷新，0禁用。Principal按实际有效期计时，不将长有效期截为24小时；当前整帧写入期限不因输入PING或部分写入进度而重置。
@@ -1191,7 +1193,7 @@ F6尚余完整MQTT3.1.1规范性符合性矩阵及更广协议互操作/故障�
 
 ## 27. Core TOML配置接入与宿主显式装配（2026-11-08）
 
-本轮实现§9的Core配置入口，证据见[TOML验证](validation/2026-11-08-toml-config/README.md)，字段/边界见[toml.md](toml.md)。完整设计及发布仍Partial。
+本轮实现§9的Core配置入口，证据见[验证结论摘要](validation/README.md#implementation)，字段/边界见[toml.md](toml.md)。完整设计及发布仍Partial。
 
 - Facade新增默认关闭的 `toml` Feature及 `MqttTomlConfig`。输入限64KiB，仅接受独立 `[mqtt.*]` 文档；Core默认禁用，匿名访问必须显式确认。支持全部当前Core资源字段与毫秒期限，并复用Rust配置校验。
 - Auth/Storage/Admin/Metrics区块声明宿主已注册的组件引用，返回ID仍由宿主显式选择；TLS路径基于配置目录，Core受管IO负责加载。Storage capability由宿主单独注入，不读取TOML内密钥，不自动注册/启用任何Provider或扩展。
@@ -1210,7 +1212,7 @@ F6尚余完整MQTT3.1.1规范性符合性矩阵及更广协议互操作/故障�
 
 `secure-modorch-server --demo --database PATH`可显式组合TLS/Auth/Admin/Metrics/SQLite；Storage Factory、capability及选择由宿主负责。`benchmark.py`增加TLS/Auth与TLS/Auth/SQLite组合和双向QoS2四阶段测量，记录连接耗时、PUB→SUB分位数、完整交换吞吐、原始采样/RSS、二进制摘要及空载检查式退出时间。默认TCP测量及安全示例原有参数兼容；组合实验保留32连接/IP、4MiB image、64MiB磁盘限额。测试凭据/证书仅用于本地实验。
 
-实测与剩余项见[本轮证据](validation/2026-11-08-release-gates/README.md)及[清单](remaining-work.md)。短loopback结果不能批准长期RSS、慢消费者、高负载退出/恢复或生产SLO。协议完整语义/FSM评审、独立Agent、magicCommon消费、远端CI、跨平台/真实断电等缺失证据仍阻断；MQTT5和可选扩展仍未实现。
+实测与剩余项见[验证结论摘要](validation/README.md#verification)及[清单](remaining-work.md)。短loopback结果不能批准长期RSS、慢消费者、高负载退出/恢复或生产SLO。协议完整语义/FSM评审、独立Agent、magicCommon消费、远端CI、跨平台/真实断电等缺失证据仍阻断；MQTT5和可选扩展仍未实现。
 
 
 ## 29. 服务端出站线帧与写中断/慢消费者故障收口（2026-11-08）
@@ -1219,11 +1221,11 @@ F6尚余完整MQTT3.1.1规范性符合性矩阵及更广协议互操作/故障�
 
 新增一字节duplex部分PUBLISH写中断测试：本地写超时关闭连接后，QoS1/2仍保留原ID并以DUP重连，直至完整确认后才释放；QoS0重连不重发。新增真实TCP慢消费者故障：窗口1/可靠积压2在AwaitPubComp阶段满额，新QoS2 Retained发布在PUBREC前整体拒绝；健康目标无部分投递、旧Retained保留、无幽灵入站去重记录，容量释放后同ID重试成功且后续重复不再路由。
 
-[当前证据](validation/2026-11-08-f6-wire-fsm/README.md)对应40组限定场景、128项编号TargetedEvidence及17项限定审计；两个新增审计入口使发布独立评审项增至178。`FSM-COMPLETE`仍NotRun，完整跨段语义/故障/互操作组合仍需实审补测。这些是有限正确性回归，不替代真实TLS/持久写中断、长期RSS、代表性慢消费者、加载退出/恢复或生产SLO；后续清单见[remaining-work](remaining-work.md)。
+[验证结论摘要](validation/README.md#protocol)对应40组限定场景、128项编号TargetedEvidence及17项限定审计；两个新增审计入口使发布独立评审项增至178。`FSM-COMPLETE`仍NotRun，完整跨段语义/故障/互操作组合仍需实审补测。这些是有限正确性回归，不替代真实TLS/持久写中断、长期RSS、代表性慢消费者、加载退出/恢复或生产SLO；后续清单见[remaining-work](remaining-work.md)。
 
 ## 30. 功能路径收口（2026-11-08）
 
-本节替代§29及更早验证时点中“MQTT5/WebSocket/Bridge、动态更新、持久审计/HTTP、Tokio适配未实现”的当前状态判断；历史执行证据不改写。实际接入、资源边界与失败语义见[可选功能](optional-features.md)，当前剩余项见[清单](remaining-work.md)，本轮原始证据见[功能验证](validation/2026-11-08-functional/README.md)。
+本节替代§29及更早验证时点中“MQTT5/WebSocket/Bridge、动态更新、持久审计/HTTP、Tokio适配未实现”的当前状态判断；历史执行证据不改写。实际接入、资源边界与失败语义见[可选功能](optional-features.md)，当前剩余项见[清单](remaining-work.md)，本轮历史结论见[验证结论摘要](validation/README.md#implementation)。
 
 | 功能项 | 实现入口 | 功能收口 |
 |---|---|---|
@@ -1243,11 +1245,11 @@ Bridge 的业务侧仍要求可信 Handler 的类型化 `MqttPublishRequest`；�
 
 本节完成已列出的实验功能实现，不升级完整规范/生产发布状态。Enhanced Authentication不属于当前认证机制；完整F6/F7规范审计、生产容量/恢复SLO、magicCommon跨实现消费、独立Agent、远端CI、跨平台和硬件断电仍须补齐真实验收证据。
 
-后续[遗留项复核](validation/2026-11-08-remaining-audit/README.md)确认上述实现仍有在线MQTT5会话接管、Bridge目标Session丢失后的重发、桥接属性上限兼容及幂等记录恢复预算四项功能缺陷。本节的“功能路径收口”记录主要路径已实现，不再作为全部功能正确的结论；当前修复清单见[剩余需求](remaining-work.md)。
+后续[验证结论摘要](validation/README.md#verification)确认上述实现仍有在线MQTT5会话接管、Bridge目标Session丢失后的重发、桥接属性上限兼容及幂等记录恢复预算四项功能缺陷。本节的“功能路径收口”记录主要路径已实现，不再作为全部功能正确的结论；当前修复清单见[剩余需求](remaining-work.md)。
 
 ## 31. 遗留项代码修复（2026-11-08）
 
-按§30后续复核结果修复R-01–R-04，执行材料见[收口验证](validation/2026-11-08-remaining-fixes/README.md)：
+按§30后续复核结果修复R-01–R-04，执行材料见[验证结论摘要](validation/README.md#closed-issues)：
 
 - MQTT5 Session Expiry=0在实际断开后结束Session；仍在线时Clean Start=false接管保留订阅、标识和双向QoS所有权，Clean Start仍明确重建。
 - Bridge目标Session丢失时重提应用持有消息；恢复时使用原客户端交换/Packet ID并设置DUP，保持每方向一个在途。双向poll不相互取消未完成握手/写入，已解析ACK不被后续EOF/重连遮蔽，成功PUBACK后才释放源所有权。
@@ -1258,7 +1260,7 @@ Bridge 的业务侧仍要求可信 Handler 的类型化 `MqttPublishRequest`；�
 
 ## 32. 修复后的组合边界复核（2026-11-08）
 
-本轮未修改产品代码；原169项源码输入和30份修复验证材料在核对起点全部匹配。新材料见[后续复核](validation/2026-11-08-followup-audit/README.md)，当前待办见[剩余需求](remaining-work.md)。R-01–R-04的限定回归保持原记录，新发现三项问题：
+本轮未修改产品代码；原169项源码输入和30份修复验证材料在核对起点全部匹配。新材料见[验证结论摘要](validation/README.md#verification)，当前待办见[剩余需求](remaining-work.md)。R-01–R-04的限定回归保持原记录，新发现三项问题：
 
 - R-05（P1）：MQTT5持久Session保留非默认订阅选项，随后以3.1.1成功接续。attach更新Session协议却保留选项，快照恢复拒绝该组合，导致下一次Core启动失败。必须明确跨协议策略并使接纳与恢复保持一致。
 - R-06（P1）：MQTT5混合监听下，恢复校验统一按5.0编码消息。合法8192字节的3.1.1 Retained PUBLISH已确认并持久化，恢复因额外Property Length字节而失败；8191字节对照成功。这是§31恢复校验改动后的组合回归，修复时须保留真实属性验证。
@@ -1269,7 +1271,7 @@ Bridge 的业务侧仍要求可信 Handler 的类型化 `MqttPublishRequest`；�
 
 ## 33. 组合边界代码收口（2026-11-08）
 
-本节更新§32三项反例的当前状态，原反例和旧验证目录保留；执行材料见[修复验证](validation/2026-11-08-followup-fixes/README.md)，尚待外部验收见[剩余清单](remaining-work.md)。
+本节更新§32三项反例的当前状态，原反例结论汇总至最终记录；执行材料见[验证结论摘要](validation/README.md#closed-issues)，尚待外部验收见[剩余清单](remaining-work.md)。
 
 - R-05：Session按协议隔离恢复，不清理的跨3.1.1/5.0 CONNECT在分配ID、替换Session或撤销原连接之前拒绝，双向QoS所有权/订阅不变。显式Clean Session/Clean Start可以换协议重建，Session Present=0；相同协议恢复继续保留所有权。已有旧版不一致快照不自动推断修复，仍保留原库并拒绝开放入口。
 - R-06：快照消息包长按实际属性选择可表示的最小协议编码，避免为3.1.1空属性消息补算MQTT5 Property Length；真实属性仍验证、计费。目标附加的Subscription Identifiers不占源消息包长，实际下行继续按目标/协议包长限制处理。统一覆盖Retained、可靠Pending/入站QoS2、Will及内部幂等记录恢复。
@@ -1281,7 +1283,7 @@ Bridge 的业务侧仍要求可信 Handler 的类型化 `MqttPublishRequest`；�
 
 ## 34. format5后续遗留项复核（2026-11-08）
 
-本轮核对起点，上轮169项源码输入和37份验证材料全部匹配；没有产品代码变动。材料见[后续核对](validation/2026-11-08-post-format5-audit/README.md)，待办见[剩余清单](remaining-work.md)。
+本轮核对起点，上轮169项源码输入和37份验证材料全部匹配；没有产品代码变动。材料见[验证结论摘要](validation/README.md#verification)，待办见[剩余清单](remaining-work.md)。
 
 R-08（P1）确认Topic Alias展开与持久恢复的大小约束仍不一致。MQTT5连接先绑定1000字节Topic到Alias=1，再以空Topic/同别名发送8191字节QoS1 Retained PUBLISH；收到PUBACK且Retained=1。检查式退出后，恢复使用展开后的完整Topic编码并按8192字节上限拒绝，整个Core不能启动。完整Topic、较小Payload的8188字节对照可恢复。§33的R-06关闭空属性/附加订阅标识的已测反例，不覆盖别名展开；后续修复必须统一线帧限额、展开消息预算及恢复校验，不能只删除真实属性校验。
 
@@ -1294,7 +1296,7 @@ D-01（P3）为项目主Skill1.0.2仍记录format4/读1–3的说明滞后；当
 
 ## 35. Topic Alias恢复及Skill说明收口（2026-11-08）
 
-本节更新§34的R-08/D-01状态，原审计材料保留；新执行材料见[修复验证](validation/2026-11-08-alias-fixes/README.md)，剩余验收见[清单](remaining-work.md)。
+本节更新§34的R-08/D-01状态，原审计材料保留；新执行材料见[验证结论摘要](validation/README.md#closed-issues)，剩余验收见[清单](remaining-work.md)。
 
 R-08区分网络入站线帧与展开后的存储消息。恢复允许完整Topic的最小源编码，或合法别名消息帧与独立绑定帧均能在max_packet_bytes内表示的消息；两种可行表示取较小所需上限，纳入真实属性、Property Length及Remaining Length宽度。存储始终保存完整Topic/真实属性并按实际逻辑预算计费，不持久化或跨连接复用别名。目标新增订阅标识仍不反向占用源线帧；真实属性验证、UTF-8、引用和预算检查保持。Will、内部幂等记录及已知Internal Retained不使用别名推断。
 
@@ -1309,7 +1311,7 @@ D-01将项目主Skill更新为1.0.3，同步format5/读1–4、跨协议恢复�
 
 ## 36. 别名修复后的源会话边界复核（2026-11-08）
 
-本轮核对起点，上轮172项源码/探针输入和45份验证材料摘要全部匹配，Modorch固定rev/指纹预检通过。没有修改产品代码。R-08的4项别名相关回归与Bridge既有4项网络回归均通过；完整执行及反例见[复核记录](validation/2026-11-08-post-alias-audit/README.md)，当前待办见[剩余清单](remaining-work.md)。
+本轮核对起点，上轮172项源码/探针输入和45份验证材料摘要全部匹配，Modorch固定rev/指纹预检通过。没有修改产品代码。R-08的4项别名相关回归与Bridge既有4项网络回归均通过；修复与验证结论见[验证结论摘要](validation/README.md#verification)，当前待办见[剩余清单](remaining-work.md)。
 
 R-09（P1）确认Bridge在源Session丢失时混用旧Transfer的Packet ID。Bridge已收到源QoS1 ID1消息并交给目标，目标暂未PUBACK；源断开后以Session Present=0重连，新Session合法发送另一条ID1消息。Bridge忽略源CONNACK的Session Present，持有旧Transfer期间仅比较Packet ID，因而将新消息当成旧消息重复。目标随后确认旧Transfer，Bridge向新源Session发送旧ID1的PUBACK，误确认尚未转发的新消息。目标继续收到下一条屏障消息，中间新消息确实缺失，已观察到数据丢失。
 
@@ -1322,7 +1324,7 @@ R-01–R-08/D-01已有对应修复，新R-09尚未收口。完整F6/F7规范、�
 
 ## 37. Bridge源会话身份与确认边界收口（2026-11-08）
 
-本节更新§36的R-09状态，原反例和历史验证目录保留。材料见[源会话修复验证](validation/2026-11-08-source-session-fixes/README.md)，剩余验收见[清单](remaining-work.md)。
+本节更新§36的R-09状态，原反例结论汇总至最终记录。材料见[验证结论摘要](validation/README.md#closed-issues)，剩余验收见[清单](remaining-work.md)。
 
 每个Transfer保存源Session代际，源CONNACK Session Present=0递增代际，Session Present=1保持代际。旧目标交换不因源会话丢失而撤销或新建；完成时仅向同代际且已连接的源排ACK，其他代际只释放本地旧工作。源连接未收到CONNACK时不排ACK；源错误分支再次清理客户端请求队列，避免ACK在第三方poll已经清理后入队并跨重连发送。
 
@@ -1333,3 +1335,240 @@ R-01–R-08/D-01已有对应修复，新R-09尚未收口。完整F6/F7规范、�
 不改变公共API、Feature默认关闭、持久format5或既定MQTT3.1.1发布Profile。项目MQTT Skill更新至1.0.4，说明源代际/ACK和延后订阅边界，经托管Skill校验及本地归档同步；未推送远端。
 
 本轮关闭R-09限定反例，完整F6/F7规范、生产负载/恢复SLO、magicCommon消费、远端CI、跨平台/真实断电及独立评审仍待实际材料，整体发布保持Partial。
+
+
+## 38. 提交后的延迟 Will 与背压组合核对（2026-11-08）
+
+以提交 `61db632` 为起点，功能代码未变；原619份原始验证文件保持原字节，验证索引按本轮结果更新。Modorch 固定 rev/指纹预检、MQTT5 与 Bridge 限定回归、公开 TCP 反例的本轮材料见[验证结论摘要](validation/README.md#verification)。
+
+R-10（P1）：目标可靠积压上限1且已占满时，MQTT5 发布者的 QoS1 Will Delay=1 已经过期并等待投递。发布者在1.6秒后以 Clean Start=false 恢复原 Session，State::attach 中只按 client 与 delay>0 清理 Will，没有区分未到期、已到期或已冻结目标的状态，导致待投递 Will 被删除。释放目标容量后，目标能收到后续屏障消息，却收不到 Will。Delay=0 的背压对照保留并完成 Will；Delay=2 且到期前0.2秒重连的对照正确取消。
+
+MQTT5 §3.1.2.5（MQTT-3.1.2-8）要求连接关闭且延迟到期或 Session 结束后发布 Will，仅允许正常 DISCONNECT 或延迟到期前重连的取消例外；§3.1.3.2（MQTT-3.1.3-9）规定到期前恢复 Session 不得发送 Will。修复须保持这两个边界，不能用删除待投递 Will 规避背压。后续须覆盖到期前后重连、容量恢复、Clean Start/接管、持久重启及检查式退出，不扩大停机 Will 可延迟到重启的既定范围。
+
+R-01–R-09/D-01的限定修复记录仍保留，新增R-10尚未收口。本轮为定向核对，未修改产品代码；完整F6/F7、生产负载/恢复SLO、magicCommon消费、远端CI、跨平台/真实断电及独立评审仍缺真实验收材料，正式发布继续Partial。
+
+
+## 39. 延迟 Will 到期后的恢复与可靠背压收口（2026-11-08）
+
+本节关闭§38确认的R-10，原反例材料保留。实现与本轮验证见[验证结论摘要](validation/README.md#closed-issues)，当前验收边界见[剩余清单](remaining-work.md)。
+
+恢复 Session 时，只取消同 Client、正延迟、尚未到期且未冻结目标的 Will。已到期的记录即使尚未来得及冻结目标也保留；已冻结目标、因可靠积压满额等待的记录继续独立持有。多次恢复、Clean Start重建及新连接的正常DISCONNECT不删除旧待投递记录；在线接管仍可取消新连接自身尚未触发的正延迟Will。原零延迟接管、预授权、目标Session epoch/订阅标识、Message Expiry及容量/预算规则保持。
+
+新增两项命名回归：真实TCP覆盖零延迟、到期前重连、在线接管、到期后恢复/Clean Start及旧记录与新Will的重复接管；SQLite覆盖尚在延迟与已触发两个保存点，恢复发布者后再次停机/重启，确认旧Will仍待投递，目标原ID/DUP恢复并确认积压后收到Will，随后可继续处理屏障消息。回归先观察pending_wills状态屏障，避免仅凭sleep假定维护任务已触发。原公开TCP探针另复制为修复后预期，保留零延迟与到期前重连对照。
+
+不新增持久字段，format5及读1–4边界不变；恢复和重连仍先提交存储，再确认/下行，所有任务沿用宿主管理。停机Will允许延迟到重启的既定语义保持。R-01–R-10/D-01已关闭限定反例，完整F6/F7规范、生产负载/恢复SLO、magicCommon消费、远端CI、跨平台/真实断电及独立评审仍待真实材料，正式发布继续Partial。
+
+## 40. 协议完整性本轮收口
+
+[协议完整性](protocol-integrity.md)补齐3.1.1四组QoS条款的15条跨段义务与角色，发布目录拒绝孤立编号/截短义务；增加16组合接收端内存/快照状态矩阵。MQTT5规范正文单独固定216段/250编号，但不将编号抽取当成完整语义批准。
+
+R-11–R-14修复短DISCONNECT被第三方解码器误拒绝、非零断开原因错误取消Will、客户端接纳Server专用原因及重复UNSUBSCRIBE未顺序计算原因码。仅对严格验证后的短报文临时解码副本补Property Length，不改变真实线帧上限。只有Reason Code=0删除Will；其他合法客户端原因继续沿用延迟、过期和可靠预算语义。取消订阅逐项删除及生成原因，已开始QoS交换保留。
+
+新增原因码/属性类型、重复/截断、真实TCP与SQLite回归，Paho脚本覆盖TCP/WebSocket的非零DISCONNECT Will和重复取消。执行及失败复核材料见[验证结论摘要](validation/README.md#protocol)。原API、Feature、format5与读1–4边界不变；完整F6/F7逐义务、状态/故障/互操作总矩阵和178项独立发布批准仍待实际验收，发布保持Partial。
+
+
+## 41. 存储时序诊断与F6/F7核对输入收口
+
+增加脱敏Store调用分类和确定性超时/丢回执验证，保留原operation_id/digest查询及失败关闭语义。功能测试的正常I/O期限与150ms超时探针分开，生产请求/总恢复期限不变。并行失败的原始复现、诊断与最终限定结果见[验证结论摘要](validation/README.md#verification)。
+
+R-15修复MQTT5重连/SQLite恢复时旧PUBREL错误占用新连接PUBLISH配额；连接级quota_used不持久化，不改变format5。R-16接受RL=0正常DISCONNECT，取消当前Will并保持持久Session；与RL=1共用严格验证后的临时解码归一化，原始线帧大小仍用于接纳。
+
+双协议QoS2四提交点故障矩阵与新增MQTT5固定头/CONNECT Flags、出站字节、属性/Will顺序、Retain Handling、共享QoS2所有权、KeepAlive及配额场景均按实际日志验收。533条完整文字核对记录绑定编号、未编号候选及表格单元格，有限FSM维度及缺失执行由check.sh门禁校验。完整逐表行语义与独立F6/F7符合性仍须真实实审，不能用文字索引或有限组合替代；详见[协议完整性](protocol-integrity.md)。
+
+
+V-01进一步定位到两类可复现时序：150ms请求Running超时，以及73字节分页的大量Hub往返耗尽10s总恢复期限。新增RecoveryDeadline脱敏分类；功能分页4096字节、专用小页/超时/丢回执探针分开，生产期限保持不变。三进程三轮共252项存储测试通过，8进程扩大负载仍有客户端3s等待超时，暂不承诺该负载稳定。533条核对记录进一步映射全部布局表的限定断言，3.1.1/5.0分别188/270条TargetedEvidence；全部逐行语义和独立批准仍未完成。
+
+
+## 42. 共享订阅离线投递与完整验收通道核对（2026-11-08）
+
+[验证结论摘要](validation/README.md#verification)在上轮179项受控输入和162份绑定材料匹配后复跑Core153项、MQTT5存储专项7项，均通过；公开TCP反例新增R-17/P1。
+
+R-17：MQTT5共享组仅一个持久成员，Session Expiry=60、订阅QoS2后正常断开；发布者完成QoS1和QoS2交换。该成员恢复时Session Present=1，后续匹配屏障可收到，但两条离线消息丢失。普通持久订阅对照得到完整的两条消息和屏障。State::targets_from只从在线共享成员构造目标；MQTT5 §4.8.2关于唯一共享成员与普通订阅等价的上下文尚未落实，不能以已开始QoS2交换的恢复回归覆盖此处。后续须收口全离线组的可靠接纳、预算不足拒绝、Session过期/清理和SQLite恢复，保持已有QoS2目标所有权规则。本轮仅确认，不修改功能代码。
+
+T-01：MQTT5完整验收的批准输入及判定通道仍待开发。当前check-protocol-review.py只接受NotRun且require-complete固定失败，是防误报门禁；3.1.1批准由check-release.py处理且Profile不包含MQTT5。需要接入真实独立批准、绑定原文/实现/执行/身份并验证全覆盖，不能仅新增结构映射即宣布完整F7通过。
+
+R-01–R-16限定修复保持；V-01的8进程客户端等待超时、F6/F7完整语义、生产/跨实现/平台/断电及独立发布验收仍未关闭，整体发布保持Partial。
+
+
+## 43. 遗留项1–5的代码与测量收口
+
+R-17共享订阅路由先选在线成员；无在线成员时，从未过期、非零Session Expiry且有效QoS为1/2的持久成员中选一个固定目标。复用普通可靠投递的整体准入和format5存储，不在ACK之后丢弃可靠工作，不离线积压QoS0，不重新分配已接纳的QoS2所有权。单/多离线、在线优先、合并目标、选项、Session/Message过期、清理、全局/单客户端预算及SQLite恢复均有定向断言。
+
+V-01保留客户端三秒边界，新增调用点及耗时诊断。两项握手故障探针改为真实I/O完成后按受控时钟检查500ms期限前后，避免正常建连被短故障期限干扰。8进程、默认进程内并行、三轮共696项通过；原alias超时未重新定位，不宣称其历史根因已关闭。
+
+F6/F7审查输入扩展到完整章节正文，含无大写MUST的行为说明，合计1,044项；编号、候选段落和表格继续保留。T-01实现当前源码、原始日志、逐义务、矩阵用例及协议Profile的独立材料导入，完整判定存在真实通过路径，缺项/自评/陈旧/失败仍阻断。详见[协议评审格式](protocol-review.md)。工具的合成验证不代替真实独立批准，完整F6/F7继续Partial。
+
+按用户选择，第5项交付[本机持续基线工具](load-baseline.md)：TLS/Auth/SQLite/QoS2流量、无ACK慢消费者、活跃交换中SIGINT检查式退出、原库恢复和可靠FIFO屏障；保存原始RSS/延迟、确认边界、配置/环境及源码/二进制摘要。可选阈值明确输入后才判定本机SLO；生产SLO和长期生产趋势仍待验收。实际结果见[验证结论摘要](validation/README.md#verification)。
+
+
+## 44. 收口后的工具边界与遗留核对（2026-11-09）
+
+起点183项受控输入与上轮一致，102份摘要绑定材料完整；本轮Core159项、Python工具39项及8进程默认并行存储232项通过。R-17共享离线可靠投递修复保留限定证据；V-01历史alias接收超时未复现，根因不因此关闭。
+
+新增T-02（P2）：check-protocol-review.py和check-release.py使用原路径字符串排除评审文件，等价`./`路径可绕过“评审不得作为执行证据”。隔离fixture中合法日志通过，直接评审路径拒绝，等价路径错误通过。T-01导入通道已实现，但证据身份排除仍待统一修复及反向回归；合成批准不代表当前项目通过。
+
+新增V-02（P2）：load-soak.py仅记录恢复报文的DUP/Packet ID，没有对已观察未确认消息建立恢复DUP/原ID拒绝断言。短真实Broker探针在观察器中明确把恢复DUP从1改成0，工具仍报告functional_status=Passed；这是验证缺口，实际Broker的线帧DUP正确。原五分钟测量值保留，生产SLO按用户选择仍待验收。
+
+本轮仅核对并更新状态文档，未修改产品代码或产品测试。完整F6/F7逐义务语义、状态/故障/客户端组合、独立批准和跨实现/平台/硬件故障/远端CI发布证据仍待实际验收。原审计/修复结论保留，过程目录已清理，具体反例与关闭条件见[验证结论摘要](validation/README.md#verification)和[遗留清单](remaining-work.md)。
+
+
+## 45. 遗留项1–4继续收口（2026-11-09）
+
+T-02：两个评审门禁按实际文件身份排除评审文件，覆盖`./`路径、内部符号链接和硬链接；主结果日志及嵌套报告执行证据遵循同一规则，报告自身也不可作为执行证据。保持合法日志及其别名通过，合成fixture只检验工具逻辑。
+
+V-02：本机负载记录首条已观察未确认报文的原Packet ID及载荷；恢复时该帧必须DUP=1、原ID/载荷一致。未观察报文不推定已经发送。真实Broker观察端DUP清零和错误ID两种注入均使实际测量CLI非零；正常恢复、可靠FIFO屏障及显式本机阈值通过。旧五分钟测量不追溯补充断言，生产SLO仍待验收。
+
+F6/F7：在现有1,044条审查输入、5个矩阵及2个协议验收对象内，新增114表/844行的明确检查，绑定逐单元格文本及rowspan/colspan。Passed表行须绑定真实通过测试；表头等不适用行须有实审理由和材料。完整义务语义、所有状态/故障/互操作组合及真实独立批准仍未完成；新增检查不会自动批准任何条款。Paho TCP/TLS与MQTT5 TCP/WebSocket专项只提供本轮限定互操作证据。
+
+V-01：接收诊断进一步区分固定头、Remaining Length与正文进度，alias两种属性变体记录每个握手、恢复及保留回放阶段的Broker状态，三秒客户端边界不变。8进程、默认进程内并行、三轮696项通过，两个alias变体共48次完成；历史超时根因没有复现或确认，继续保留未关闭状态。
+
+具体正反回归、历史执行结论见[验证结论摘要](validation/README.md#closed-issues)。历史验证目录不改写，完整规范和发布继续Partial。
+
+
+## 46. 遗留项1–4收口后的核对（2026-11-09）
+
+[验证结论摘要](validation/README.md#verification)核验183项输入和83份上轮材料，复跑Core159项、Python工具48项及8进程存储232项通过；未确认新增Broker运行时功能缺陷，V-01原alias三秒超时未复现且根因未定位。
+
+新增T-03/P2：T-02按文件身份排除同一文件的直接/点路径、符号链接和硬链接，但逐字节复制的已知评审副本文件号不同、SHA256相同，仍可作为执行材料。协议CLI及发布evaluate的合成对照均为合法日志通过、直接评审拒绝、副本错误通过。应在各级执行材料核对中排除已知评审等内容副本，保留合法证据路径；这不证明当前项目取得批准或绕过全部校验。
+
+新增V-03/P2待归因异常：与8进程存储扩压重叠的首次负载DUP探针在初次CONNECT等待CONNACK时EOF，尚未进入注入；扩压完成后相同配置、期限及二进制的受控DUP复跑通过。错误ID拒绝及正常恢复也有定向复核。保留原失败并定位具体握手阶段/期限与负载条件；不能据此认定Broker功能缺陷、原alias根因或通过放宽期限关闭。
+
+F6/F7仍须完整语义、全部状态/故障/客户端组合与真实独立验收；844表行检查和有限矩阵不等于实审批准。生产SLO按用户选择保留，跨实现/平台/文件系统/硬件断电/远端CI及独立发布材料仍待实际验收。当前清单和顺序见[遗留项](remaining-work.md)。本轮不改产品代码、产品测试或契约，历史验证目录保持原样。
+
+## 47. V-01、T-03、V-03 与 F6/F7 继续收口
+
+本轮实现与验证结论见[验证结论摘要](validation/README.md#closed-issues)。
+
+1. T-03：两门禁以实际文件身份及已验证SHA256排除已知评审、嵌套报告自身与等内容副本；合法日志及其副本允许。保留修复前失败和实际CLI对照，不升级项目独立批准。
+2. V-01：同名alias测试再次在恢复后PINGRESP等待三秒失败。受控无关Store持有反例确认PING/空闲出站检查不应产生持久化工作；现仅无状态变更路径跳过事务，可靠消息/ACK仍先提交后响应，同连接PING不得越过先前提交。故障分类的150ms等待只用于受控时钟的Running/Queued注入，普通Provider回复另用正常请求期限。客户端三秒、生产存储及握手期限不变；不能将本轮定位倒推为所有旧失败唯一根因。
+3. V-03：带诊断压力探针的初次slow/seed CONNECT均出现Authenticate阶段约五秒握手超时（观察5000–5011ms），未观察到Metrics宿主失败。TCP/TLS受控4999/5001ms回归验证期限前等待、期限后关闭、迟到授权不建Session及随后同ID正常连接；实际超时仍记负载失败。
+4. F6/F7：新增双协议×进程内重连/SQLite重启×重复DUP标志8组合，真实线帧检查原Payload/Content Type/Retained、PUBREL幂等及完成后Packet ID重用。有限矩阵增至6个58组合，1044条规范输入及2验收对象共1052对象，844个表行检查保持。完整语义与真实独立实审批准仍未完成，整体Partial。
+
+`MODORCH_MQTT_DIAGNOSTICS=1`显式开启有界连接阶段诊断，默认关闭、不创建任务/Runtime。失败及至少250ms阶段切换输出进程内数字追踪号、固定阶段、耗时与脱敏类别；测试构建额外带测试线程名，不输出客户端身份、地址、Topic、载荷、凭据或原始IO/配置错误。诊断会增加stderr开销，仅用于定位；不能据此承诺生产延迟SLO。
+
+## 48. 四项收口后剩余遗留核对
+
+[验证结论摘要](validation/README.md#closed-issues)验证184项当前输入与174份绑定材料，复跑Core162项、工具52项、8进程存储248项及两个实际门禁CLI副本对照通过。TLS/Auth/SQLite/QoS2短正常对照完成慢消费者恢复及可靠FIFO屏障，未配置SLO；不能抵销上轮压力2/4认证五秒期限拒绝。
+
+未确认新增可复现功能缺陷；T-02/T-03/V-02、PING无关持久化等待及认证期限的限定修复/回归保持。V-01缺阶段日志的历史失败仍不能全部唯一归因；V-03仍需验证所要求压力下的认证成功容量，正常期限拒绝不算压力通过。
+
+完整F6（437输入/339表行）和F7（607输入/505表行）的跨段/逐义务/逐表行语义及其余状态/故障/客户端组合仍须真实实审。现有6矩阵58组合、844表行检查和1052评审对象的真实独立批准仍0，3.1.1发布178项批准仍0。生产SLO按用户选择保留，magicCommon、远端CI、跨平台/文件系统、硬件断电及独立安全/性能/接入/发布材料仍待验收，整体Partial。本轮仅核对并维护状态文档，不改产品代码、产品测试或契约。
+
+
+## 49. 入站流控及认证容量继续收口
+
+R-18：MQTT5的Receive Maximum使用`max_inbound_qos2_per_client`宣告，QoS1/2共用连接级网络额度；QoS1在PUBACK、QoS2在PUBCOMP完整写出时归还，成功PUBREC不归还。QoS0不占额度，重复接收的QoS2不重复计数；PUBREL删除持久接收记录后，未完成写出的PUBCOMP仍占网络额度。超额PUBLISH在授权/路由/持久化前拒绝，按控制FIFO发送DISCONNECT 0x93并关闭。旧排队PUBCOMP绑定原交换标识，不能释放重用Packet ID的新交换；未知/重复PUBREL不增加额度。网络记录有独立全局预算、随连接释放，不新增快照字段。持久QoS2条数/字节限额继续独立生效，重连不直接继承旧网络额度。
+
+F6/F7新增双协议×部分PUBACK/PUBREC/PUBCOMP×后续QoS1/2的12组合，以及连接重建、重复完成、真实TCP无Retained覆盖/无部分路由和其他连接健康断言。MQTT5的3.3.4-7/8整段虽以Client义务编号，正文也包含Server处理规则；角色改为Both并补Server限定证据。7矩阵70组合、1053对象及844表行不等于完整实审，真实独立批准仍0。
+
+V-01保留历史无阶段日志的归因限制；本轮32个存储扩压进程共992项通过，受控慢写、PING与持久屏障回归保持。V-03负载工具增加有界并发建连及逐连接TCP/TLS、CONNACK耗时。在八进程存储测试重叠下，release两次四客户端并发测量完成TLS/Auth/SQLite/QoS2、活跃退出、原库恢复及FIFO屏障；debug两次失败，包含Authenticate以及认证完成后等待SessionAuthorize时的五秒总握手期限。新增后者TCP/TLS受控4999/5001ms和迟到授权不建Session回归。优化构建的通过不抵销debug失败，不放宽期限或密码参数；未配置SLO，长期生产容量仍待验收。
+
+具体修复与验证结论见[验证结论摘要](validation/README.md#closed-issues)。完整规范和外部发布继续Partial，生产SLO按用户选择保留。
+
+
+## 50. 流控收口后剩余遗留核对
+
+[验证结论摘要](validation/README.md#verification)确认186项当前输入和96份上轮绑定材料完整，复跑Core167项、Python工具52项及release四客户端/四并发短正常对照通过。R-18流控及迟到授权等限定回归保持，本轮未确认新增可复现运行时功能缺陷。
+
+新增T-04/P2：MQTT5的3.2.2-19/20正文明确包含Server MUST，协议清单却仍为Client/ClientOnly且无映射断言；另3.2.2-11/14/15包含条件性Server错误处理，需要复核整段角色和适用条件。当前结构/执行证据CLI仍返回validation Passed、overall Partial，表明它不代替语义实审。CONNACK当前不发送Reason String/User Property，不能仅由分类错误推断包长违约或完整批准绕过。应先修正角色/适用性和准确证据，补针对错误分类的回归，再继续完整F7实审。
+
+V-03的上轮八进程重叠负载仍为debug0/2成功、release2/2成功；本轮正常对照不抵销失败，也未重跑相同压力。V-01无阶段历史失败仍不能全部唯一归因。F6/F7的完整语义、其余状态/故障/客户端组合和真实独立批准继续待验收；437/607输入、339/505表行、188/273限定映射及7矩阵70组合只是限定证据。1053对象、844表行的真实协议批准仍0，发布178项批准仍0。
+
+生产SLO按用户选择保留，magicCommon、远端CI、平台/文件系统/硬件断电及独立安全/性能/接入/发布材料继续待执行。整体Partial；本轮不修改产品代码、产品测试或契约，不重写历史验证材料。
+
+## 51. 角色覆盖、认证队列与中断恢复收口
+
+T-04：MQTT5的3.2.2-19/20改为Server，3.2.2-11/14/15按整段的条件性Server行为改为Both；MQTT3.1.1的3.1.3-7整段亦包含Server分配/拒绝空ClientID的义务，改为Both。新增防回退规则拒绝明确Server主语或已识别Server条件上下文被排除为ClientOnly；该规则是保守结构检查，不替代完整语义实审，也不把“Client to the Server MUST”误当Server主语。精确CONNACK字节覆盖省略Reason String/User Property/Maximum QoS/Retain Available、默认允许QoS2/Retained及对端包长15/16/17边界；超监听8192字节的入站发布关闭且不覆盖原Retained。不声称未发送的可选原因码或未宣告的禁用能力分支已经执行。
+
+认证Provider原串行Handler存在密码任务阻塞SessionAttach的确定性反例。改为Concurrent Handler（max_in_flight=8），密码请求最多4个已准入、物理Argon2任务仍为1；超额返回Unavailable。等待密码的任务不会占满所有轻量授权执行容量，密码参数和Core五秒总握手期限不变。准入与执行permit移入宿主受管spawn_cpu闭包，持有到实际退出；Running请求超时不推断取消或提前归还。每操作使用不可变策略快照，开始中的旧认证保留旧revision、新ACL使用新revision；并发不保序，Core逐连接的处理顺序继续保持。未新增公共配置字段或独立Runtime。 本仓库dev/test仅对Argon2和Blake2启用编译优化，应用代码继续使用开发Profile；Release不变，外部宿主需自行决定workspace Profile。
+
+新增双协议×PUBACK/PUBREC/PUBCOMP部分写×仅Owner取消/仅对端EOF共12组合。仅取消场景保留对端连接直至服务端关闭，避免用EOF代替取消证据；重连验证Session Present、接收端QoS2所有权、旧PUBREL完成、Packet ID重用和PING，显式清理重建后Session/连接/接收记录及记账内存全部归还。该矩阵在受控内存传输中执行，不冒充进程崩溃或物理断电测试。
+
+本轮有限矩阵共8个82组合、1054评审对象、844表行；MQTT3.1.1为437输入/189限定映射，MQTT5为607输入/278限定映射。完整逐义务/逐表行及剩余状态/故障/客户端组合仍须真实实审，真实协议与发布批准均为0，整体Partial。容量、原始失败、全检查与当前输入绑定见[验证结论摘要](validation/README.md#closed-issues)。V-01缺阶段日志的历史失败不能唯一重建，生产SLO和外部验收保持原边界。
+
+最终全检查通过workspace207项Rust（Core169项）、53项工具测试，MSRV1.85/最小Feature与Paho TCP/TLS、MQTT5 TCP/WebSocket通过。隔离队列但尚未优化密码库的debug压力仍两次失败，release两次通过；启用dev/test密码库优化后，相同八进程存储重叠条件下debug与release各两次四客户端并发测量均成功，debug健康连接约158–559ms。两批64套存储扩压共1984项通过。成功仅关闭该有限本机配置的失败容量缺口，不批准任意接入负载；旧失败、历史归因限制和生产/外部验收均保留。
+
+## 52. 认证容量收口后的剩余核对
+
+[验证结论摘要](validation/README.md#verification)确认187项当前输入与154份上轮材料一致，Auth9项、Core169项和工具53项复跑通过，未确认新增可复现运行时缺陷。T-04角色和限定证据修正保持，V-03最终debug/release各两次成功及1984项扩压为摘要核验的上轮材料，不声称本轮重新执行。
+
+新增V-04/P2验证项：密码准入测试的Running超时发生在执行permit被夹具占用、真实密码工作等待期间；正常退出在全部额度归还后才进行。应补物理密码工作执行中Owner取消、StopIncomplete/Forced、同Factory重建和实际退出后归还额度的受控验证。实现已将双permit移动进受管CPU闭包，当前证据不表明额度提前释放或重复物理执行；不能用等待阶段超时/排空后的退出替代这些生命周期场景。
+
+完整F6/F7仍须全段/逐义务/844表行和其余状态/故障/客户端组合实审；437/607输入、189/278限定映射、8矩阵82组合及1054对象均不代表独立批准，真实批准0，发布178项批准亦0。Paho/rumqttc已有限定互操作，完整矩阵未批准。V-01无阶段历史失败是不可唯一重建的归因限制；V-03所测有限配置已有成功证据，其余容量及外部宿主Profile仍需另验。生产SLO按用户选择保留，magicCommon、远端CI、跨平台/文件系统、硬件断电及独立审查仍待执行。整体Partial，本轮未改产品代码、测试或契约。
+
+
+## 53. 物理认证生命周期与发送端持久恢复收口
+
+[验证结论摘要](validation/README.md#closed-issues)关闭V-04验证缺口：仅在Auth单元测试构建内，真实受管CPU闭包持有双permit后进入同步屏障。Running超时、Owner取消、StopIncomplete或Forced不能提前归还物理任务额度；实际退出后pending与额度恢复，Forced仍不能报告正常排空。同Factory受控监督重建必须等旧物理工作退出/已准入请求排空，再建立新代际；外部旧Scheduler持续拒绝，新认证可成功，物理并发峰值1。原operation lease允许已准入旧请求继续派生工作排空；首次夹具误要求所有旧请求必须拒绝的失败原样保留，修正后的测试及全回归通过。不改变生产默认FailFast、密码成本或握手期限，不新增公开生命周期钩子。
+
+F6/F7增加26个真实TCP/SQLite组合：双协议×发送端AwaitPubRec/AwaitPubComp×三类错误ACK共12组合，在错误输入前后各检查式重启，核对原Packet ID、PUBLISH DUP、PUBREL阶段、载荷及MQTT5订阅标识17；错误ACK不提前完成，正确ACK清除后下一消息继续。MQTT5另有两阶段×七种合法负PUBREC原因共14组合：Publish阶段释放所有权，Release阶段迟到负PUBREC保留已移交交换，经第二次重启确认。迟到矛盾ACK是健壮性输入，不声称对端序列符合规范；检查式重启不冒充新增SIGKILL或物理断电。
+
+有限矩阵现为10个108组合、1056评审对象、844表行，437/607规范输入和189/278限定映射保持。完整逐义务/表行、跨段语义、其余状态/故障/客户端组合及真实独立评审仍未完成，协议与178项发布批准均0，整体Partial；Enhanced Authentication仍明确未支持。全检查通过211项Rust（Core171项、Auth11项）、53项工具测试，MSRV1.85/最小Feature及Paho TCP/TLS、MQTT5 TCP/WebSocket通过。本轮不重新运行上轮容量/1984项扩压；V-01历史归因、用户保留的生产SLO及外部验收边界保持，未提交。
+
+
+## 54. 物理生命周期收口后剩余遗留核对
+
+[验证结论摘要](validation/README.md#verification)确认187项受控输入与37份上轮材料匹配，Auth11项、Core171项及工具53项复跑通过。V-04限定验证保持，不重新列为待开发。上轮211项workspace测试、MSRV/最小Feature及Paho、以往容量和1984项扩压是摘要核验的历史材料，不声称本轮重新执行。
+
+新增R-19/P2：MQTT5的TABLE-026/029明确说明PUBACK/PUBREC的0x10（No matching subscribers）仅由Server发送；当前Client入口校验仅读取ACK原因码，Codec接受0x10，穷举测试也误将其列为合法。真实TCP覆盖两种ACK×省略/显式Property Length：四个违规输入均保持PING可用，QoS1原交换完成、QoS2转PUBREL且会话重连继续该阶段；四个合法0x00对照通过。应补发送角色校验、修正测试预期和准确映射，再验证拒绝路径与其他健康连接隔离。该反例由非法对端输入触发，不声称正常客户端存在消息丢失；本轮未扩展为SQLite或崩溃反例。
+
+完整F6/F7仍需跨段/逐义务/844表行语义、其余状态/故障/客户端组合及真实独立实审；先处理R-19。437/607规范输入、189/278限定映射、10矩阵108组合及1056对象并非完整批准，真实协议批准0，178项发布批准0，整体Partial。Enhanced Authentication明确未支持；V-01历史归因限制、用户保留的生产SLO及外部执行边界保持。本轮只核对并维护状态文档与审计材料，不改产品代码、测试或契约，不提交。
+
+
+## 55. ACK发送角色与持久恢复继续收口
+
+[验证结论摘要](validation/README.md#closed-issues)关闭R-19：MQTT5 Client入口在ACK解码完成/推进交换之前，按类型验证原因码。PUBACK/PUBREC只允许Success和七种合法Client失败原因，拒绝TABLE-026/029限定Server发送的0x10；PUBREL/PUBCOMP保留0/0x92。省略原因码的隐式Success合法短格式不变。错误沿用异常连接关闭路径，公共API、持久格式5、密码成本和五秒握手期限不变。纠正原穷举测试把0x10视作Client合法码的预期，保留修复前准确执行失败及最初空匹配命令，不将0测试当通过证据。
+
+F6/F7新增44个真实TCP/SQLite组合：双协议×QoS1/AwaitPubRec/AwaitPubComp×两种额外字段形式共12组合，在违规ACK关闭后保持原所有权，健康连接PING/发布正常；重启核对原ID、阶段、PUBLISH DUP、载荷和MQTT5订阅标识，正确完成后下一消息继续交付。3.1.1按非法长度拒绝，MQTT5按Client原因码角色拒绝。另PUBACK/PUBREC×八种合法Client原因×两种Property Length形式共32组合，首次恢复后处理ACK、第二次恢复验证无旧重投，成功QoS2完成PUBREL、负PUBREC终结原PUBLISH且无PUBREL。检查式SQLite重启不冒充新增SIGKILL或物理断电。
+
+有限矩阵现12个152组合、1058对象、844表行，437/607输入、189/278限定映射保持。完整F6/F7的跨段/逐义务/逐表行语义及其余状态/故障/客户端组合与真实独立实审仍未完成；协议/178发布项真实批准0，整体Partial，Enhanced Authentication明确未支持。V-04保持关闭；V-01历史归因、用户保留的生产SLO和外部验收边界保持，本轮未提交。
+
+最终全检查通过workspace213项Rust（Core173项、Auth11项）和53项工具测试，Rust1.85/最小Feature及Paho TCP/TLS、MQTT5 TCP/WebSocket专项通过。输入摘要和严格计划绑定本轮原始日志，完整协议/发布保持Partial，生产SLO及外部执行边界不变。
+
+
+## 56. ACK角色收口后的剩余遗留核对
+
+[验证结论摘要](validation/README.md#closed-issues)确认187项当前受控输入和38份上轮绑定材料匹配，Core173项、Auth11项及工具53项复跑通过，未确认新增可复现功能缺陷。R-19的Client0x10拒绝与正确原因码处理、异常连接隔离、原交换ID/阶段/DUP/载荷恢复和随后交付保持；V-04物理CPU任务取消、StopIncomplete/Forced、监督重建及实际资源归还也保持，不重新列为待开发。
+
+F6/F7的完整跨段/逐义务/逐表行语义、其余状态/故障/客户端组合和真实独立实审仍未完成；437/607输入、339/505表行、189/278限定映射、12矩阵152组合及1058对象不代表独立批准。Enhanced Authentication明确未支持，相关11项UnsupportedConditional是声明范围内的适用性边界；未知Authentication Method关闭连接是MQTT-4.12.0-1允许的拒绝方式，不自动列作缺陷或新功能要求。
+
+协议和178项发布真实批准均0，整体Partial。生产SLO按用户选择保留；长期/代表性负载、外部宿主Profile、magicCommon、远端CI、平台/文件系统/硬件断电及独立安全/性能/接入/发布材料仍待执行。V-01历史无阶段失败保持不可唯一重建的归因限制。上轮workspace213/MSRV/最小Feature/Paho和以往容量/1984项扩压仅作摘要核验历史材料，不冒称本轮重跑。本轮只核对并维护状态文档与审计材料，不改产品代码、测试、契约或提交。
+
+
+## 57. 双向同Packet ID与立即过期的持久恢复收口
+
+[验证结论摘要](validation/README.md#protocol)继续F6/F7的协议验证代码收口，新增20个真实TCP/SQLite组合。双协议×出站AwaitPubRec/AwaitPubComp×入站/出站先完成共8组合：两方向使用相同Packet ID，首次恢复核对出站原ID/DUP或PUBREL/载荷/订阅标识；入站改内容重复不重投，完成任一方向不推进或清除另一方向；第二次恢复后剩余交换仍可完成，随后入站ID重用与出站新消息正常。
+
+MQTT5另补QoS0/1/2×Retain×空/非空载荷共12组合，使用确定性的Message Expiry Interval=0。过期消息不向现有订阅转发，Retain=0保留旧Retained、Retain=1删除旧Retained，两次重启后新订阅回放一致。QoS2在PUBREC后重启仍保留接收所有权，改成未过期的新内容重复也不能复活消息或覆盖Retained；PUBREL/PUBCOMP继续完成，二次恢复重复PUBREL仍成功，完成后的同号新发布可正常交付。字面量线帧与FIFO屏障直接核对，不冒称正TTL全边界、进程崩溃或硬件断电。
+
+新增测试在现有实现上通过，本轮未确认新运行时缺陷、不修改状态机。契约新增两个有限矩阵，合计14个172组合、1060对象、844表行；MQTT311为437输入/190限定映射，MQTT5为607输入/281限定映射，新增章节证据限定于独立Packet ID命名空间与Retained/Expiry上下文。完整跨段/逐义务/表行语义、其余状态/故障/客户端组合及真实独立实审仍未完成，F6/F7继续Partial，真实协议与178发布项批准0；Enhanced Authentication仍明确未支持。
+
+R-19、V-04保持关闭，V-01历史归因限制、用户保留的生产SLO与外部验收边界保持；旧容量和1984项扩压不在本轮重跑。本轮完整检查及输入/材料绑定见本轮记录，未提交。
+
+
+最终全检查通过215项workspace Rust（Core175项、Auth11项）、53项工具测试；Rust1.85/最小Feature与Paho TCP/TLS、MQTT5 TCP/WebSocket专项通过。完整协议与发布独立批准仍缺失，严格门禁保持Partial并阻断完整发布，最终输入及原始日志绑定本轮独立目录。
+
+
+## 58. 双向同号与立即过期收口后的剩余核对
+
+[验证结论摘要](validation/README.md#protocol)确认187项输入与39份上轮材料摘要匹配，Core175项、Auth11项和工具53项复跑通过。上轮8个同号双向QoS2隔离及12个MQTT5零过期组合保持；R-19及V-04的关闭依据保持，未确认新的可复现功能缺陷。
+
+完整F6/F7仍需跨段/逐义务/逐表行语义、其余状态/故障/客户端组合和真实独立实审。下一批可优先核对同号双向QoS2与提交失败/结果未知、部分ACK写中断和SIGKILL的交叉场景，以及MQTT5正TTL在未开始交付、已发PUBLISH/AwaitPubRec、AwaitPubComp阶段的跨到期/重启、剩余Expiry属性与Retained回放。现有同号矩阵是检查式重启，Expiry=0只证明立即过期；这些方向是验证缺口，不是已确认的产品缺陷，也不代表完整剩余组合的穷举。
+
+当前14有限矩阵172组合、1060对象、844表行；MQTT311为437输入/190限定映射，MQTT5为607输入/281限定映射，真实协议及178发布项批准均0，整体Partial。Enhanced Authentication仍明确未支持，11项UnsupportedConditional保留声明范围内边界。V-01历史无阶段失败保留归因限制；用户保留的生产SLO、长期/代表性容量、外部宿主Profile、magicCommon、远端CI、平台/文件系统/硬件断电及独立安全/性能/接入/发布材料仍待真实验收。
+
+上轮workspace215/MSRV/最小Feature/Paho与以往容量/1984项扩压仅作摘要核验的历史材料，本轮不冒称重新执行。本轮仅核对并维护状态文档和审计材料，未改产品代码、测试、契约或提交。
+
+
+## 59. 同号双向QoS2故障交叉与正TTL收口
+
+[验证结论摘要](validation/README.md#protocol)新增50个组合。双协议×两出站阶段×两修改方向×提交前失败/提交后丢回执可查询/提交与查询均不可确认共24组合，真实TCP/SQLite验证失败关闭与按实际落盘结果恢复，原ID/DUP/阶段/载荷及订阅标识保持、两方向独立、完成后ID重用和二次恢复无旧交换。单字节传输另补双协议×两出站阶段×部分PUBREC/PUBCOMP×Owner取消/EOF共16组合，重连恢复并在显式清理后归还全部会话/连接记账；首次夹具清理仍带60秒Expiry的错误已改为零Expiry，原失败保留，未误判运行时泄漏。
+
+Unix子进程补双协议×两出站阶段共4组合，各两次真实SIGKILL（校验signal=9），首次恢复双向原交换及去重，完成后的二次崩溃验证ACK持久化不依赖正常shutdown，最终新消息继续。fixture在父测试内启动同测试二进制中的独立Host Application/SQLite，ready后提供地址，RAII回收，无生产运行时或公开钩子变化；不声称硬件断电或跨平台运行。
+
+MQTT5另有未发送/AwaitPubRec/AwaitPubComp×首次重启前/后到期共6组合。真实正4秒TTL在到期前回放剩余1–2秒Expiry，未到期恢复分支校验绝对到期时间不重置；到期后未发送消息清除，已发QoS2继续按原ID/DUP重发或PUBREL完成，过期Retained不再回放，后续正常交付及二次恢复无旧积压。真实时钟测试不代替所有边界值、流控和平台组合。
+
+新增验证代码在既有生产状态机上通过，未确认新运行时缺陷。当前18有限矩阵222组合、1064协议对象、844表行，MQTT311/MQTT5限定映射190/281项。完整跨段/逐义务/逐表行语义、其他状态/故障/客户端组合及真实独立实审仍待完成，F6/F7保持Partial，协议和178发布项真实批准0；Enhanced Authentication仍明确未支持。R-19/V-04保持关闭，V-01历史归因、用户保留的生产SLO和外部验收边界保持，不重跑旧容量/1984项扩压，未提交。
+
+
+最终全检查通过workspace219项Rust（Core179项、Auth11项）及工具53项，无忽略项；Rust1.85/最小Feature与Paho TCP/TLS、MQTT5 TCP/WebSocket专项通过。首次全量Rust219项通过后，严格证据门禁拒绝ignored子进程fixture；已将入口合并为父测试的显式子进程分支，无放宽规则，完整检查重新通过，首次失败保留。最终输入与严格计划绑定本轮check-corrected.log，完整协议及发布仍Partial、0真实批准。

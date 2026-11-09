@@ -2,6 +2,8 @@
 
 基于 Modorch-RS 0.0.3 的可嵌入式 MQTT Broker 库。当前版本为 **0.1.0-alpha.1 / MQTT 3.1.1 QoS0/1/2 实验实现**，已实现 F0–F3 子集、F4 EventHub 集成及 F5 的认证/运维与 SQLite 持久化实验扩展，以及 F6 双向 QoS2 状态机和可选 MQTT5/WebSocket/Bridge 功能；尚不声明完整 MQTT 3.1.1 符合性。
 
+当前实现、最近测试结论及归档范围见[最终验证与收口记录](docs/validation/README.md)。完整规范与生产发布仍待独立验收。
+
 宿主拥有 Tokio、Application、EventHub 和退出机制。Bundle 只注册 Factory，宿主显式启用组件；Core 不创建第二个 Application/Hub，监听和每个连接均由宿主 TaskScheduler 监督。
 
 ```rust
@@ -92,4 +94,7 @@ python3 scripts/verify-paho5.py
 - 接入与实现：[开始使用](docs/getting-started.md)、[架构](docs/architecture.md)、[API](docs/api.md)、[EventHub](docs/eventhub.md)。
 - 配置与运行：[配置边界](docs/configuration.md)、[可靠性](docs/reliability.md)、[运维](docs/operations.md)。
 - 需求与映射：[完整设计](docs/modorch_mqtt_broker_full_design_0.0.3.md)、[契约与测试映射](contracts/README.md)、[MQTT3.1.1 场景](docs/mqtt311-conformance.md)、[报文与状态审计](docs/mqtt311-audit.md)。设计包含后续目标，当前能力以实现说明和剩余清单为准。
-- 执行材料：[验证索引](docs/validation/README.md)。最近一次功能修复为[Bridge 源会话修复](docs/validation/2026-11-08-source-session-fixes/README.md)；所有历史记录保留各自输入、反例和执行结果，旧计划不作为当前输入的发布批准。
+- 持续收口：[F6/F7 待收口计划](docs/f6-f7-closure-plan.md)，跟踪语义审查、验证补齐和独立验收的任务、交付物及完成标准。
+- 验证结论：[最终验证与收口记录](docs/validation/README.md)。归档只保留最终结论，过程日志、数据库、探针和未批准包不随源码归档；严格验收仍须真实同轮材料。
+
+[协议完整性收口](docs/protocol-integrity.md)记录QoS跨段义务、MQTT5断开/Will与取消订阅修复及规范表回归；完整F6/F7独立验收仍Partial。

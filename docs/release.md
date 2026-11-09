@@ -21,16 +21,16 @@ mkdir -p /tmp/mqtt-release
 CARGO_NET_OFFLINE=true ./scripts/check.sh > /tmp/mqtt-release/check.log 2>&1
 ```
 
-证据必须放在仓库内部（如新建的 `docs/validation/<本轮>/`）。将本轮真实日志放入该目录后执行，路径以实际目录为准：
+证据在核对期间必须放在仓库内部的本地忽略目录（如 `validation/<本轮>/`）。归档只保留最终结论，历史过程材料已清理；严格评审仍需真实同轮材料，摘要不能替代日志或批准。将本轮真实日志放入新目录后执行，以下 `CURRENT` 是后续执行占位符：
 
 ```bash
 python3 scripts/check-release.py --prepare \
   --producer developer-name \
-  --results docs/validation/2026-11-08-f6-wire-fsm/check.log \
-  --bundle docs/validation/2026-11-08-f6-wire-fsm/example-plan.json
+  --results validation/CURRENT/check.log \
+  --bundle validation/CURRENT/example-plan.json
 python3 scripts/check-release.py \
-  --bundle docs/validation/2026-11-08-f6-wire-fsm/example-plan.json \
-  --output docs/validation/2026-11-08-f6-wire-fsm/example-release.json
+  --bundle validation/CURRENT/example-plan.json \
+  --output validation/CURRENT/example-release.json
 ```
 
 初始178个`reviews`均为`null`，严格判定返回1。`--allow-partial`仅用于开发清单检查，可在无Failed的Partial状态返回0；发布流程不得使用它。`check.sh`用临时计划核对全部MUST测试映射；CI归档的计划也不自动批准评审。

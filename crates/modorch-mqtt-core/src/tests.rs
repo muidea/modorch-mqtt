@@ -43,6 +43,28 @@ async fn stop(app: &ApplicationHandle) {
     .unwrap();
 }
 
+// Freeze Tokio time while real network/filesystem work progresses, then advance the
+// exact protocol deadline only after the fault latch is entered. Self-waking
+// polling prevents Tokio's idle auto-advance from racing blocking filesystem IO.
+async fn manual_clock(work: impl std::future::Future<Output = ()>) {
+    tokio::time::pause();
+    let started = std::time::Instant::now();
+    let mut work = std::pin::pin!(work);
+    std::future::poll_fn(|cx| {
+        assert!(
+            started.elapsed() < Duration::from_secs(10),
+            "manual-clock IO stalled"
+        );
+        let result = work.as_mut().poll(cx);
+        if result.is_pending() {
+            cx.waker().wake_by_ref();
+        }
+        result
+    })
+    .await;
+    tokio::time::resume();
+}
+
 fn string(value: &str) -> Vec<u8> {
     let mut bytes = (value.len() as u16).to_be_bytes().to_vec();
     bytes.extend(value.as_bytes());
@@ -83,23 +105,59 @@ impl Client {
     async fn send(&mut self, frame: Vec<u8>) {
         self.0.write_all(&frame).await.unwrap();
     }
-    async fn recv(&mut self) -> (u8, Vec<u8>) {
-        tokio::time::timeout(Duration::from_secs(3), async {
-            let header = self.0.read_u8().await.unwrap();
-            let mut len = 0;
-            for shift in [0, 7, 14, 21] {
-                let byte = self.0.read_u8().await.unwrap();
-                len |= usize::from(byte & 127) << shift;
-                if byte & 128 == 0 {
-                    break;
+    #[track_caller]
+    fn recv(&mut self) -> impl std::future::Future<Output = (u8, Vec<u8>)> + '_ {
+        let caller = std::panic::Location::caller();
+        async move {
+            let started = std::time::Instant::now();
+            let mut stage = "fixed header";
+            let mut received_header = None;
+            let mut expected_body = 0;
+            let mut received_body = 0;
+            let result = tokio::time::timeout(Duration::from_secs(3), async {
+                let header = self
+                    .0
+                    .read_u8()
+                    .await
+                    .unwrap_or_else(|e| panic!("MQTT header IO at {caller}: {e}"));
+                received_header = Some(header);
+                stage = "remaining length";
+                let mut len = 0;
+                for shift in [0, 7, 14, 21] {
+                    let byte = self.0.read_u8().await.unwrap();
+                    len |= usize::from(byte & 127) << shift;
+                    if byte & 128 == 0 {
+                        break;
+                    }
                 }
+                stage = "body";
+                expected_body = len;
+                let mut bytes = vec![0; len];
+                while received_body < len {
+                    let count = self.0.read(&mut bytes[received_body..]).await.unwrap();
+                    assert_ne!(count, 0, "MQTT body EOF at {caller}: {received_body}/{len}");
+                    received_body += count;
+                }
+                (header, bytes)
+            })
+            .await
+            .unwrap_or_else(|error| {
+                panic!(
+                    "MQTT receive timed out at {caller}: {error}; stage={stage} header={received_header:?} body={received_body}/{expected_body} elapsed={:?}",
+                    started.elapsed()
+                )
+            });
+            if std::env::var_os("MQTT_TEST_TIMING").is_some()
+                && started.elapsed() > Duration::from_millis(250)
+            {
+                eprintln!(
+                    "MQTT receive timing: caller={caller} elapsed={:?} header={:02x}",
+                    started.elapsed(),
+                    result.0
+                );
             }
-            let mut bytes = vec![0; len];
-            self.0.read_exact(&mut bytes).await.unwrap();
-            (header, bytes)
-        })
-        .await
-        .unwrap()
+            result
+        }
     }
     async fn subscribe(&mut self, filters: &[(&str, u8)]) -> Vec<u8> {
         let mut body = vec![0, 1];
@@ -741,3 +799,5 @@ mod websocket;
 
 #[cfg(feature = "mqtt5")]
 mod mqtt5;
+#[cfg(feature = "mqtt5")]
+mod mqtt5_protocol;

@@ -39,7 +39,7 @@ capability 仅交给 Core 与选定 Provider；不放入 MQTT/HTTP DTO、日志�
 
 ## 提交、恢复和失败
 
-等待 gate/提交回执时，连接任务仍检查 CONNECT、KeepAlive、身份和整帧写入期限。到期先关闭 TCP/TLS；已获得的事务继续确定结果，不取消 Commit，也不发送迟到 ACK。任务、连接许可和预留内存保留到实际退出；事务结果未知时仍按查询/失败关闭规则处理。等待 gate 尚未获得事务时可直接取消，迟到请求不能接纳新数据。超时会话的延迟 detach/Will 由后续受控事务处理，慢存储会延迟 Will 发布。实测边界见[连接期限验证](validation/2026-11-08-f6-deadlines/README.md)。
+等待 gate/提交回执时，连接任务仍检查 CONNECT、KeepAlive、身份和整帧写入期限。到期先关闭 TCP/TLS；已获得的事务继续确定结果，不取消 Commit，也不发送迟到 ACK。任务、连接许可和预留内存保留到实际退出；事务结果未知时仍按查询/失败关闭规则处理。等待 gate 尚未获得事务时可直接取消，迟到请求不能接纳新数据。超时会话的延迟 detach/Will 由后续受控事务处理，慢存储会延迟 Will 发布。实测边界见[验证结论摘要](validation/README.md#verification)。
 
 
 Factory 持有异步事务 gate，协调协议状态变更、下行选择、内部发布、Will 与延迟断连；同步 State mutex 不跨 await。编码/摘要通过宿主 CPU Scheduler，SQL 通过 blocking-I/O Scheduler，等待 `wait_finished`。每次可能改变可靠状态的操作生成有界 JSON image，摘要不变时跳过磁盘写。配置启用后所有变更使用同一 writer epoch 和递增 image version。
@@ -70,17 +70,27 @@ Provider 清除任务准入句柄，等待已有 SQL job 释放连接锁，再�
 
 BrokerStatus 和 Metrics 增加实际存储提交成功/失败数、耗时微秒总和与最大值。计时从取得事务 gate 到确认/失败，包含编码和 Hub 往返，不包含 gate 排队；不是 fsync 专项测量，也不持久化指标。Admin 审计仍为内存环，与 Store 的可靠状态分开。
 
-[Storage 验证记录](validation/2026-11-07-f5-storage/README.md)覆盖故障注入、真实 SQLite 页限 DiskFull 和真实子进程 SIGKILL。SIGKILL 不等于真实硬件断电验收。QoS2 持久恢复的补充记录见 [F6 验证](validation/2026-11-07-f6-qos2/README.md)。完整 MQTT3.1.1 符合性、MQTT5、WebSocket、Bridge、跨平台、生产性能和独立 Agent/发布门禁仍未完成。
+[验证结论摘要](validation/README.md#implementation)覆盖故障注入、真实 SQLite 页限 DiskFull 和真实子进程 SIGKILL。SIGKILL 不等于真实硬件断电验收。QoS2 持久恢复的补充记录见 [验证结论摘要](validation/README.md#protocol)。完整 MQTT3.1.1 符合性、MQTT5、WebSocket、Bridge、跨平台、生产性能和独立 Agent/发布门禁仍未完成。
 
-当前写入快照版本为 format5，包含 QoS2 接收账本、配额、下行 Release 阶段及其发送顺序（可靠队列相对位置）。读取旧 format1 的 QoS0/1 数据，以及每个持久 Session 至多一个未完成 Release 的 format2 数据，恢复后在监听前提交 format5。format2 同一持久 Session 有多个 Release 时缺失历史顺序，返回 `legacy QoS2 release order` 并保留原数据、不监听；需用旧版先排空相关交换，再停机升级。旧二进制不能读取 format5，不能原地降级。兼容测试覆盖旧字段升级、歧义拒绝、失败不替换原状态和非法阶段/配额拒绝；升级前备份由宿主负责。补充证据见[符合性验证](validation/2026-11-07-f6-conformance/README.md)。
+当前写入快照版本为 format5，包含 QoS2 接收账本、配额、下行 Release 阶段及其发送顺序（可靠队列相对位置）。读取旧 format1 的 QoS0/1 数据，以及每个持久 Session 至多一个未完成 Release 的 format2 数据，恢复后在监听前提交 format5。format2 同一持久 Session 有多个 Release 时缺失历史顺序，返回 `legacy QoS2 release order` 并保留原数据、不监听；需用旧版先排空相关交换，再停机升级。旧二进制不能读取 format5，不能原地降级。兼容测试覆盖旧字段升级、歧义拒绝、失败不替换原状态和非法阶段/配额拒绝；升级前备份由宿主负责。补充证据见[验证结论摘要](validation/README.md#protocol)。
 
 format4 增加 MQTT5 Session/订阅选项、消息属性、过期期限、延迟 Will 与快照时间；继续读取 format1/2/3，format2 多 Release 的歧义限制不变。升级前备份，不能原地降级。MQTT5 崩溃过期时间与维护检查点见[可选功能](optional-features.md)。Rust 公开发布 DTO 的结构体字面量需补 properties 默认值。
 
-内部发布幂等记录的properties同样参与恢复校验、报文大小及内存预算；恢复后原请求仍幂等，异属性请求冲突。非法属性、内部自带订阅标识或不足以保留完整账本的配置使恢复失败，端口不开放，保留原存储。相关回归见[遗留项修复](validation/2026-11-08-remaining-fixes/README.md)。
+内部发布幂等记录的properties同样参与恢复校验、报文大小及内存预算；恢复后原请求仍幂等，异属性请求冲突。非法属性、内部自带订阅标识或不足以保留完整账本的配置使恢复失败，端口不开放，保留原存储。相关回归见[验证结论摘要](validation/README.md#closed-issues)。
 
 format5新增逐Retained Topic的来源账本，值为发布ClientID、Internal或LegacyUnknown。ClientID长度/UTF-8和Topic引用一一对应受检，来源额外逻辑预算为32字节加ClientID UTF-8字节数，恢复与接纳保持一致；账本缺失/孤立/非法值拒绝恢复并保留原状态。旧format1–4按LegacyUnknown迁移并在监听前提交format5；No Local订阅跳过未知来源，普通订阅不变，重新发布可确定来源。来源独立于Session存续，也适用于QoS2和恢复Will；旧二进制不可读取新格式，升级前备份且不能原地降级。
 
-跨协议持久会话恢复请求被拒绝，显式Clean Session/Clean Start可换协议新建会话。恢复消息校验兼容混合监听中已接纳的3.1.1上限包长，保留真实MQTT5属性校验；订阅标识属于目标下行元数据，不反向计入源报文上限。新修复避免继续产生R-05异常快照，不自动修复旧版本已写出的协议/订阅选项不一致数据；遇到此类历史损坏仍保留原库并拒绝开放入口。专项材料见[组合边界修复](validation/2026-11-08-followup-fixes/README.md)。
+跨协议持久会话恢复请求被拒绝，显式Clean Session/Clean Start可换协议新建会话。恢复消息校验兼容混合监听中已接纳的3.1.1上限包长，保留真实MQTT5属性校验；订阅标识属于目标下行元数据，不反向计入源报文上限。新修复避免继续产生R-05异常快照，不自动修复旧版本已写出的协议/订阅选项不一致数据；遇到此类历史损坏仍保留原库并拒绝开放入口。专项材料见[验证结论摘要](validation/README.md#closed-issues)。
 
 
-Topic Alias展开后的完整Topic可使存储消息大于入站max_packet_bytes；该值约束入站线帧。恢复网络消息时允许合法别名源表示，但别名绑定帧和消息帧都必须能在上限内表示，真实属性及变长长度字段均计入；完整Topic/属性仍保存并计入预算，不持久化别名。Will、内部幂等记录及已知Internal Retained不能套用此界限。format5不变，旧format4/5已接纳的合法别名消息也可恢复。下行仍受完整Topic编码及目标/监听上限约束，详见[修复验证](validation/2026-11-08-alias-fixes/README.md)。
+Topic Alias展开后的完整Topic可使存储消息大于入站max_packet_bytes；该值约束入站线帧。恢复网络消息时允许合法别名源表示，但别名绑定帧和消息帧都必须能在上限内表示，真实属性及变长长度字段均计入；完整Topic/属性仍保存并计入预算，不持久化别名。Will、内部幂等记录及已知Internal Retained不能套用此界限。format5不变，旧format4/5已接纳的合法别名消息也可恢复。下行仍受完整Topic编码及目标/监听上限约束，详见[验证结论摘要](validation/README.md#closed-issues)。
+
+
+## 请求诊断与测试期限
+
+Core的`MqttError::Storage`区分Hub接纳拒绝、Queued取消、Running结果未知、其他传输错误、Provider业务错误及总恢复期限RecoveryDeadline，详见[API](api.md)。查询或同操作重试失败时保留最后一个脱敏分类；仍保持无确定提交就不ACK、不降级空状态的规则。
+
+功能集成测试采用2s单请求期限，150ms只用于显式Queued/Running超时探针。真实SQLite提交超时用例先等待已提交屏障，再等待150ms确认结果未知，释放回执后查询原操作并推进下一版本。原丢回执TCP场景在真实提交后确定性丢弃回执，不再依赖210ms固定sleep与两次150ms等待之间仅60ms的调度余量。生产`StorageProviderConfig.timeout`和`recovery_timeout`的语义、默认装配值均未改变；这些测试不能证明任意生产负载满足2s或150ms。
+
+
+本轮8进程复现表明：73字节分页可在数百次Hub请求后耗尽10s总恢复期限；此时错误为RecoveryDeadline，尚未开放监听。功能测试改用4096字节页减少往返，专用测试继续以73字节多页恢复核对超时、Abort、端口关闭及原像重试。三进程并发三轮共252项通过；8进程最新一轮仍有一项客户端3s接收超时，不据此声称扩大负载稳定。历史执行结论见[验证结论摘要](validation/README.md#verification)。

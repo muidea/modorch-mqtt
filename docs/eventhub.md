@@ -67,4 +67,4 @@ cargo run -p existing-modorch-server --locked
 cargo run -p existing-modorch-server --locked -- --once
 ```
 
-源码见 [existing-modorch-server](../examples/existing-modorch-server/src/main.rs)。[集成测试](../crates/modorch-mqtt-core/src/tests/eventhub.rs)以真实 TCP 客户端及两个业务模块覆盖双向接入、幂等、查询、无回环、重建和 Hub 背压；执行证据见 [F4 验证记录](validation/2026-11-07-f4/README.md)。
+源码见 [existing-modorch-server](../examples/existing-modorch-server/src/main.rs)。[集成测试](../crates/modorch-mqtt-core/src/tests/eventhub.rs)以真实 TCP 客户端及两个业务模块覆盖双向接入、幂等、查询、无回环、重建和 Hub 背压；历史验证结论见 [验证结论摘要](validation/README.md#implementation)。

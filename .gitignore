@@ -2,10 +2,14 @@
 __pycache__/
 *.pyc
 
-# Local client environment and CI output (committed evidence lives in docs/validation/).
+# Local client environment and CI output.
 /.venv/
 /validation/
 /.env
+
+# Archive only the final validation record; generated runs remain local.
+/docs/validation/*
+!/docs/validation/README.md
 
 # Local SQLite files at the repository root, including transaction sidecars.
 /*.sqlite

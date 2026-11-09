@@ -7,6 +7,11 @@ from urllib.parse import unquote, urlsplit
 
 
 REQUIRED = (
+    "scripts/load-soak.py", "docs/load-baseline.md", "docs/protocol-review.md",
+    "contracts/protocol-review.json", "contracts/mqtt311-review-inputs.json",
+    "contracts/mqtt5-review-inputs.json", "scripts/audit-protocol.py",
+    "scripts/check-protocol-review.py",
+    "contracts/mqtt5-text.json", "scripts/audit-mqtt5.py", "docs/protocol-integrity.md",
     "contracts/optional-functional.json", "scripts/check-feature-evidence.py", "docs/optional-features.md",
     "contracts/mqtt311-outbound.json",
     "contracts/project-must.json", "contracts/release-policy.json", "contracts/mqtt311-text.json",

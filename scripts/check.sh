@@ -2,6 +2,7 @@
 set -eu
 python3 scripts/check-project.py
 python3 scripts/check-release.py --check-catalog
+python3 scripts/check-protocol-review.py
 cargo fmt --all -- --check
 cargo check --workspace --all-targets --all-features --locked
 cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
@@ -16,6 +17,7 @@ else
     exit 1
 fi
 python3 scripts/check-feature-evidence.py --results "$conformance_log"
+python3 scripts/check-protocol-review.py --results "$conformance_log"
 python3 -m unittest discover -s scripts/tests -v
 python3 scripts/check-conformance.py --results "$conformance_log" --output "$conformance_result"
 # Bind an unapproved plan to the same Cargo log; full release remains separate.

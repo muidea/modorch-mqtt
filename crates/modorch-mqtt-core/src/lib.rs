@@ -8,6 +8,7 @@ mod budget;
 mod codec;
 mod config;
 mod connection;
+mod diagnostics;
 #[cfg(feature = "mqtt5")]
 mod mqtt5;
 mod persistence;
@@ -367,7 +368,7 @@ impl Module for BrokerModule {
                                     }
                                 };
                                 if !admitted { continue; }
-                                let lifetime = ConnectionLifetime { state: state.clone(), drained: drained.clone(), generation,
+                                let lifetime = ConnectionLifetime { diagnostics: diagnostics::configured(), state: state.clone(), drained: drained.clone(), generation,
                                     attached: None, peer_ip: peer.ip(), graceful: false, _permit: Some(permit), _memory: Some(memory), persistence:persistence.clone() };
                                 if connection::spawn(&tasks, stream, lifetime, hub.clone(), transport.clone()).is_err() {
                                     state.lock().unwrap().rejected_connections += 1;

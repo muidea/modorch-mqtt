@@ -231,7 +231,7 @@ async def main(args):
               "method": "Self-subscription PUB->SUB including client scheduling/network/queue overhead; one outstanding publication per client; RSS sampled every 10 ms; startup/subscriptions excluded from timed throughput.",
               "results": []}
     for composition in args.compositions:
-        binary = ROOT / "target" / args.profile / ("standalone-broker" if composition == "tcp" else "secure-modorch-server")
+        binary = ROOT / os.environ.get("CARGO_TARGET_DIR", "target") / args.profile / ("standalone-broker" if composition == "tcp" else "secure-modorch-server")
         for count in args.clients:
             for qos in args.qos:
                 with tempfile.TemporaryDirectory(prefix="mqtt-benchmark-") as directory:

@@ -94,9 +94,19 @@ impl Codec {
             let start = sanitized.len() - password.len();
             sanitized[start..].fill(b'x');
         }
+        // MQTT5 3.14.2.2.1 permits Reason Code without Property Length.
+        // rumqttc's DISCONNECT reader requires that length even for RL=1;
+        // normalize its temporary input only, after validating the real frame.
+        if bytes[0] == 0xe0 && bytes.len() <= 3 {
+            sanitized[1] = 2;
+            if bytes.len() == 2 {
+                sanitized.push(0); // implicit Normal Disconnection
+            }
+            sanitized.push(0);
+        }
         let mut input = BytesMut::from(sanitized.as_slice());
         let packet =
-            v::Packet::read(&mut input, Some(bytes.len() as u32)).map_err(|_| invalid())?;
+            v::Packet::read(&mut input, Some(sanitized.len() as u32)).map_err(|_| invalid())?;
         if !input.is_empty() {
             return Err(invalid());
         }
@@ -253,10 +263,7 @@ impl Codec {
             }
             v::Packet::PubAck(p) if p.pkid != 0 => Packet::PubAck(p.pkid),
             v::Packet::PubRec(p) if p.pkid != 0 => {
-                if !matches!(
-                    p.reason,
-                    v::PubRecReason::Success | v::PubRecReason::NoMatchingSubscribers
-                ) {
+                if p.reason != v::PubRecReason::Success {
                     self.negative_rec = Some(p.pkid);
                 }
                 Packet::PubRec(p.pkid)
@@ -265,8 +272,9 @@ impl Codec {
             v::Packet::PubComp(p) if p.pkid != 0 => Packet::PubComp(p.pkid),
             v::Packet::PingReq(_) => Packet::Ping,
             v::Packet::Disconnect(p) => {
+                // Only Normal Disconnection deletes the Will (3.1.2-8/10).
                 self.disconnect_will =
-                    p.reason_code == v::DisconnectReasonCode::DisconnectWithWillMessage;
+                    p.reason_code != v::DisconnectReasonCode::NormalDisconnection;
                 self.disconnect_expiry = p.properties.and_then(|p| p.session_expiry_interval);
                 Packet::Disconnect
             }

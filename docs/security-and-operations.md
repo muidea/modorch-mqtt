@@ -1,6 +1,6 @@
 # 安全与运维接入（实验版本）
 
-本轮实现 F5 中的 Auth、Admin、Metrics，并加入 TLS 和按 IP 的连接准入限制。未配置 Storage 时，回执为 `MemoryOnly`，进程退出丢失状态。可选 SQLite 持久化扩展另见 [storage.md](storage.md)；本节的原始验证记录保留当时的内存实现范围。
+本轮实现 F5 中的 Auth、Admin、Metrics，并加入 TLS 和按 IP 的连接准入限制。未配置 Storage 时，回执为 `MemoryOnly`，进程退出丢失状态。可选 SQLite 持久化扩展另见 [storage.md](storage.md)；本节历史验证对应当时的内存实现范围，过程材料已清理，结论见[最终记录](validation/README.md#implementation)。
 
 ## 显式装配
 
@@ -24,6 +24,8 @@ modorch-mqtt = { path = "../modorch-mqtt/crates/modorch-mqtt", features = ["auth
 ## 密码、ACL 与会话归属
 
 `PasswordAuthConfig.users` 使用 Argon2id v19 PHC 字符串，不接受明文密码配置；成本限制为 m=19456..65536 KiB、t=2..4、p=1..4，输出至少32字节。密码验证运行在宿主 `spawn_cpu`，受宿主配额约束，Handler 等待 `wait_finished`。配置最多1024用户和1024内部来源，各用户最多256条发布规则、256条订阅规则、256个 ClientID 前缀；配置过滤器最多1024字节。任务/邮箱满额和错误/超时均拒绝，不回退为匿名。凭据 DTO 与用户配置的 Debug 脱敏；会话、观察和审计不保存凭据。
+
+Password Provider 使用Handler并发上限8，内部最多准入4个密码请求（含等待及执行），物理Argon2并发固定为1；超额立即返回`Unavailable`，为Session/ACL决策保留执行容量。准入额度和CPU执行额度随受管CPU闭包持有到实际退出，Running请求结果未知或调用方离开不会提前释放。每项操作读取独立不可变策略快照：已开始认证沿用原revision，新授权读取新revision；并发操作不保证先后顺序，Core仍按每个网络连接的处理顺序等待授权。以上为内部固定边界，未新增配置字段，也未改变Argon2成本与五秒总握手期限；高负载仍可能拒绝或超时。
 
 用户以 `domain + subject` 构成稳定 PrincipalKey，`username` 可与 subject 分离。Core 独立执行已有 Session owner 的相等校验；Provider 即使错误地允许跨身份，也不能清除/恢复/接管旧会话。Provider 还需允许对应 ClientID 前缀。恢复订阅逐条重新授权，异步授权期间的 Session 修改使版本 CAS 失败，避免用旧快照接管新状态。匿名域不能被 Auth 自动认领。
 
@@ -66,9 +68,9 @@ cargo run -p secure-modorch-server --locked -- cert-chain.pem private-key.pem pa
 
 ## 当前验证与后续范围
 
-执行记录及 loopback 性能基线见 [安全与运维验证](validation/2026-11-07-f5-security-ops/README.md)。独立 Paho 客户端脚本验证证书、密码、QoS1、ACL 拒绝和检查式退出。性能脚本为 Python 标准库实现，记录1/10/100/500客户端、QoS0/1、128字节、自订阅 PUB→SUB 延迟及采样 RSS；不包含 TLS/Auth、磁盘恢复和生产负载门禁。
+执行记录及 loopback 性能基线见 [验证结论摘要](validation/README.md#implementation)。独立 Paho 客户端脚本验证证书、密码、QoS1、ACL 拒绝和检查式退出。性能脚本为 Python 标准库实现，记录1/10/100/500客户端、QoS0/1、128字节、自订阅 PUB→SUB 延迟及采样 RSS；不包含 TLS/Auth、磁盘恢复和生产负载门禁。
 
-F5 已补充 SQLite FULL 有界全量快照、提交查询幂等、离线订阅预监听恢复及 SIGKILL/磁盘满故障验证，见 [Storage 验证](validation/2026-11-07-f5-storage/README.md)。F5 的生产性能、真实断电/跨平台恢复和发布门禁仍未验收；F6 双向 QoS2 已实现并有独立客户端/故障验证，见 [QoS2 说明](qos2.md)；完整3.1.1符合性、F7 MQTT5、WebSocket、Bridge 仍未完成。`storage` Feature 提供真实 Provider 实现，未提供 `mqtt5` 空 Feature。
+F5 已补充 SQLite FULL 有界全量快照、提交查询幂等、离线订阅预监听恢复及 SIGKILL/磁盘满故障验证，见 [验证结论摘要](validation/README.md#implementation)。F5 的生产性能、真实断电/跨平台恢复和发布门禁仍未验收；F6 双向 QoS2 已实现并有独立客户端/故障验证，见 [QoS2 说明](qos2.md)；完整3.1.1符合性、F7 MQTT5、WebSocket、Bridge 仍未完成。`storage` Feature 提供真实 Provider 实现，未提供 `mqtt5` 空 Feature。
 
 
 ## TLS/Auth/SQLite与QoS2测量
@@ -86,3 +88,7 @@ python3 scripts/benchmark.py --clients 1 10 --messages 20 --qos 0 1 2 \
 停止计时在全部交换与客户端清理完成之后，不能代表高负载退出。启动/订阅不计入稳态吞吐，Argon2认证并非每条消息重复；ACL/持久提交包含在运行路径内。此处是实验测量方法，生产阈值、长运行、慢消费者、恢复峰值与SLO审查仍待执行；按[发布门禁](release.md)保留未批准状态。
 
 动态策略/证书、持久审计、独立HTTP管理与Bridge装配见[可选功能](optional-features.md)。这些入口仍由宿主显式注册和选择。
+
+本仓库开发Profile单独将`argon2`、`blake2`设为`opt-level=3`，其余应用代码仍按开发Profile构建；Test Profile继承该设置，Release Profile不变。这避免未优化密码循环主导本地握手排队，未减少PHC参数或密码校验步骤。依赖本库的其他宿主由自己的workspace决定Profile，不能假定自动继承本仓库设置；实际CPU/共享调度负载仍须独立测量。
+
+密码CPU闭包的取消是协作式的，`StopIncomplete`和`Forced`都不代表物理工作已经退出。当前[验证结论摘要](validation/README.md#closed-issues)在真实受管CPU线程进入屏障后验证额度持有和监督代际：已准入的旧请求可在原operation lease下排空，旧外部Scheduler无权新增工作；新代际等待旧工作实际退出，不能借强制终止等待Handler提前复用物理额度。测试同步钩子及Restart注入策略只存在于Auth crate单元测试构建中。

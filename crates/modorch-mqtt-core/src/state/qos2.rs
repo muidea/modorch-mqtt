@@ -158,6 +158,105 @@ mod tests {
     }
 
     #[test]
+    fn receiver_transition_matrix_keeps_dedup_retained_and_reuse_across_snapshot_recovery() {
+        // Two receiver ownership states x four input events x two recovery
+        // paths. Expectations come from 4.3.3 receiver Method B, not a model
+        // that invokes the implementation to compute its expected result.
+        for occupied in [false, true] {
+            for event in ["publish", "changed-publish", "pubrel", "conflicting-qos1"] {
+                for recover in [false, true] {
+                    let mut s = State::new(Arc::new(MqttBrokerConfig::loopback_development()));
+                    let g = s.begin_generation().unwrap();
+                    s.active = true;
+                    let mut connection = attach(&mut s, g);
+                    s.subscribe(
+                        g,
+                        "ordered",
+                        connection,
+                        vec![("ordered".into(), Some(Qos::ExactlyOnce))],
+                    )
+                    .unwrap();
+                    let message = |payload: &'static [u8]| MqttMessage {
+                        topic: "ordered".into(),
+                        payload: bytes::Bytes::from_static(payload),
+                        qos: Qos::ExactlyOnce,
+                        retain: true,
+                        properties: Default::default(),
+                    };
+                    if occupied {
+                        assert!(
+                            s.receive_qos2(g, "ordered", connection, 7, message(b"original"))
+                                .unwrap()
+                        );
+                    }
+                    if recover {
+                        let snapshot = s.snapshot();
+                        s.restore(snapshot).unwrap();
+                        connection = attach(&mut s, g);
+                    }
+                    match event {
+                        "publish" | "changed-publish" => {
+                            let next = message(if event == "publish" {
+                                b"original"
+                            } else {
+                                b"changed"
+                            });
+                            assert_eq!(
+                                s.receive_qos2(g, "ordered", connection, 7, next).unwrap(),
+                                !occupied
+                            );
+                            assert_eq!(s.sessions["ordered"].incoming_qos2.len(), 1);
+                            assert_eq!(s.sessions["ordered"].pending.len(), 1);
+                            let expected = if occupied || event == "publish" {
+                                b"original".as_slice()
+                            } else {
+                                b"changed"
+                            };
+                            assert_eq!(s.retained["ordered"].message.payload.as_ref(), expected);
+                        }
+                        "pubrel" => {
+                            for _ in 0..2 {
+                                s.incoming_release(g, "ordered", connection, 7).unwrap();
+                                assert!(s.sessions["ordered"].incoming_qos2.is_empty());
+                                assert_eq!(
+                                    s.sessions["ordered"].pending.len(),
+                                    usize::from(occupied)
+                                );
+                            }
+                            // PUBCOMP ends dedup: a fresh PUBLISH with the
+                            // same ID must own and route the new application message.
+                            assert!(
+                                s.receive_qos2(g, "ordered", connection, 7, message(b"reused"))
+                                    .unwrap()
+                            );
+                            assert_eq!(
+                                s.sessions["ordered"].pending.len(),
+                                usize::from(occupied) + 1
+                            );
+                            assert_eq!(s.retained["ordered"].message.payload.as_ref(), b"reused");
+                        }
+                        _ => {
+                            let mut wrong = message(b"wrong-qos");
+                            wrong.qos = Qos::AtLeastOnce;
+                            let result = s.incoming_duplicate(g, "ordered", connection, 7, &wrong);
+                            if occupied {
+                                assert!(result.is_err());
+                            } else {
+                                assert!(!result.unwrap());
+                            }
+                            assert_eq!(s.sessions["ordered"].pending.len(), usize::from(occupied));
+                            assert_eq!(
+                                s.sessions["ordered"].incoming_qos2.len(),
+                                usize::from(occupied)
+                            );
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
     fn sender_ack_transition_matrix_preserves_phase_and_identifier_ownership() {
         #[derive(serde::Deserialize)]
         struct Matrix {

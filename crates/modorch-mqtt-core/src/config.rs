@@ -116,6 +116,8 @@ pub struct MqttBrokerConfig {
     /// Accounted bytes for reliable Pending + Inflight per Session.
     pub max_pending_bytes_per_client: usize,
     /// Maximum received QoS2 exchanges awaiting PUBREL per Session, 1..65535.
+    /// MQTT5 also advertises this as the connection Receive Maximum for QoS1/2;
+    /// credit returns only after a complete PUBACK/PUBCOMP write.
     pub max_inbound_qos2_per_client: usize,
     /// Logical bytes retained for received QoS2 exchanges per Session.
     pub max_inbound_qos2_bytes_per_client: usize,

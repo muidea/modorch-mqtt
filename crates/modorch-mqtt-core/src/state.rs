@@ -30,6 +30,8 @@ pub(crate) struct Delivery {
     retain: bool,
     id: Option<u16>,
     sent: bool,
+    // Connection-local PUBLISH quota; retransmitted PUBREL consumes none.
+    quota_used: bool,
     ever_sent: bool,
     phase: DeliveryPhase,
     _charge: Charge,
@@ -507,9 +509,17 @@ impl State {
         if existed {
             self.counters.reconnects += 1;
         }
-        // A resumed Session cancels its delayed Will before the old connection is fenced.
+        // Only a delay that has not elapsed can be canceled by resuming the
+        // Session (MQTT5-3.1.2-8). Preserve an overdue Will or frozen targets
+        // waiting for reliable capacity, even across repeated reconnects.
         if present {
-            self.wills.retain(|_, w| w.client != client || w.delay == 0);
+            let now = unix_time_ms();
+            self.wills.retain(|_, w| {
+                w.client != client
+                    || w.delay == 0
+                    || w.targets.is_some()
+                    || w.due.is_some_and(|due| due <= now)
+            });
         }
         if let Some(old) = self.sessions.get_mut(&client).and_then(|s| s.online.take()) {
             old.cancel.cancel();
@@ -551,6 +561,7 @@ impl State {
         session.qos0.clear();
         for delivery in &mut session.pending {
             delivery.sent = false;
+            delivery.quota_used = false;
         }
         let notify = session.notify.clone();
         if let Some(will) = will {
@@ -586,7 +597,7 @@ impl State {
     fn targets_from(&self, message: &MqttMessage, origin: Option<&str>) -> Vec<Target> {
         let mut targets = vec![];
         #[cfg(feature = "mqtt5")]
-        let mut groups: BTreeMap<String, Vec<Target>> = BTreeMap::new();
+        let mut groups: BTreeMap<String, (Vec<Target>, Vec<Target>)> = BTreeMap::new();
         for (client, session) in &self.sessions {
             let mut quality = None;
             for (filter, sub) in &session.subscriptions {
@@ -599,11 +610,23 @@ impl State {
                 #[cfg(feature = "mqtt5")]
                 if session.protocol5 {
                     if let Some((_, actual)) = crate::mqtt5::shared_filter(filter) {
-                        if session.online.is_some() && codec::matches(actual, &message.topic) {
-                            groups.entry(filter.clone()).or_default().push(Target {
+                        let qos = sub.qos.min(message.qos);
+                        if codec::matches(actual, &message.topic)
+                            && (session.online.is_some()
+                                || (!session.clean
+                                    && qos != Qos::AtMostOnce
+                                    && session.expires_at_ms.is_none_or(|t| t > unix_time_ms())))
+                        {
+                            let (online, offline) = groups.entry(filter.clone()).or_default();
+                            let members = if session.online.is_some() {
+                                online
+                            } else {
+                                offline
+                            };
+                            members.push(Target {
                                 client: client.clone(),
                                 epoch: session.epoch,
-                                qos: sub.qos.min(message.qos),
+                                qos,
                                 retain: sub.options.retain_as_published && message.retain,
                                 identifiers: sub.options.identifier.into_iter().collect(),
                             });
@@ -646,7 +669,12 @@ impl State {
             }
         }
         #[cfg(feature = "mqtt5")]
-        for members in groups.values() {
+        for (online, offline) in groups.values() {
+            // Select exactly one owner at acceptance. Prefer live consumers;
+            // otherwise retain QoS1/2 for one unexpired persistent member.
+            // commit_publication applies the same atomic budget checks as for
+            // ordinary subscriptions; reconnect never reassigns this owner.
+            let members = if online.is_empty() { offline } else { online };
             targets.push(
                 members[(self.counters.accepted_publications as usize) % members.len()].clone(),
             );
@@ -955,6 +983,7 @@ impl State {
                 retain: target.retain,
                 id: None,
                 sent: false,
+                quota_used: false,
                 ever_sent: false,
                 phase: DeliveryPhase::Publish,
                 _charge: self.budget.reserve(cost)?,
@@ -1019,6 +1048,7 @@ impl State {
                 retain: target.retain,
                 id: None,
                 sent: false,
+                quota_used: false,
                 ever_sent: false,
                 phase: DeliveryPhase::Publish,
                 _charge: charge,
@@ -1188,6 +1218,7 @@ impl State {
                 retain: true,
                 id: None,
                 sent: false,
+                quota_used: false,
                 ever_sent: false,
                 phase: DeliveryPhase::Publish,
                 _charge: self.budget.reserve(cost)?,
@@ -1205,26 +1236,29 @@ impl State {
         Ok(())
     }
 
-    pub fn has_subscription(&self, client: &str, filter: &str) -> bool {
-        self.sessions
-            .get(client)
-            .is_some_and(|s| s.subscriptions.contains_key(filter))
-    }
     pub fn unsubscribe(
         &mut self,
         generation: u64,
         client: &str,
         connection: u64,
         filters: Vec<String>,
-    ) -> Result<()> {
+    ) -> Result<Vec<u8>> {
         self.check(generation, client, connection)?;
         let revision = self.next_id()?;
         let session = self.sessions.get_mut(client).unwrap();
         session.revision = revision;
-        for filter in filters {
-            session.subscriptions.remove(&filter);
-        }
-        Ok(())
+        // Process entries sequentially, including repeated filters (3.10.4-6).
+        // Deriving reasons before removal incorrectly reports repeated success.
+        Ok(filters
+            .into_iter()
+            .map(|filter| {
+                if session.subscriptions.remove(&filter).is_some() {
+                    0
+                } else {
+                    0x11
+                }
+            })
+            .collect())
     }
 
     pub fn reject_received(
@@ -1262,6 +1296,12 @@ impl State {
         Ok(())
     }
 
+    pub fn has_outbound(&self, generation: u64, client: &str, connection: u64) -> Result<bool> {
+        self.check(generation, client, connection)?;
+        let session = &self.sessions[client];
+        Ok(session.pending.iter().any(|d| !d.sent) || !session.qos0.is_empty())
+    }
+
     pub fn next_outbound(
         &mut self,
         generation: u64,
@@ -1285,7 +1325,11 @@ impl State {
             .pending
             .retain(|d| d.ever_sent || !d.message.properties.expired());
         session.qos0.retain(|d| !d.message.properties.expired());
-        let inflight = session.pending.iter().filter(|d| d.sent).count();
+        let inflight = session
+            .pending
+            .iter()
+            .filter(|d| d.sent && (!session.protocol5 || d.quota_used))
+            .count();
         if inflight
             < self
                 .config
@@ -1332,6 +1376,7 @@ impl State {
                     delivery.ever_sent,
                 );
                 delivery.sent = true;
+                delivery.quota_used = true;
                 delivery.ever_sent = true;
                 self.counters.sent_publications += 1;
                 return Ok(Some(bytes));
@@ -1580,4 +1625,132 @@ fn encode_publish(
     }
     let _ = v5;
     codec::publish(message, qos, retain, id, dup)
+}
+
+#[cfg(all(test, feature = "mqtt5"))]
+mod shared_regressions {
+    use super::*;
+
+    fn member(s: &mut State, client: &str) {
+        let c = Connect {
+            v5: Some(crate::wire::ConnectOptions {
+                session_expiry: 60,
+                receive_maximum: 16,
+                maximum_packet_size: 8192,
+                ..Default::default()
+            }),
+            client_id: client.into(),
+            clean: true,
+            keep_alive: 0,
+            will: None,
+            username: None,
+            password: None,
+        };
+        let p = Principal {
+            key: PrincipalKey {
+                domain: "test".into(),
+                subject: "member".into(),
+            },
+            policy_version: 0,
+            expires_at_ms: u64::MAX,
+        };
+        let connection = s
+            .attach(s.generation, &c, CancellationToken::new(), &p, None, None)
+            .unwrap()
+            .1;
+        assert_eq!(
+            s.subscribe_with_options(
+                s.generation,
+                client,
+                connection,
+                vec![("$share/g/jobs".into(), Some(Qos::ExactlyOnce))],
+                vec![crate::wire::SubscribeOptions::default()]
+            )
+            .unwrap(),
+            vec![2]
+        );
+        s.detach(client, connection, true);
+    }
+
+    #[test]
+    fn shared_offline_selection_matrix_excludes_expired_sessions_and_qos0() {
+        // 2 live/offline choices x 2 expiry states x 3 QoS values. No sleeps:
+        // an expired member is still physically present until maintenance runs.
+        for online in [false, true] {
+            for expired in [false, true] {
+                for qos in [Qos::AtMostOnce, Qos::AtLeastOnce, Qos::ExactlyOnce] {
+                    let mut s = State::new(Arc::new(MqttBrokerConfig {
+                        mqtt5: true,
+                        ..MqttBrokerConfig::loopback_development()
+                    }));
+                    s.begin_generation().unwrap();
+                    s.active = true;
+                    member(&mut s, "offline");
+                    s.sessions.get_mut("offline").unwrap().expires_at_ms =
+                        if expired { Some(0) } else { None };
+                    if online {
+                        member(&mut s, "online");
+                        let session = s.sessions.get_mut("online").unwrap();
+                        session.online = Some(Connection {
+                            id: 999,
+                            cancel: CancellationToken::new(),
+                        });
+                    }
+                    let message = MqttMessage {
+                        topic: "jobs".into(),
+                        payload: bytes::Bytes::from_static(b"work"),
+                        qos,
+                        retain: false,
+                        properties: Default::default(),
+                    };
+                    let targets = s.targets_from(&message, None);
+                    if online {
+                        assert_eq!(targets.len(), 1);
+                        assert_eq!(targets[0].client, "online");
+                    } else if expired || qos == Qos::AtMostOnce {
+                        assert!(targets.is_empty());
+                    } else {
+                        assert_eq!(targets.len(), 1);
+                        assert_eq!(targets[0].client, "offline");
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn shared_offline_global_budget_rejection_does_not_accept_or_change_retained() {
+        let mut s = State::new(Arc::new(MqttBrokerConfig {
+            mqtt5: true,
+            ..MqttBrokerConfig::loopback_development()
+        }));
+        s.begin_generation().unwrap();
+        s.active = true;
+        member(&mut s, "offline");
+        let message = MqttMessage {
+            topic: "jobs".into(),
+            payload: bytes::Bytes::from_static(b"work"),
+            qos: Qos::ExactlyOnce,
+            retain: true,
+            properties: Default::default(),
+        };
+        let routing_bytes = s.sessions.len()
+            * (96 + s.config.max_client_id_bytes + s.config.max_subscriptions_per_client * 4);
+        // Allow the temporary routing reservation, fail when reserving the
+        // reliable delivery itself, before Retained or any queue is mutated.
+        let remaining = routing_bytes + message_cost(&message) - 1;
+        let guard = s
+            .budget
+            .reserve(s.config.memory_budget_bytes - s.budget.used() - remaining)
+            .unwrap();
+        assert!(s.route(&message).is_err());
+        assert!(s.sessions["offline"].pending.is_empty());
+        assert_eq!(s.rejected_publications, 1);
+        assert!(s.retained.is_empty());
+        assert_eq!(s.counters.accepted_publications, 0);
+        drop(guard);
+        s.route(&message).unwrap();
+        assert_eq!(s.sessions["offline"].pending.len(), 1);
+        assert_eq!(s.retained["jobs"].message.payload.as_ref(), b"work");
+    }
 }

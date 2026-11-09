@@ -267,18 +267,20 @@
     },
     {
       "id": "qos2-receiver",
-      "scope": "Method B duplicate/release/identifier reuse and changed duplicate content: never route accepted QoS2 twice.",
+      "scope": "Method B duplicate/release/identifier reuse and changed duplicate content: never route accepted QoS2 twice. Receiver ownership matrix additionally covers two states x four events x memory/snapshot recovery, including retained replacement and post-PUBCOMP ID reuse. Actual TCP/SQLite matrix: both protocols x in-process reconnect/restart x repeated DUP=0/1, preserving original Retained payload/properties, repeated PUBREL and post-PUBCOMP reuse.",
       "clauses": [
         "MQTT-4.3.3-2"
       ],
       "tests": [
         "tests::qos2::qos2_incoming_duplicate_release_and_identifier_reuse_route_exactly_once",
-        "tests::qos2::qos2_packet_id_dedup_ignores_changed_payload_and_clean_session_resets_exchange"
+        "tests::qos2::qos2_packet_id_dedup_ignores_changed_payload_and_clean_session_resets_exchange",
+        "state::qos2::tests::receiver_transition_matrix_keeps_dedup_retained_and_reuse_across_snapshot_recovery",
+        "tests::storage::qos2_receiver_duplicate_content_retained_and_id_reuse_survive_sqlite_restart"
       ]
     },
     {
       "id": "qos2-sender",
-      "scope": "Both reconnect phases preserve IDs; wrong ACK/PUBCOMP cannot free pending PUBLISH; window enforces PUBLISH order.",
+      "scope": "Both reconnect phases preserve IDs; wrong ACK/PUBCOMP cannot free pending PUBLISH; window enforces PUBLISH order. Supplemental literal-wire sender ACK phase matrix across two SQLite restarts; original Packet ID/DUP, payload and subsequent delivery preserved. Includes mixed MQTT5 counterpart; finite cases, not full conformance. Extra MQTT5-style reason/properties bytes on3.1.1 ACKs close the offender without completing QoS1 or advancing QoS2; SQLite recovery preserves original ownership and subsequent delivery.",
       "clauses": [
         "MQTT-2.3.1-4",
         "MQTT-4.3.3-1",
@@ -287,7 +289,9 @@
       ],
       "tests": [
         "tests::qos2::qos2_outgoing_reconnect_resumes_publish_or_pubrel_and_wrong_acks_cannot_free_id",
-        "tests::qos2::qos2_reliable_window_preserves_publish_order_and_releases_capacity_only_on_pubcomp"
+        "tests::qos2::qos2_reliable_window_preserves_publish_order_and_releases_capacity_only_on_pubcomp",
+        "tests::storage::qos2_sender_wrong_ack_phase_matrix_preserves_ownership_across_sqlite_restart",
+        "tests::storage::client_ack_server_only_reason_matrix_closes_without_mutating_sqlite_sender_ownership"
       ]
     },
     {
@@ -303,13 +307,14 @@
     },
     {
       "id": "keepalive-and-fragmentation",
-      "scope": "Handshake timeout, keepalive expiration triggers Will, fragmented frames make progress.",
+      "scope": "Handshake timeout, keepalive expiration triggers Will, fragmented frames make progress. PING on an independent idle connection progresses while Store holds another connection; same-connection PING cannot overtake durable PUBREC.",
       "clauses": [
         "MQTT-3.1.2-24",
         "MQTT-3.12.4-1"
       ],
       "tests": [
-        "tests::handshake_timeout_keepalive_will_and_fragmented_packets"
+        "tests::handshake_timeout_keepalive_will_and_fragmented_packets",
+        "tests::storage::ping_on_idle_connection_does_not_wait_for_another_connections_store_commit"
       ]
     },
     {
@@ -369,7 +374,8 @@
       ],
       "tests": [
         "tests::protocol::publish_qos_matrix_keeps_payload_and_sets_outgoing_dup_independently",
-        "tests::conformance::malformed_packets_and_second_connect_close_only_the_offending_connection"
+        "tests::conformance::malformed_packets_and_second_connect_close_only_the_offending_connection",
+        "tests::protocol::qos1_packet_id_reuse_after_puback_is_new_even_with_dup_and_reconnect"
       ]
     },
     {
@@ -477,14 +483,18 @@
     },
     {
       "id": "packet-id-wrap",
-      "scope": "Forced65535->1 wrap skips occupied QoS1/2 IDs including Release; only correctly completed ID is reused. Simultaneous receiver/sender PacketID1 stays independent.",
+      "scope": "Forced65535->1 wrap skips occupied QoS1/2 IDs including Release; only correctly completed ID is reused. Simultaneous receiver/sender PacketID1 stays independent. Supplemental literal TCP/SQLite: both protocols x two outbound QoS2 phases x two completion orders, same inbound/outbound ID across two restarts; changed duplicates do not route, completing one namespace preserves the other, post-completion reuse and subsequent output work. Same-ID duplex fault intersections:24 commit-before-failure/lost-receipt/resolution-unavailable cases across both protocols/two sender phases/two directions,16 one-byte partial PUBREC/PUBCOMP cancellation/EOF cases and4 Unix real two-SIGKILL cases; independent durable phase/completion and reuse preserved. Not hardware power-loss or all fault combinations.",
       "clauses": [
         "MQTT-2.3.1-3",
         "MQTT-2.3.1-4"
       ],
       "tests": [
         "state::qos2::tests::packet_identifier_wrap_skips_live_qos1_and_qos2_ids_and_reuses_only_completed_ids",
-        "tests::protocol::packet_identifier_namespaces_are_independent_in_simultaneous_qos2_directions"
+        "tests::protocol::packet_identifier_namespaces_are_independent_in_simultaneous_qos2_directions",
+        "tests::storage::qos2_same_identifier_bidirectional_matrix_keeps_sqlite_ownership_independent",
+        "tests::storage::qos2_duplex_same_id_commit_fault_matrix_recovers_each_direction_independently",
+        "connection::receive_tests::duplex_same_id_partial_ack_interrupt_matrix_preserves_outbound_and_receiver_state",
+        "tests::storage::qos2_duplex_same_id_sigkill_matrix_restores_both_directions_and_completion"
       ]
     },
     {
@@ -668,13 +678,14 @@
     },
     {
       "id": "server-outbound-wire-layouts",
-      "scope": "Independent literal output bytes for nine implemented Server packet kinds: CONNACK session/rejection contexts, ACK identifiers1/256/65535, mixed SUBACK, binary/UTF8 PUBLISH flags, retained/live/retry and RL127/128/16383/16384. Limited matrix; not all FSM/fault/platform combinations.",
+      "scope": "Independent literal output bytes for nine implemented Server packet kinds: CONNACK session/rejection contexts, ACK identifiers1/256/65535, mixed SUBACK, binary/UTF8 PUBLISH flags, retained/live/retry and RL127/128/16383/16384. Limited matrix; not all FSM/fault/platform combinations. Mixed-protocol one-byte transport confirms FIFO partial control writes and MQTT311 isolation from MQTT5 negotiation.",
       "tests": [
         "tests::outbound::outgoing_publish_flags_binary_utf8_and_length_boundaries_match_literal_vectors",
         "tests::outbound::outgoing_control_responses_have_exact_flags_lengths_identifiers_and_codes",
         "tests::outbound::outgoing_connack_new_resumed_clean_and_rejected_frames_preserve_existing_session",
         "tests::outbound::outgoing_live_retained_and_reconnected_qos_flows_match_literal_frames",
-        "tests::outbound::outgoing_publish_remaining_lengths_cross_boundaries_on_real_tcp"
+        "tests::outbound::outgoing_publish_remaining_lengths_cross_boundaries_on_real_tcp",
+        "connection::receive_tests::partial_ack_write_enforces_mqtt5_receive_maximum_without_limiting_mqtt311"
       ],
       "clauses": [
         "MQTT-2.2.2-1",
@@ -697,9 +708,10 @@
     },
     {
       "id": "partial-publish-write-reconnect",
-      "scope": "One-byte duplex stalls a partially written QoS1/2 PUBLISH until local write timeout; memory session keeps ownership and reconnect emits exact original ID/DUP and completes handshake. Deterministic stream fault, not kernel/TLS/storage or scheduler timing certification.",
+      "scope": "One-byte duplex stalls a partially written QoS1/2 PUBLISH until local write timeout; memory session keeps ownership and reconnect emits exact original ID/DUP and completes handshake. Deterministic stream fault, not kernel/TLS/storage or scheduler timing certification. Supplemental mixed-version partial control ACK interruption/resume/clean-rebuild matrix returns all owned memory; no process crash simulated.",
       "tests": [
-        "connection::tests::partial_publish_write_timeout_preserves_qos1_and_qos2_for_dup_reconnect"
+        "connection::tests::partial_publish_write_timeout_preserves_qos1_and_qos2_for_dup_reconnect",
+        "connection::receive_tests::interrupted_partial_ack_reconnect_preserves_receiver_ownership_and_reclaims_connection_budget"
       ],
       "clauses": [
         "MQTT-3.3.1-1",

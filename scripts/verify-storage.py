@@ -4,6 +4,7 @@
 Build durable-broker first. Every broker and database belongs to this temporary
 verification run; no dependencies are installed and no user database is opened.
 """
+import os
 import selectors
 import signal
 import socket
@@ -91,7 +92,7 @@ class Client:
 
 class Broker:
     def __init__(self, database):
-        self.process = subprocess.Popen([str(ROOT / "target/debug/durable-broker"), str(database), "127.0.0.1:0"],
+        self.process = subprocess.Popen([str(ROOT / os.environ.get("CARGO_TARGET_DIR", "target") / "debug/durable-broker"), str(database), "127.0.0.1:0"],
                                         stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
             with selectors.DefaultSelector() as selector:

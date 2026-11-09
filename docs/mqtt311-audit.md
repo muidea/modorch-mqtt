@@ -1,6 +1,6 @@
 # MQTT3.1.1 段落、报文表与状态转换审计
 
-本轮补充[编号场景清单](mqtt311-conformance.md)，不声明完整3.1.1认证。受控材料为 [mqtt311-audit.json](../contracts/mqtt311-audit.json) 和 [mqtt311-packets.json](../contracts/mqtt311-packets.json)，实际执行见[本轮验证](validation/2026-11-08-f6-packet-audit/README.md)。
+本轮补充[编号场景清单](mqtt311-conformance.md)，不声明完整3.1.1认证。受控材料为 [mqtt311-audit.json](../contracts/mqtt311-audit.json) 和 [mqtt311-packets.json](../contracts/mqtt311-packets.json)，实际执行见[验证结论摘要](validation/README.md#verification)。
 
 ## 规范来源与未编号候选
 
@@ -61,7 +61,7 @@ JSON列出4个实现状态×3种ACK的12项转换，逐项核对消息所有权�
 
 ## 后端等待与连接期限的限定FSM证据
 
-`FSM-CONNECTION-DEADLINES`覆盖等待外部鉴权、存储gate或已提交回执时的连接关闭、迟到结果隔离与事务排空；TCP/TLS、CONNECT、整帧背压和检查式停止均有故障注入。相关规范义务是KeepAlive；CONNECT/写入/身份期限作为本地策略验证。此项不证明所有调度、平台、故障组合或完整FSM，`FSM-COMPLETE`仍为NotRun。最新运行见[连接期限验证](validation/2026-11-08-f6-deadlines/README.md)。
+`FSM-CONNECTION-DEADLINES`覆盖等待外部鉴权、存储gate或已提交回执时的连接关闭、迟到结果隔离与事务排空；TCP/TLS、CONNECT、整帧背压和检查式停止均有故障注入。相关规范义务是KeepAlive；CONNECT/写入/身份期限作为本地策略验证。此项不证明所有调度、平台、故障组合或完整FSM，`FSM-COMPLETE`仍为NotRun。最新运行见[验证结论摘要](validation/README.md#verification)。
 
 ## 门禁与剩余工作
 
@@ -76,4 +76,8 @@ JSON列出4个实现状态×3种ACK的12项转换，逐项核对消息所有权�
 
 一字节duplex另让PUBLISH实际只写出前缀，等待本地写期限中断，再通过新的协议流恢复原可靠消息和ID/DUP；避免依赖内核socket缓冲大小。QoS2慢消费者真实TCP用例停在PUBCOMP并占满可靠积压，验证新发布在PUBREC前整体拒绝、健康目标无部分交付、Retained不变及同ID成功重试。该行为遵循项目原子接纳政策，不是宣称协议强制所有Broker采用相同策略。
 
-新项`FSM-SERVER-OUTBOUND`和`FSM-QOS2-SLOW-CONSUMER`都只标TargetedEvidence；旧`FSM-COMPLETE`继续NotRun。40组限定场景、17项限定审计和178项未批准发布评审的当前证据见[本轮验证](validation/2026-11-08-f6-wire-fsm/README.md)。这些验证未覆盖所有故障位置、持久/TLS写中断、长期RSS或代表性负载。
+新项`FSM-SERVER-OUTBOUND`和`FSM-QOS2-SLOW-CONSUMER`都只标TargetedEvidence；旧`FSM-COMPLETE`继续NotRun。40组限定场景、17项限定审计和178项未批准发布评审的当前证据见[验证结论摘要](validation/README.md#protocol)。这些验证未覆盖所有故障位置、持久/TLS写中断、长期RSS或代表性负载。
+
+## 跨段QoS正文补齐
+
+[协议完整性](protocol-integrity.md)补充四个孤立编号之前的15条义务及Sender/Receiver上下文，正文来源核对和发布目录都拒绝缺失义务。新增16组合接收端内存/快照矩阵及QoS1确认后同ID/DUP/重连的真实TCP回归；既有发送端12项矩阵保留。新的有限证据不升级FSM-COMPLETE或独立发布审批。

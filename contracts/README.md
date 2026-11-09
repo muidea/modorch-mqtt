@@ -1,6 +1,6 @@
 # QoS0/1/2、安全运维与持久化实验实现契约
 
-适用本仓库 `0.1.0-alpha.1`，依赖 Modorch-RS `0.0.3 / 336ba20196044e1b81fb2ca297a18b5e258a5800`。完整设计列出全部未来 MUST；本表只声明当前子集的可观察行为。[F4 执行记录](../docs/validation/2026-11-07-f4/README.md)须与源码/测试一起阅读，测试存在不等于已运行。
+适用本仓库 `0.1.0-alpha.1`，依赖 Modorch-RS `0.0.3 / 336ba20196044e1b81fb2ca297a18b5e258a5800`。完整设计列出全部未来 MUST；本表只声明当前子集的可观察行为。[验证结论摘要](../docs/validation/README.md#implementation)须与源码/测试一起阅读，测试存在不等于已运行。
 
 | 设计条款 | 当前范围 | 测试（除注明外位于 Core `src/tests.rs`） |
 |---|---|---|
@@ -22,7 +22,7 @@
 
 KeepAlive/握手超时与分片输入由 `handshake_timeout_keepalive_will_and_fragmented_packets` 验证。跨 Application 状态隔离由 `application_isolation_and_memory_quota_release` 验证。独立客户端由 `crates/modorch-mqtt/tests/rumqttc.rs` 和 `scripts/verify-paho.py` 验证；后者单独运行，不混入 Cargo 的 Passed 数量。
 
-F5 的持久 Store/STATE-002/STATE-003 已实现下表的受限全量 image 方案。F6 双向 QoS2 已实现下表范围；完整3.1.1符合性、F7 MQTT5 实验功能已接入，完整规范、生产性能和跨平台门禁仍未验收。Auth、TLS、Admin、Metrics 的本轮证据见 [安全与运维验证](../docs/validation/2026-11-07-f5-security-ops/README.md)。F0 的 prelisten Storage Request 恢复门禁在本轮 Storage 测试中补充；F4 与安全/运维历史记录仍保留原内存范围。
+F5 的持久 Store/STATE-002/STATE-003 已实现下表的受限全量 image 方案。F6 双向 QoS2 已实现下表范围；完整3.1.1符合性、F7 MQTT5 实验功能已接入，完整规范、生产性能和跨平台门禁仍未验收。Auth、TLS、Admin、Metrics 的历史结论见 [验证结论摘要](../docs/validation/README.md#implementation)。F0 的 prelisten Storage Request 恢复门禁在本轮 Storage 测试中补充；F4 与安全/运维历史记录仍保留原内存范围。
 
 ## F5 安全与运维映射
 
@@ -43,7 +43,7 @@ F5 的持久 Store/STATE-002/STATE-003 已实现下表的受限全量 image 方�
 
 ## F5 Storage 映射
 
-[Storage 验证](../docs/validation/2026-11-07-f5-storage/README.md)是本轮执行证据；实现边界见 [storage.md](../docs/storage.md)。下列用例除注明外均位于 Core `src/tests/storage.rs`。
+[验证结论摘要](../docs/validation/README.md#implementation)汇总历史执行结论，原始过程材料已清理；实现边界见 [storage.md](../docs/storage.md)。下列用例除注明外均位于 Core `src/tests/storage.rs`。
 
 | 条款/能力 | 实现边界 | 测试 |
 |---|---|---|
@@ -63,7 +63,7 @@ F5 的持久 Store/STATE-002/STATE-003 已实现下表的受限全量 image 方�
 
 ## F6 QoS2 映射
 
-执行证据见 [F6 验证](../docs/validation/2026-11-07-f6-qos2/README.md)。协议解释见 [qos2.md](../docs/qos2.md)。本表只声明已运行覆盖的行为，完整协议符合性和发布状态仍为 Partial。
+历史验证结论见 [验证结论摘要](../docs/validation/README.md#protocol)。协议解释见 [qos2.md](../docs/qos2.md)。本表只声明已运行覆盖的行为，完整协议符合性和发布状态仍为 Partial。
 
 | 契约 | 实现和测试 |
 |---|---|
@@ -79,13 +79,13 @@ F5 的持久 Store/STATE-002/STATE-003 已实现下表的受限全量 image 方�
 
 ## F6 规范场景与 PUBREL 顺序补充
 
-当前受控清单为 [mqtt311.json](mqtt311.json)，说明见[符合性范围](../docs/mqtt311-conformance.md)，最新执行见[验证记录](../docs/validation/2026-11-07-f6-conformance/README.md)。条款编号来自官方 OASIS 3.1.1 OS 文本，保留源 URL/SHA256；140个编号不等于全部规范要求。13组场景关联62个编号，78个未映射编号保留 NotRun；`TargetedEvidence` 只代表所述场景已执行，不能将整条规范或完整 F6 标为 Passed。
+当前受控清单为 [mqtt311.json](mqtt311.json)，说明见[符合性范围](../docs/mqtt311-conformance.md)，最新执行见[验证结论摘要](../docs/validation/README.md#protocol)。条款编号来自官方 OASIS 3.1.1 OS 文本，保留源 URL/SHA256；140个编号不等于全部规范要求。13组场景关联62个编号，78个未映射编号保留 NotRun；`TargetedEvidence` 只代表所述场景已执行，不能将整条规范或完整 F6 标为 Passed。
 
 `check.sh` 现在通过 `scripts/check-conformance.py` 核对每个指定测试的实际 `test ... ok` 行；缺失、ignored、失败或只有测试总数均不能通过。门禁自身有4个正反向测试。PUBREL按PUBREC（包括重复）进入有界FIFO，确认屏障保持；format3持久化恢复顺序，旧format2多个Release拒绝歧义升级。ClientID配置下限为23字节，覆盖1..23字节必需ID、BOM/Unicode不归一化和独立连接失败隔离。
 
 ## F6 发布/订阅和会话协议收口补充
 
-最新执行见[协议收口验证](../docs/validation/2026-11-07-f6-protocol/README.md)。当前[mqtt311.json](mqtt311.json)扩展至31组限定场景，关联128个规范编号；12个未映射编号仍NotRun，并逐项说明客户端职责（7项）、可选WebSocket（4项）和条件性Bridge（1项）。适用性信息必须精确覆盖未映射集合且有依据；日志门禁不据此把缺失证据变成通过，自身增至6项正反向测试。
+最新执行见[验证结论摘要](../docs/validation/README.md#protocol)。当前[mqtt311.json](mqtt311.json)扩展至31组限定场景，关联128个规范编号；12个未映射编号仍NotRun，并逐项说明客户端职责（7项）、可选WebSocket（4项）和条件性Bridge（1项）。适用性信息必须精确覆盖未映射集合且有依据；日志门禁不据此把缺失证据变成通过，自身增至6项正反向测试。
 
 新增协议证据覆盖九种发布/订阅QoS组合、混合SUBACK及重复过滤器替换、Retained替换/删除/标志、UNSUB后未完成QoS1/2、CleanSession双向QoS2清理/Retained独立、离线新QoS2、UTF8多字段及65535字节Topic/Filter、Will六组合、PacketID回绕与双向命名空间。CONNECT失败分类限定标准码：存储不可用不再兜底为ID拒绝；无法归类时无CONNACK关闭。
 
@@ -96,19 +96,19 @@ F5 的持久 Store/STATE-002/STATE-003 已实现下表的受限全量 image 方�
 
 当前规范清单增至32组限定场景，编号覆盖仍为128个TargetedEvidence、12个NotRun。`topic-vectors.json`是上游固定rev的39组Rust独立预期向量的规范化JSON导出，来源/摘要随文件保存。`tests::topic_vectors::*`分别核对Core/Facade、真实Hub订阅与Handler、真实MQTT验证与投递；magicCommon端尚未执行。
 
-`scripts/check-project.py`阻止缺失设计要求的开发文档/Skill/CI入口和失效本地链接，`check.sh`运行该检查及正反向门禁测试。`check-conformance.py --require-complete`拒绝将Partial转为完整规范发布。MQTT-DOC-001当前文档/Skill子集得到补充，完整MUST与独立Agent/平台/性能发布门禁仍未完成。实际记录见[本轮验证](../docs/validation/2026-11-07-f6-topic-release/README.md)。
+`scripts/check-project.py`阻止缺失设计要求的开发文档/Skill/CI入口和失效本地链接，`check.sh`运行该检查及正反向门禁测试。`check-conformance.py --require-complete`拒绝将Partial转为完整规范发布。MQTT-DOC-001当前文档/Skill子集得到补充，完整MUST与独立Agent/平台/性能发布门禁仍未完成。实际记录见[验证结论摘要](../docs/validation/README.md#verification)。
 
 
 ## F6 正文候选、报文表与ACK转换
 
 [mqtt311-audit.json](mqtt311-audit.json)维护固定官方来源的9段未编号关键词候选、8张相关结构表、7个非规范例表/图及发送端ACK转换范围。9段候选中3段是MQTT-4.3.2-1续文，不能重复计为新义务；总体符合性聚合项保留NotRun。`audit-mqtt311.py`从本地官方HTML核验来源摘要和正文段落清单，不抓取网络。
 
-[mqtt311-packets.json](mqtt311-packets.json)是独立预期，驱动256首字节、256 CONNECT flags、长度边界/ID和12项QoS2发送ACK转换；真实TCP同时验证隔离、Will和持久会话。Codec提前拒绝非法头部/长度，decode只接收恰好一个完整帧。规范日志清单现35组场景，编号覆盖仍128个TargetedEvidence/12个NotRun；新审计清单的所有限定测试也必须真实通过。完整F6/F8仍Partial，细节见[审计说明](../docs/mqtt311-audit.md)与[本轮验证](../docs/validation/2026-11-08-f6-packet-audit/README.md)。
+[mqtt311-packets.json](mqtt311-packets.json)是独立预期，驱动256首字节、256 CONNECT flags、长度边界/ID和12项QoS2发送ACK转换；真实TCP同时验证隔离、Will和持久会话。Codec提前拒绝非法头部/长度，decode只接收恰好一个完整帧。规范日志清单现35组场景，编号覆盖仍128个TargetedEvidence/12个NotRun；新审计清单的所有限定测试也必须真实通过。完整F6/F8仍Partial，细节见[审计说明](../docs/mqtt311-audit.md)与[验证结论摘要](../docs/validation/README.md#verification)。
 
 
 ## F6 连接期限与事务排空
 
-本轮实测见[连接期限验证](../docs/validation/2026-11-08-f6-deadlines/README.md)。MQTT-3.1.2-24的后端等待轨迹映射到`mqtt311.json`的两组新增场景；`mqtt311-audit.json`中的`FSM-CONNECTION-DEADLINES`只标限定证据。
+本轮实测见[验证结论摘要](../docs/validation/README.md#verification)。MQTT-3.1.2-24的后端等待轨迹映射到`mqtt311.json`的两组新增场景；`mqtt311-audit.json`中的`FSM-CONNECTION-DEADLINES`只标限定证据。
 
 | 能力 | 实现及用例 |
 |---|---|
@@ -125,14 +125,14 @@ CONNECT/写入/身份期限是本地策略，不能当作新增MQTT规范义务�
 
 MQTT-CONFIG-001（配置入口限定合同）：Facade `toml`默认关闭，文档限64KiB、Core默认禁用，未知/不支持/歧义/不安全设置拒绝；解析错误不回显原文，Provider capability由宿主注入，注册与选择分离。Core参数使用同一Rust validate，Provider内部配置仍由宿主负责。
 
-精确测试位于Facade `tests/config.rs`：configuration_and_registration_never_enable_components_implicitly；strict_schema_rejects_unknown_unsupported_ambiguous_and_unsafe_settings；every_core_limit_and_millisecond_duration_is_mapped_and_defaults_match_rust；parser_errors_debug_and_size_limit_do_not_echo_source_or_secrets；provider_references_require_host_capability_and_do_not_register_factories；tls_paths_use_explicit_base_without_reading_files_and_require_feature；enabled_toml_profile_uses_host_hub_and_real_tcp_qos1_then_checked_shutdown；explicit_host_factories_match_toml_refs_tls_and_prelisten_storage_recovery。子进程协议/CLI验证为 `scripts/verify-toml.py`；[当前证据](../docs/validation/2026-11-08-toml-config/README.md)不代表MQTT规范矩阵增加或完整发布通过。
+精确测试位于Facade `tests/config.rs`：configuration_and_registration_never_enable_components_implicitly；strict_schema_rejects_unknown_unsupported_ambiguous_and_unsafe_settings；every_core_limit_and_millisecond_duration_is_mapped_and_defaults_match_rust；parser_errors_debug_and_size_limit_do_not_echo_source_or_secrets；provider_references_require_host_capability_and_do_not_register_factories；tls_paths_use_explicit_base_without_reading_files_and_require_feature；enabled_toml_profile_uses_host_hub_and_real_tcp_qos1_then_checked_shutdown；explicit_host_factories_match_toml_refs_tls_and_prelisten_storage_recovery。子进程协议/CLI验证为 `scripts/verify-toml.py`；[验证结论摘要](../docs/validation/README.md#implementation)不代表MQTT规范矩阵增加或完整发布通过。
 
 
 ## MUST机器映射与发布流程
 
 [project-must.json](project-must.json)覆盖设计§15全部21项及CONFIG-001；精确测试和源文件映射只声明TargetedEvidence。[mqtt311-text.json](mqtt311-text.json)保存117段正文/列表项，覆盖140编号，需与跨段续文和表格审计共同审核。[release-policy.json](release-policy.json)列出严格发布目标及10类报告必需检查。
 
-`check.sh`逐项核验22项MUST的测试日志。`check-release.py`将128个适用规范编号、18个审计项、22个项目合同和10个发布域共178项纳入当前源码绑定的独立评审；UN-008为推导项。删项、陈旧输入/评审、篡改日志、自评或未完整执行的报告均不能批准。详见[发布流程](../docs/release.md)和[本轮证据](../docs/validation/2026-11-08-f6-wire-fsm/README.md)。当前完整发布仍Partial；原有场景门禁继续限定证据语义。
+`check.sh`逐项核验22项MUST的测试日志。`check-release.py`将128个适用规范编号、18个审计项、22个项目合同和10个发布域共178项纳入当前源码绑定的独立评审；UN-008为推导项。删项、陈旧输入/评审、篡改日志、自评或未完整执行的报告均不能批准。详见[发布流程](../docs/release.md)和[验证结论摘要](../docs/validation/README.md#protocol)。当前完整发布仍Partial；原有场景门禁继续限定证据语义。
 
 
 ## F6服务端输出与慢消费者故障矩阵
@@ -147,8 +147,30 @@ MQTT-CONFIG-001（配置入口限定合同）：Facade `toml`默认关闭，文�
 
 MQTT5、WebSocket、Bridge、bootstrap、动态策略/证书、HTTP 与持久审计的实际范围见[可选功能](../docs/optional-features.md)。当前写 format5，读取1/2/3/4；历史 format3 记录保持其原验证时点。独立字节、真实 MQTT5/Paho、恢复和退出测试只构成专项证据，不升级现有发布批准。
 
-本轮新增6个精确测试映射，覆盖在线零过期Session接管、目标Session丢失/恢复的Bridge单交换重发、128普通属性加防环元数据端到端传递、属性限额和幂等恢复预算/校验。`mqtt311.json`及`mqtt311-audit.json`中的可选WebSocket/Bridge范围说明已同步当前实验实现；它们仍在既定TCP/TLS/SQLite发布Profile之外，不据此批准完整符合性。执行材料见[遗留项修复](../docs/validation/2026-11-08-remaining-fixes/README.md)。
+本轮新增6个精确测试映射，覆盖在线零过期Session接管、目标Session丢失/恢复的Bridge单交换重发、128普通属性加防环元数据端到端传递、属性限额和幂等恢复预算/校验。`mqtt311.json`及`mqtt311-audit.json`中的可选WebSocket/Bridge范围说明已同步当前实验实现；它们仍在既定TCP/TLS/SQLite发布Profile之外，不据此批准完整符合性。执行材料见[验证结论摘要](../docs/validation/README.md#closed-issues)。
 
-Topic Alias恢复修复增加3个精确可选测试映射：合法别名展开及绑定帧边界、SQLite Retained/双向QoS2与真实属性恢复、非法/重连失效/超线帧和预算不足的原子拒绝。7组可选场景现有31个映射；41组3.1.1限定场景中的混合监听恢复关联同一SQLite测试。format5不变，完整规范/独立发布审查仍Partial，材料见[别名修复验证](../docs/validation/2026-11-08-alias-fixes/README.md)。
+Topic Alias恢复修复增加3个精确可选测试映射：合法别名展开及绑定帧边界、SQLite Retained/双向QoS2与真实属性恢复、非法/重连失效/超线帧和预算不足的原子拒绝。7组可选场景现有31个映射；41组3.1.1限定场景中的混合监听恢复关联同一SQLite测试。format5不变，完整规范/独立发布审查仍Partial，材料见[验证结论摘要](../docs/validation/README.md#closed-issues)。
 
-源会话修复为OPT-BRIDGE增加2个精确映射，覆盖源Session代际/旧ACK隔离、延后新订阅、同/不同ID、连续源丢失、两端同时丢失、源恢复及重连期间目标完成确认。当前7组可选场景共33个映射；3.1.1仍为41组限定场景，发布审查仍未批准。材料见[源会话修复](../docs/validation/2026-11-08-source-session-fixes/README.md)。
+源会话修复为OPT-BRIDGE增加2个精确映射，覆盖源Session代际/旧ACK隔离、延后新订阅、同/不同ID、连续源丢失、两端同时丢失、源恢复及重连期间目标完成确认。当前7组可选场景共33个映射；3.1.1仍为41组限定场景，发布审查仍未批准。材料见[验证结论摘要](../docs/validation/README.md#closed-issues)。
+
+## 协议完整性增补
+
+[mqtt311-text.json](mqtt311-text.json)为4.3.2/4.3.3的四个孤立编号绑定15条前置义务和角色上下文；新增16组合接收端恢复测试进入mqtt311.json。发布目录仍178项，但评审对象包含补齐的正文，旧摘要不能复用。
+
+[mqtt5-text.json](mqtt5-text.json)是独立OASIS来源的216段/250编号正文索引；`scripts/audit-mqtt5.py`以本地固定来源核对，不执行网络下载，也不批准完整符合性。可选功能契约增加6项精确回归，覆盖原因码/属性表、Will断开/重启及重复取消订阅。依据与范围见[协议完整性](../docs/protocol-integrity.md)。
+
+
+## F6/F7完整核对输入与有限模型
+
+[protocol-review.json](protocol-review.json)绑定390个编号、29个未编号候选和114个完整表格/图形布局。来源补充分别为[mqtt311-review-inputs.json](mqtt311-review-inputs.json)及[mqtt5-review-inputs.json](mqtt5-review-inputs.json)；`audit-protocol.py`以显式本地HTML校验固定来源和每个单元格/跨行跨列信息，不下载或批准语义。
+
+`check-protocol-review.py --results CARGO_LOG`核验逐条摘要、角色、范围、实现路径与唯一精确通过日志；有限状态/故障矩阵另核验维度和组合数。该检查已接入check.sh。表格语义实审和独立批准不足仍保留NotRun，完整规范保持Partial；`--require-complete`不能用于绕过缺失评审。
+
+
+## 完整章节与真实评审导入
+
+完整正文新增3.1.1的219个章节和MQTT5的292个章节，合计1,044项评审输入。关键词之外的行为说明也进入摘要；MQTT5 SECTION-252明确包含唯一共享成员的离线行为。共享订阅新增12组合选择矩阵及内存/TCP/SQLite/预算回归，精确映射加入optional-functional.json。
+
+`check-protocol-review.py --prepare`生成未批准计划，`--bundle PATH --require-complete`导入真实独立材料，检查动态源码/原始日志、身份分离、完整义务/矩阵/Profile及材料摘要。合成单元测试验证可通过路径，当前实际独立批准仍为0。字段、命令与边界见[评审流程](../docs/protocol-review.md)。
+
+[验证结论摘要](../docs/validation/README.md#closed-issues)修正MQTT5两段含Server语义的ClientOnly分类，补12个部分ACK写入组合及精确TCP/重连/重复完成映射。7个有限矩阵共70组合，1053个对象仍须当前输入的真实独立实审；不是完整符合性批准。

@@ -1,2 +1,0 @@
-$ python3 scripts/check-release.py --bundle docs/validation/2026-11-08-alias-fixes/release-plan.json --output docs/validation/2026-11-08-alias-fixes/release-development.json --allow-partial
-Release Partial; normative Partial; 0/178 approved

@@ -1,2 +1,0 @@
-PASS: TOML enabled/disabled CLI, strict rejection, byte bound, UTF-8, redacted errors and unambiguous flags
-PASS: TOML host QoS2 retained replay, complete bidirectional exchange, SIGINT checked shutdown and port release

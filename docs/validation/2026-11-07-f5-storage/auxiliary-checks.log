@@ -1,6 +1,0 @@
-$ python3 -m py_compile scripts/verify-paho.py scripts/benchmark.py scripts/verify-paho-tls.py scripts/verify-storage.py
-$ sh -n scripts/check.sh
-$ git diff --check
-PASS: Python/Shell syntax, git diff whitespace, repository Markdown relative links
-PASS: captured SHA256 for 62 repository source/config/docs files, historical/current evidence excluded
-PASS: final workspace validation contains 54 Rust tests + 1 doctest and both process checks

@@ -424,6 +424,7 @@ impl State {
                     retain: d.retain,
                     id: d.id,
                     sent: false,
+                    quota_used: false,
                     ever_sent: d.ever_sent,
                     phase: d.phase,
                     _charge: charge,

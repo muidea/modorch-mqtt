@@ -6,7 +6,7 @@
 
 [受控清单](../contracts/mqtt311.json)引用 [OASIS MQTT 3.1.1 OS](https://docs.oasis-open.org/mqtt/mqtt/v3.1.1/os/mqtt-v3.1.1-os.html)，记录2026-11-07下载源的SHA256。HTML正文可识别140个不同编号，官方原文中的 `MQTT-3-8.3-4` 拼写保留。编号集合用于追踪，不能替代对未编号 MUST、Server/Client 义务和可选功能适用性的人工审计。
 
-当前40组场景关联128个编号；其余12个编号保留NotRun并附适用性说明（7项客户端职责、4项可选WebSocket、1项条件性Bridge）。关联测试仅验证所述轨迹，不授予完整条款符合性。每组场景写明限定范围和精确Rust测试名：
+当前41组场景关联128个编号；其余12个编号保留NotRun并附适用性说明（7项客户端职责、4项可选WebSocket、1项条件性Bridge）。关联测试仅验证所述轨迹，不授予完整条款符合性。每组场景写明限定范围和精确Rust测试名：
 
 | 场景 | 核验行为 |
 |---|---|
@@ -51,17 +51,17 @@
 | partial-publish-write-reconnect | 一字节duplex让QoS1/2 PUBLISH半途写超时，重连按原ID/DUP重试并完整确认 |
 | qos2-pubcomp-slow-consumer-atomic-admission | PUBCOMP阶段占满窗口和积压，新QoS2发布无PUBREC/部分扇出/Retained变更，释放容量后原ID重试仅路由一次 |
 
-CONNECT/写入/身份期限是本地策略，不当作新增MQTT规范义务。后端等待期间不并发解析PING，Will持久收尾需等待gate。修复和实测见[连接期限验证](validation/2026-11-08-f6-deadlines/README.md)。
+CONNECT/写入/身份期限是本地策略，不当作新增MQTT规范义务。后端等待期间不并发解析PING，Will持久收尾需等待gate。修复和实测见[验证结论摘要](validation/README.md#verification)。
 
 ## 执行与证据语义
 
 `./scripts/check.sh` 执行全工作区测试，再调用 `scripts/check-conformance.py`。后者仅接受精确 `test <完整名字> ... ok` 行；缺失、ignored、失败、编译失败或只有测试总数时拒绝通过。门禁自身的9个测试覆盖这些负例，不能通过删掉未知条款把总体升级为Passed。
 
-单独复核已有测试日志：
+单独复核本轮实际生成的测试日志，以下 `CURRENT` 为本地忽略目录占位符：
 
 ```bash
 python3 scripts/check-conformance.py \
-  --results docs/validation/2026-11-08-f6-wire-fsm/check.log \
+  --results validation/CURRENT/check.log \
   --output /tmp/modorch-mqtt-conformance.json
 ```
 
@@ -75,7 +75,7 @@ PUBREL之前从可靠队列按原PUBLISH顺序挑选，多个PUBREC在写端阻�
 
 本轮补充CONNECT失败分类：只在确认ClientID被拒绝时使用CONNACK2；存储不可用使用3；无法匹配标准原因码的错误直接关闭且不发CONNACK（MQTT-3.2.2-6）。网络场景验证ID拒绝/Will授权拒绝/Session满，独立错误分类测试验证存储和未知错误的完整线帧。
 
-完整规范矩阵、未编号要求与更广互操作和异常链路仍待完成。已给未映射编号逐项说明角色/可选能力；这些说明不代替执行证据，也不将NotRun转成Passed。MQTT5、可选WebSocket/Bridge、生产性能/恢复SLO、真实断电、跨平台及独立Agent发布门禁继续保留待办。当前执行证据见[验证记录](validation/2026-11-08-f6-wire-fsm/README.md)。
+完整规范矩阵、未编号要求与更广互操作和异常链路仍待完成。已给未映射编号逐项说明角色/可选能力；这些说明不代替执行证据，也不将NotRun转成Passed。MQTT5、可选WebSocket/Bridge、生产性能/恢复SLO、真实断电、跨平台及独立Agent发布门禁继续保留待办。当前历史验证结论见[验证结论摘要](validation/README.md#protocol)。
 
 
 ## 共享向量与完整规范阻断模式
@@ -87,9 +87,13 @@ PUBREL之前从可靠队列按原PUBLISH顺序挑选，多个PUBREC在写端阻�
 给上述复核命令增加 `--require-complete` 会在总体Partial时返回非零。该模式是完整规范发布的阻断条件，不是全部设计的发布批准器；独立Agent、生产安全/容量、平台和其他MUST由[统一发布门禁](release.md)核对，真实执行/审查尚未完成。
 
 
-正文未编号候选、表格和状态转换现单独维护于[审计说明](mqtt311-audit.md)与[mqtt311-audit.json](../contracts/mqtt311-audit.json)。9段候选经人工区分上下文、跨段编号续文及服务端/客户端义务；8张规范相关表有限定测试映射，7个非规范例表/图单列Informative；QoS2发送端ACK矩阵有12项转换测试。完整语义/FSM审计仍未完成。日志门禁同时验证这些映射，拒绝缺失、重复或与ignored矛盾的结果；全部工具测试现12项。报文审计历史执行见[报文审计验证](validation/2026-11-08-f6-packet-audit/README.md)。
+正文未编号候选、表格和状态转换现单独维护于[审计说明](mqtt311-audit.md)与[mqtt311-audit.json](../contracts/mqtt311-audit.json)。9段候选经人工区分上下文、跨段编号续文及服务端/客户端义务；8张规范相关表有限定测试映射，7个非规范例表/图单列Informative；QoS2发送端ACK矩阵有12项转换测试。完整语义/FSM审计仍未完成。日志门禁同时验证这些映射，拒绝缺失、重复或与ignored矛盾的结果；全部工具测试现12项。报文审计历史执行见[验证结论摘要](validation/README.md#verification)。
 
 
 ## 逐义务发布审查
 
-[正文索引](../contracts/mqtt311-text.json)保留117段编号正文/列表项，并与固定来源逐字核对；需同时阅读未编号续文和表格清单。[发布门禁](release.md)要求当前源码摘要、逐义务独立评审和分域原始报告；全部满足时存在真正的Passed路径。当前178项独立评审均为NotRun，工具中的合成通过用例不构成项目通过。当前执行证据见[验证记录](validation/2026-11-08-f6-wire-fsm/README.md)。
+[正文索引](../contracts/mqtt311-text.json)保留117段编号正文/列表项，并与固定来源逐字核对；需同时阅读未编号续文和表格清单。[发布门禁](release.md)要求当前源码摘要、逐义务独立评审和分域原始报告；全部满足时存在真正的Passed路径。当前178项独立评审均为NotRun，工具中的合成通过用例不构成项目通过。当前历史验证结论见[验证结论摘要](validation/README.md#protocol)。
+
+## 协议正文与接收端矩阵补齐
+
+[协议完整性收口](protocol-integrity.md)为四个孤立QoS编号绑定15条前置义务及Sender/Receiver上下文，发布目录拒绝缺失或截短的义务文本。新增16组合接收端内存/快照恢复矩阵，加入既有qos2-receiver场景；41组场景、140编号和178项独立发布审查数量不变。最新执行见[验证结论摘要](validation/README.md#protocol)，完整规范仍Partial。

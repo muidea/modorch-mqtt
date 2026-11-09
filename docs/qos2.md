@@ -49,6 +49,8 @@ BrokerStatus/Metrics 新增 `incoming_qos2`、`incoming_qos2_bytes`，和原有�
 
 QoS2保证单个有效会话中协议交换的去重，不提供跨系统 exactly-once：下行目标请求较低 QoS 时遵守较低等级，业务观察仍为 best effort，订阅方在应用处理与协议 ACK 之间的事务由其负责。Clean Session 清除或创建新 Application 的内存模式不能延续旧交换。
 
-[本轮验证](validation/2026-11-07-f6-qos2/README.md)记录原始命令和输出；[契约映射](../contracts/README.md)列出用例。完整设计尚余 MQTT5、WebSocket/Bridge、完整3.1.1符合性与生产/跨平台/发布门禁。
+[验证结论摘要](validation/README.md#protocol)记录原始命令和输出；[契约映射](../contracts/README.md)列出用例。完整设计尚余 MQTT5、WebSocket/Bridge、完整3.1.1符合性与生产/跨平台/发布门禁。
 
-PUBREL 顺序修复及规范场景清单见[符合性推进记录](mqtt311-conformance.md)和[本次验证](validation/2026-11-07-f6-conformance/README.md)。
+PUBREL 顺序修复及规范场景清单见[符合性推进记录](mqtt311-conformance.md)和[验证结论摘要](validation/README.md#protocol)。
+
+MQTT5另以同一条数设置宣告连接级Receive Maximum。该网络额度同时覆盖QoS1/2，只有PUBACK/PUBCOMP完整写出后才归还，PUBREC不归还；因此收到PUBREL并删除接收记录后，尚未写完的PUBCOMP仍占网络额度。重连从新额度开始，持久接收记录不直接占满新连接窗口；新连接收到其重复PUBLISH后才占额度，只有旧PUBREL时不补额度。网络记录单独计入全局预算、不写入快照；持久接收条数/字节限制继续生效。超出网络额度的发布不路由、不替换Retained，发送DISCONNECT 0x93后关闭该连接。详见[验证结论摘要](validation/README.md#closed-issues)。

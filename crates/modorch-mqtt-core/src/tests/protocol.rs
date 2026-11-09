@@ -122,6 +122,74 @@ async fn publish_qos_matrix_keeps_payload_and_sets_outgoing_dup_independently() 
 }
 
 #[tokio::test]
+async fn qos1_packet_id_reuse_after_puback_is_new_even_with_dup_and_reconnect() {
+    #[cfg(not(feature = "mqtt5"))]
+    let versions = [false];
+    #[cfg(feature = "mqtt5")]
+    let versions = [false, true];
+    for v5 in versions {
+        let (app, broker) = start(MqttBrokerConfig {
+            mqtt5: v5,
+            ..config()
+        })
+        .await;
+        let address = broker.local_addr().unwrap();
+        let (mut sink, _) = Client::connect(address, "sink", true).await;
+        assert_eq!(sink.subscribe(&[("reuse", 1)]).await, [1]);
+        let mut source = if v5 {
+            #[cfg(feature = "mqtt5")]
+            {
+                super::mqtt5::connect(address, "source", false, 60, &[], None)
+                    .await
+                    .0
+            }
+            #[cfg(not(feature = "mqtt5"))]
+            {
+                unreachable!()
+            }
+        } else {
+            Client::connect(address, "source", false).await.0
+        };
+        for n in 0..4u8 {
+            if n == 2 {
+                disconnect(&mut source).await;
+                let (resumed, present) = if v5 {
+                    #[cfg(feature = "mqtt5")]
+                    {
+                        super::mqtt5::connect(address, "source", false, 60, &[], None).await
+                    }
+                    #[cfg(not(feature = "mqtt5"))]
+                    {
+                        unreachable!()
+                    }
+                } else {
+                    Client::connect(address, "source", false).await
+                };
+                assert!(present);
+                source = resumed;
+            }
+            let mut body = string("reuse");
+            body.extend([0xff, 0xff]);
+            if v5 {
+                body.push(0);
+            }
+            body.extend([n, 0xff]);
+            source
+                .send(codec::frame(if n % 2 == 0 { 0x32 } else { 0x3a }, &body))
+                .await;
+            assert_eq!(source.recv().await, (0x40, vec![0xff, 0xff]));
+            let (topic, payload, header, id) = sink.message().await;
+            assert_eq!(topic, "reuse");
+            assert_eq!(payload, [n, 0xff]);
+            assert_eq!(header, 0x32); // downstream DUP is independent
+            sink.ack(id.unwrap()).await;
+            qos2::ping(&mut sink).await;
+        }
+        stop(&app).await;
+    }
+}
+
+#[tokio::test]
 async fn retained_replacement_qos0_delete_and_nonretained_publish_obey_wire_flags() {
     let (app, broker) = start(config()).await;
     let addr = broker.local_addr().unwrap();

@@ -84,6 +84,6 @@ recovery_timeout_ms = 30000
 
 输入限64KiB，超限在解析前拒绝；宿主也应限制文件读取，独立示例最多读取上限加1字节。语法/结构错误只返回行号与字节列，语义错误返回静态原因，不转发TOML库附带原文的错误；配置计划的Debug也不打印配置内容或capability。该保护针对解析接口，宿主不能再把原文追加到日志。
 
-`./scripts/check.sh`执行严格解析、限额/策略、脱敏、注册不启用、真实TCP QoS1和完整扩展装配测试，并运行 `scripts/verify-toml.py` 的独立子进程验证：拒绝配置/UTF-8/超限/参数冲突、QoS2 Retained双向握手、SIGINT检查式退出和端口归还。`cargo test -p modorch-mqtt --no-default-features --features toml --test config --locked` 另核对仅启用解析器而无TLS内置实现的边界。证据见[本轮验证](validation/2026-11-08-toml-config/README.md)。
+`./scripts/check.sh`执行严格解析、限额/策略、脱敏、注册不启用、真实TCP QoS1和完整扩展装配测试，并运行 `scripts/verify-toml.py` 的独立子进程验证：拒绝配置/UTF-8/超限/参数冲突、QoS2 Retained双向握手、SIGINT检查式退出和端口归还。`cargo test -p modorch-mqtt --no-default-features --features toml --test config --locked` 另核对仅启用解析器而无TLS内置实现的边界。证据见[验证结论摘要](validation/README.md#implementation)。
 
 `[mqtt.websocket]` 支持 `enabled=true` 与 `path="/mqtt"`，要求 `websocket` Feature；禁用时不得指定路径。TLS 与 WebSocket 组合为 WSS。Broker 的资源配置文件不提供任意在线重载；Auth/TLS 可由宿主调用显式更新 API，详见[可选功能](optional-features.md)。

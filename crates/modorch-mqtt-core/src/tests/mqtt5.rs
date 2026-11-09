@@ -486,3 +486,101 @@ async fn mqtt5_alias_rejects_invalid_unbound_reconnected_oversize_and_unfunded_m
     assert_eq!(decoded(h, &b).payload, b"old"[..]);
     stop(&app).await;
 }
+
+pub(super) async fn wait_will_status(
+    broker: &BrokerHandle,
+    condition: impl Fn(BrokerStatus) -> bool,
+) {
+    tokio::time::timeout(Duration::from_secs(5), async {
+        while !condition(broker.status()) {
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("Will state did not reach the expected barrier");
+}
+
+#[tokio::test]
+async fn mqtt5_expired_delay_will_survives_backpressure_resume_clean_start_and_takeover() {
+    // Observe actual Will ownership before reconnecting, rather than relying on
+    // a sleep to guess whether the maintenance task has triggered the Will.
+    for (name, delay, live, clean, repeat, expected_will) in [
+        ("zero-delay", 0, false, false, false, true),
+        ("before-delay", 30, false, false, false, false),
+        ("live-takeover", 30, true, false, false, false),
+        ("expired-resume", 1, false, false, false, true),
+        ("expired-clean", 1, false, true, false, true),
+        ("expired-repeat", 1, false, false, true, true),
+    ] {
+        let (app, broker) = start(MqttBrokerConfig {
+            mqtt5: true,
+            max_offline_messages_per_client: 1,
+            max_inflight_per_client: 1,
+            ..config()
+        })
+        .await;
+        let address = broker.local_addr().unwrap();
+        let (mut sink, _) = connect(address, "sink", true, 60, &[], None).await;
+        sub(&mut sink, &[("v5/#", 1)], Some(17)).await;
+        let (mut source, _) = connect(address, name, true, 60, &[], Some((delay, 60))).await;
+        publish(&mut source, "v5/blocker", b"blocker", 1, &[], false).await;
+        let (header, body) = sink.recv().await;
+        let blocker = decoded(header, &body);
+        assert_eq!(blocker.payload, b"blocker"[..]);
+        let mut old = Some(source);
+        if !live {
+            drop(old.take());
+            wait_will_status(&broker, |s| s.connections == 1).await;
+            if expected_will {
+                wait_will_status(&broker, |s| s.pending_wills == 1).await;
+            }
+        }
+        let (mut resumed, present) =
+            connect(address, name, clean, 60, &[], repeat.then_some((30, 60))).await;
+        assert_eq!(present, !clean, "{name}");
+        if let Some(mut old) = old {
+            assert_eq!(old.0.read(&mut [0]).await.unwrap(), 0);
+        }
+        if repeat {
+            let (next, present) = connect(address, name, false, 60, &[], None).await;
+            assert!(present);
+            assert_eq!(resumed.0.read(&mut [0]).await.unwrap(), 0);
+            resumed = next;
+        }
+        assert_eq!(
+            broker.status().pending_wills,
+            usize::from(expected_will),
+            "{name}"
+        );
+        assert_eq!(
+            broker.status().will_records,
+            usize::from(expected_will),
+            "{name}"
+        );
+        assert_eq!(broker.status().pending_messages, 1);
+        sink.send(codec::frame(0x40, &blocker.pkid.to_be_bytes()))
+            .await;
+        if expected_will {
+            let (header, body) = sink.recv().await;
+            let will = decoded(header, &body);
+            assert_eq!(will.topic, b"v5/will"[..], "{name}");
+            assert_eq!(will.payload, b"w"[..], "{name}");
+            assert_eq!(will.properties.unwrap().subscription_identifiers, [17]);
+            sink.send(codec::frame(0x40, &will.pkid.to_be_bytes()))
+                .await;
+        }
+        sink.send(vec![0xc0, 0]).await;
+        assert_eq!(sink.recv().await, (0xd0, vec![]));
+        publish(&mut resumed, "v5/barrier", b"after-will", 1, &[], false).await;
+        let (header, body) = sink.recv().await;
+        let barrier = decoded(header, &body);
+        assert_eq!(barrier.payload, b"after-will"[..], "{name}");
+        sink.send(codec::frame(0x40, &barrier.pkid.to_be_bytes()))
+            .await;
+        sink.send(vec![0xc0, 0]).await;
+        assert_eq!(sink.recv().await, (0xd0, vec![]));
+        assert_eq!(broker.status().pending_wills, 0);
+        assert_eq!(broker.status().pending_messages, 0);
+        stop(&app).await;
+    }
+}

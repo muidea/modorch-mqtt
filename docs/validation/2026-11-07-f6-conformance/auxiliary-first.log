@@ -1,7 +1,0 @@
-$ python3 -m py_compile scripts/verify-paho.py scripts/benchmark.py scripts/verify-paho-tls.py scripts/check-conformance.py scripts/verify-storage.py scripts/tests/test_conformance.py
-$ sh -n scripts/check.sh
-$ git diff --check
-$ cargo fmt --all -- --check
-Traceback (most recent call last):
-  File "<stdin>", line 15, in <module>
-AssertionError: ('docs/validation/2026-11-07-f6-conformance/README.md', 'source-hashes.json')

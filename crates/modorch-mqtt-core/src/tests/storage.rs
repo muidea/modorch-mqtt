@@ -16,8 +16,12 @@ fn persistent_config() -> MqttBrokerConfig {
             component: "store-proxy".into(),
             access: StoreAccessKey([19; 32]),
             max_snapshot_bytes: 1024 * 1024,
-            recovery_page_bytes: 73,
-            timeout: Duration::from_millis(150),
+            // Keep boundary-sized images paginated without thousands of Hub
+            // round trips. The tiny-page/deadline probe below uses 73 bytes.
+            recovery_page_bytes: 4096,
+            // Healthy integration scenarios are not sub-150ms storage benchmarks.
+            // Explicit timeout probes below retain the 150ms boundary.
+            timeout: Duration::from_secs(2),
             recovery_timeout: Duration::from_secs(10),
         }),
         ..config()
@@ -28,6 +32,8 @@ struct Faults {
     mode: Arc<AtomicU8>,
     entered: Arc<Notify>,
     release: Arc<Notify>,
+    pages: Arc<std::sync::atomic::AtomicUsize>,
+    queries: Arc<std::sync::atomic::AtomicUsize>,
 }
 struct Proxy(Faults);
 fn proxy_descriptor() -> ComponentDescriptor {
@@ -69,7 +75,29 @@ impl SerialHandler for Proxy {
     ) -> FrameworkResult<HandlerReply> {
         let request = message.payload::<StoreEnvelope>()?;
         let mode = self.0.mode.load(Ordering::Acquire);
+        if matches!(request.request, StoreRequest::Page { .. }) {
+            self.0.pages.fetch_add(1, Ordering::Relaxed);
+            if mode == 6 {
+                self.0.entered.notify_one();
+                self.0.release.notified().await;
+            }
+        }
+        if matches!(request.request, StoreRequest::Query { .. }) {
+            self.0.queries.fetch_add(1, Ordering::Relaxed);
+            // Commit reached SQLite, but neither receipt nor operation query
+            // can be confirmed in this generation. Restart must recover it.
+            if mode == 7 {
+                return Ok(Arc::new(Err::<StoreReply, _>(StoreError::Unavailable)));
+            }
+        }
         if mode == 3 && matches!(request.request, StoreRequest::Commit { .. }) {
+            return Ok(Arc::new(Err::<StoreReply, _>(StoreError::Unavailable)));
+        }
+        // Deterministic queue/run timeout probes; no SQLite request has been
+        // forwarded yet, so releasing this latch cannot mutate durable state.
+        if mode == 5 && matches!(request.request, StoreRequest::Query { .. }) {
+            self.0.entered.notify_one();
+            self.0.release.notified().await;
             return Ok(Arc::new(Err::<StoreReply, _>(StoreError::Unavailable)));
         }
         let response = ctx
@@ -85,13 +113,20 @@ impl SerialHandler for Proxy {
             )?
             .wait(Duration::from_secs(2))
             .await?;
+        if mode == 7 && matches!(request.request, StoreRequest::Commit { .. }) {
+            self.0.entered.notify_one();
+            return Ok(Arc::new(Err::<StoreReply, _>(StoreError::Unavailable)));
+        }
         if matches!(request.request, StoreRequest::Commit { .. }) && (mode == 1 || mode == 2) {
             self.0.mode.store(0, Ordering::Release);
             self.0.entered.notify_one();
             if mode == 1 {
                 self.0.release.notified().await;
             } else {
-                tokio::time::sleep(Duration::from_millis(210)).await;
+                // The real SQLite commit has completed. Lose its receipt
+                // deterministically; do not couple recovery correctness to a
+                // 60ms scheduling gap between two short request deadlines.
+                return Ok(Arc::new(Err::<StoreReply, _>(StoreError::Unavailable)));
             }
         }
         if mode == 4 {
@@ -289,6 +324,7 @@ async fn corrupt_recovery_page_and_reduced_budget_never_open_listener_or_discard
     assert!(!broker.status().active);
     let mut c = persistent_config();
     c.storage.as_mut().unwrap().max_snapshot_bytes = 1024;
+    c.storage.as_mut().unwrap().recovery_page_bytes = 1024;
     let (app, broker) = attempt(&path, c, Faults::default()).await;
     assert!(app.is_err());
     assert!(!broker.status().active);
@@ -690,19 +726,26 @@ async fn qos2_each_ack_and_phase_transition_waits_for_durable_confirmation() {
 #[tokio::test]
 async fn qos2_failed_phase_commits_never_advance_the_wire_or_discard_committed_exchanges() {
     use super::qos2::*;
-    for phase in 0..4 {
+    for (v5, phase) in [false, cfg!(feature = "mqtt5")]
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .flat_map(|v5| (0..4).map(move |phase| (v5, phase)))
+    {
         let path = database_path();
         let faults = Faults::default();
         let (app, broker) = launch_qos2(&path, faults.clone()).await;
         let addr = broker.local_addr().unwrap();
-        let (mut p, _) = Client::connect(addr, "writer", false).await;
-        let (mut sub, _) = Client::connect(addr, "reader", false).await;
-        sub.subscribe(&[("q2", 2)]).await;
+        let (mut p, _) = fault_connect(addr, "writer", v5).await;
+        let (mut sub, _) = fault_connect(addr, "reader", v5).await;
+        fault_subscribe(&mut sub, v5).await;
         let mut outbound = 0;
         if phase != 0 {
-            publish_start(&mut p, 9, "q2", b"committed", false, false).await;
-            let (_, _, _, id) = sub.message().await;
-            outbound = id.unwrap();
+            fault_publish(&mut p, v5, b"committed").await;
+            assert_eq!(p.recv().await, (0x50, vec![0, 9]));
+            let (_, b) = sub.recv().await;
+            let n = usize::from(u16::from_be_bytes([b[0], b[1]]));
+            outbound = u16::from_be_bytes([b[n + 2], b[n + 3]]);
             if phase == 3 {
                 received(&mut sub, outbound).await;
             }
@@ -712,6 +755,9 @@ async fn qos2_failed_phase_commits_never_advance_the_wire_or_discard_committed_e
             0 => {
                 let mut b = string("q2");
                 b.extend([0, 9]);
+                if v5 {
+                    b.push(0);
+                }
                 b.extend(b"not-committed");
                 p.send(codec::frame(0x34, &b)).await;
                 &mut p
@@ -740,16 +786,34 @@ async fn qos2_failed_phase_commits_never_advance_the_wire_or_discard_committed_e
         let addr = broker.local_addr().unwrap();
         assert_eq!(broker.status().incoming_qos2, usize::from(phase != 0));
         assert_eq!(broker.status().pending_messages, usize::from(phase != 0));
-        let (mut p, _) = Client::connect(addr, "writer", false).await;
+        let (mut p, _) = fault_connect(addr, "writer", v5).await;
         if phase != 0 {
             release(&mut p, 9).await;
         }
-        let (mut sub, _) = Client::connect(addr, "reader", false).await;
+        let (mut sub, _) = fault_connect(addr, "reader", v5).await;
         if phase == 3 {
             assert_eq!(sub.recv().await, (0x62, outbound.to_be_bytes().to_vec()));
             complete(&mut sub, outbound).await;
         } else if phase != 0 {
-            let (_, payload, header, id) = sub.message().await;
+            let (h, b) = sub.recv().await;
+            let (payload, header, id) = if v5 {
+                #[cfg(feature = "mqtt5")]
+                {
+                    let m = super::mqtt5::decoded(h, &b);
+                    (m.payload.to_vec(), h, Some(m.pkid))
+                }
+                #[cfg(not(feature = "mqtt5"))]
+                {
+                    unreachable!()
+                }
+            } else {
+                let n = usize::from(u16::from_be_bytes([b[0], b[1]]));
+                (
+                    b[n + 4..].to_vec(),
+                    h,
+                    Some(u16::from_be_bytes([b[n + 2], b[n + 3]])),
+                )
+            };
             assert_eq!(payload, b"committed");
             assert_eq!(header, 0x3c);
             received(&mut sub, id.unwrap()).await;
@@ -763,10 +827,11 @@ async fn qos2_failed_phase_commits_never_advance_the_wire_or_discard_committed_e
     }
 }
 
-// These tests exercise phase correctness, not short Request deadlines. Keep the
-// 150ms fixture above for the explicit lost-reply/uncertainty tests.
+// These tests exercise phase correctness. Short uncertainty deadlines are
+// installed only at their explicit fault injection points.
 async fn launch_qos2(path: &std::path::Path, faults: Faults) -> (ApplicationHandle, BrokerHandle) {
     let mut c = persistent_config();
+    c.mqtt5 = cfg!(feature = "mqtt5");
     c.storage.as_mut().unwrap().timeout = Duration::from_secs(2);
     let (app, broker) = attempt(path, c, faults).await;
     (app.unwrap(), broker)
@@ -891,29 +956,38 @@ async fn handshake_deadline_during_attach_commit_drains_and_preserves_the_sessio
     let (app, broker) = attempt(&path, c, faults.clone()).await;
     let app = app.unwrap();
     let addr = broker.local_addr().unwrap();
-    faults.mode.store(1, Ordering::Release);
-    let mut p = Client(TcpStream::connect(addr).await.unwrap());
-    let mut body = string("MQTT");
-    body.extend([4, 0, 0, 0]);
-    body.extend(string("late-attach"));
-    p.send(codec::frame(0x10, &body)).await;
-    tokio::time::timeout(Duration::from_secs(1), faults.entered.notified())
-        .await
-        .unwrap();
-    assert!(matches!(
-        tokio::time::timeout(Duration::from_secs(1), p.0.read_u8()).await,
-        Ok(Err(_))
-    ));
-    assert!(broker.status().active);
-    assert_eq!(broker.status().connections, 1);
-    faults.release.notify_one();
-    let (mut p, present) = Client::connect(addr, "late-attach", false).await;
-    assert!(present);
-    super::qos2::ping(&mut p).await;
-    assert_eq!(broker.status().generation, 1);
-    assert_eq!(broker.status().storage_commit_failures, 0);
+    manual_clock(async {
+        faults.mode.store(1, Ordering::Release);
+        let mut p = Client(TcpStream::connect(addr).await.unwrap());
+        let mut body = string("MQTT");
+        body.extend([4, 0, 0, 0]);
+        body.extend(string("late-attach"));
+        p.send(codec::frame(0x10, &body)).await;
+        tokio::time::timeout(Duration::from_secs(1), faults.entered.notified())
+            .await
+            .unwrap();
+        tokio::time::advance(Duration::from_millis(499)).await;
+        assert_eq!(
+            p.0.try_read(&mut [0]).unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+        tokio::time::advance(Duration::from_millis(2)).await;
+        assert!(matches!(
+            tokio::time::timeout(Duration::from_secs(1), p.0.read_u8()).await,
+            Ok(Err(_))
+        ));
+        assert!(broker.status().active);
+        assert_eq!(broker.status().connections, 1);
+        faults.release.notify_one();
+        let (mut p, present) = Client::connect(addr, "late-attach", false).await;
+        assert!(present);
+        super::qos2::ping(&mut p).await;
+        assert_eq!(broker.status().generation, 1);
+        assert_eq!(broker.status().storage_commit_failures, 0);
+    })
+    .await;
     stop(&app).await;
-    drop((app, p));
+    drop(app);
     std::fs::remove_file(path).unwrap();
 }
 
@@ -927,32 +1001,44 @@ async fn handshake_deadline_while_waiting_for_store_gate_never_attaches_late() {
     let (app, broker) = attempt(&path, c, faults.clone()).await;
     let app = app.unwrap();
     let addr = broker.local_addr().unwrap();
-    let (mut p, _) = Client::connect(addr, "gate-holder", false).await;
-    faults.mode.store(1, Ordering::Release);
-    let mut body = string("gate/message");
-    body.extend([0, 9]);
-    body.extend(b"held");
-    p.send(codec::frame(0x33, &body)).await;
-    tokio::time::timeout(Duration::from_secs(1), faults.entered.notified())
-        .await
-        .unwrap();
-    let mut waiting = Client(TcpStream::connect(addr).await.unwrap());
-    let mut body = string("MQTT");
-    body.extend([4, 0, 0, 0]);
-    body.extend(string("must-not-attach"));
-    waiting.send(codec::frame(0x10, &body)).await;
-    assert!(matches!(
-        tokio::time::timeout(Duration::from_secs(1), waiting.0.read_u8()).await,
-        Ok(Err(_))
-    ));
-    faults.release.notify_one();
-    assert_eq!(p.recv().await, (0x40, vec![0, 9]));
-    super::qos2::ping(&mut p).await;
-    assert_eq!(broker.status().sessions, 1);
-    assert_eq!(broker.status().generation, 1);
-    assert_eq!(broker.status().storage_commit_failures, 0);
+    manual_clock(async {
+        let (mut p, _) = Client::connect(addr, "gate-holder", false).await;
+        faults.mode.store(1, Ordering::Release);
+        let mut body = string("gate/message");
+        body.extend([0, 9]);
+        body.extend(b"held");
+        p.send(codec::frame(0x33, &body)).await;
+        tokio::time::timeout(Duration::from_secs(1), faults.entered.notified())
+            .await
+            .unwrap();
+        let mut waiting = Client(TcpStream::connect(addr).await.unwrap());
+        let mut body = string("MQTT");
+        body.extend([4, 0, 0, 0]);
+        body.extend(string("must-not-attach"));
+        waiting.send(codec::frame(0x10, &body)).await;
+        while broker.status().connections != 2 {
+            tokio::task::yield_now().await;
+        }
+        tokio::time::advance(Duration::from_millis(499)).await;
+        assert_eq!(
+            waiting.0.try_read(&mut [0]).unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock
+        );
+        tokio::time::advance(Duration::from_millis(2)).await;
+        assert!(matches!(
+            tokio::time::timeout(Duration::from_secs(1), waiting.0.read_u8()).await,
+            Ok(Err(_))
+        ));
+        faults.release.notify_one();
+        assert_eq!(p.recv().await, (0x40, vec![0, 9]));
+        super::qos2::ping(&mut p).await;
+        assert_eq!(broker.status().sessions, 1);
+        assert_eq!(broker.status().generation, 1);
+        assert_eq!(broker.status().storage_commit_failures, 0);
+    })
+    .await;
     stop(&app).await;
-    drop((app, p, waiting));
+    drop(app);
     std::fs::remove_file(path).unwrap();
 }
 
@@ -1485,6 +1571,17 @@ async fn mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and
     // None: original 8191-byte counterexample. Some: 8192 bytes with a
     // two-byte Property Length, actual Content Type and an expanded Topic.
     for content_type in [None, Some("c".repeat(123))] {
+        let started = std::time::Instant::now();
+        let trace = |phase: &str, broker: &BrokerHandle| {
+            if std::env::var_os("MQTT_TEST_TIMING").is_some() {
+                eprintln!(
+                    "alias recovery: properties={} phase={phase} elapsed={:?} status={:?}",
+                    content_type.is_some(),
+                    started.elapsed(),
+                    broker.status()
+                );
+            }
+        };
         let path = database_path();
         let cfg = MqttBrokerConfig {
             mqtt5: true,
@@ -1494,11 +1591,14 @@ async fn mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and
         let app = app.unwrap();
         let addr = broker.local_addr().unwrap();
         let topic = "t".repeat(1000);
+        trace("initial legacy CONNECT/SUBACK", &broker);
         let (sink, _) = Client::connect(addr, "alias-sink", false).await;
         let mut sink = sink;
         sink.subscribe(&[(&topic, 2)]).await;
+        trace("initial v5 CONNECT/SUBACK", &broker);
         let (mut v5_sink, _) = connect(addr, "v5-too-large", true, 60, &[], None).await;
         sub(&mut v5_sink, &[(&topic, 1)], None).await;
+        trace("source CONNECT/alias binding PUBACK", &broker);
         let (mut source, _) = connect(addr, "alias-source", true, 60, &[], None).await;
         let mut bind = string(&topic);
         bind.extend([0, 8, 3, 0x23, 0, 1, b'b']);
@@ -1506,8 +1606,10 @@ async fn mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and
         assert_eq!(source.recv().await, (0x40, vec![0, 8]));
         // Drain the small binding publication; leave only the oversized value
         // owned by the reliable receiver and offline destination.
+        trace("binding legacy PUBLISH", &broker);
         let (_, _, _, id) = sink.message().await;
         sink.ack(id.unwrap()).await;
+        trace("binding v5 PUBLISH/PINGRESP", &broker);
         let (h, b) = v5_sink.recv().await;
         let p = super::mqtt5::decoded(h, &b);
         v5_sink
@@ -1536,10 +1638,12 @@ async fn mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and
             if content_type.is_some() { 8192 } else { 8191 }
         );
         source.send(frame).await;
+        trace("large incoming PUBREC", &broker);
         assert_eq!(source.recv().await, (0x50, vec![0, 9]));
         // MQTT5 outbound still uses the complete Topic: discard this target's
         // over-limit frame, then serve PING rather than blocking its Session.
         super::qos2::ping(&mut v5_sink).await;
+        trace("first shutdown", &broker);
         assert_eq!(broker.status().dropped_oversized, 1);
         assert_eq!(broker.status().incoming_qos2, 1);
         assert!(broker.status().pending_bytes > 8192);
@@ -1551,12 +1655,14 @@ async fn mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and
         let addr = broker.local_addr().unwrap();
         assert_eq!(broker.status().incoming_qos2, 1);
         assert_eq!(broker.status().retained, 1);
+        trace("original-limit source resume/PUBCOMP", &broker);
         // Recovery succeeds with the original limit, without promising delivery
         // of a full-Topic frame that exceeds the destination's listener limit.
         let (mut source, present) = connect(addr, "alias-source", false, 60, &[], None).await;
         assert!(present);
         source.send(codec::frame(0x62, &[0, 9])).await;
         assert_eq!(source.recv().await, (0x70, vec![0, 9]));
+        trace("second shutdown", &broker);
         stop(&app).await;
         drop((app, source));
 
@@ -1568,6 +1674,7 @@ async fn mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and
         let (app, broker) = attempt(&path, cfg, Faults::default()).await;
         let app = app.unwrap();
         let addr = broker.local_addr().unwrap();
+        trace("raised-limit sink resume/PUBLISH", &broker);
         let (mut sink, present) = Client::connect(addr, "alias-sink", false).await;
         assert!(present);
         let (got_topic, got, header, id) = sink.message().await;
@@ -1576,6 +1683,7 @@ async fn mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and
         assert_eq!(header & 6, 4);
         sink.send(codec::frame(0x50, &id.unwrap().to_be_bytes()))
             .await;
+        trace("raised-limit sink PUBREL", &broker);
         assert_eq!(
             sink.recv().await,
             (0x62, id.unwrap().to_be_bytes().to_vec())
@@ -1583,6 +1691,7 @@ async fn mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and
         sink.send(codec::frame(0x70, &id.unwrap().to_be_bytes()))
             .await;
         super::qos2::ping(&mut sink).await;
+        trace("legacy retained CONNECT/SUBACK/PUBLISH", &broker);
         assert_eq!(broker.status().inflight, 0);
         let (mut late, _) = Client::connect(addr, "alias-late", true).await;
         late.subscribe(&[(&topic, 1)]).await;
@@ -1591,6 +1700,7 @@ async fn mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and
         assert_eq!(got, payload);
         assert_eq!(header & 1, 1);
         // The same restored Retained value preserves real MQTT5 properties.
+        trace("v5 retained CONNECT/SUBACK/PUBLISH", &broker);
 
         let (mut large, _) =
             connect(broker.local_addr().unwrap(), "large", true, 0, &[], None).await;
@@ -1612,7 +1722,1572 @@ async fn mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and
             _ => panic!("expected retained MQTT5 PUBLISH"),
         }
         stop(&app).await;
+        trace("complete", &broker);
         drop((app, sink, late, large));
         std::fs::remove_file(path).unwrap();
+    }
+}
+
+#[cfg(feature = "mqtt5")]
+#[tokio::test]
+async fn mqtt5_expired_delay_will_survives_sqlite_restart_and_repeated_session_resume() {
+    use super::mqtt5::{connect, decoded, publish, sub, wait_will_status};
+    // Cover both a saved delay that expires after recovery and an already
+    // triggered, frozen-target Will saved while its reliable target is full.
+    for triggered_before_restart in [false, true] {
+        let path = database_path();
+        let cfg = MqttBrokerConfig {
+            mqtt5: true,
+            max_offline_messages_per_client: 1,
+            max_inflight_per_client: 1,
+            ..persistent_config()
+        };
+        let (app, broker) = attempt(&path, cfg.clone(), Faults::default()).await;
+        let app = app.unwrap();
+        let address = broker.local_addr().unwrap();
+        let (mut sink, _) = connect(address, "sink", true, 60, &[], None).await;
+        sub(&mut sink, &[("v5/#", 1)], Some(17)).await;
+        let delay = if triggered_before_restart { 1 } else { 2 };
+        let (mut source, _) = connect(address, "source", true, 60, &[], Some((delay, 60))).await;
+        publish(&mut source, "v5/blocker", b"blocker", 1, &[], false).await;
+        let (header, body) = sink.recv().await;
+        let blocker = decoded(header, &body);
+        drop(source);
+        wait_will_status(&broker, |s| s.connections == 1).await;
+        if triggered_before_restart {
+            wait_will_status(&broker, |s| s.pending_wills == 1).await;
+        } else {
+            assert_eq!(broker.status().pending_wills, 0);
+        }
+        stop(&app).await;
+        drop((app, sink));
+
+        let (app, broker) = attempt(&path, cfg.clone(), Faults::default()).await;
+        let app = app.unwrap();
+        let address = broker.local_addr().unwrap();
+        wait_will_status(&broker, |s| s.pending_wills == 1).await;
+        let (mut source, present) = connect(address, "source", false, 60, &[], None).await;
+        assert!(present);
+        assert_eq!(broker.status().pending_wills, 1);
+        source.send(vec![0xe0, 0]).await;
+        assert_eq!(source.0.read(&mut [0]).await.unwrap(), 0);
+        assert_eq!(broker.status().pending_wills, 1);
+        // Save again after the resume, then recover the same pending Will.
+        stop(&app).await;
+        drop((app, source));
+
+        let (app, broker) = attempt(&path, cfg, Faults::default()).await;
+        let app = app.unwrap();
+        let address = broker.local_addr().unwrap();
+        assert_eq!(broker.status().pending_wills, 1);
+        let (mut source, present) = connect(address, "source", false, 60, &[], None).await;
+        assert!(present);
+        let (mut sink, present) = connect(address, "sink", false, 60, &[], None).await;
+        assert!(present);
+        let (header, body) = sink.recv().await;
+        let replay = decoded(header, &body);
+        assert!(replay.dup);
+        assert_eq!(replay.pkid, blocker.pkid);
+        assert_eq!(replay.payload, b"blocker"[..]);
+        sink.send(codec::frame(0x40, &replay.pkid.to_be_bytes()))
+            .await;
+        let (header, body) = sink.recv().await;
+        let will = decoded(header, &body);
+        assert_eq!(will.topic, b"v5/will"[..]);
+        assert_eq!(will.payload, b"w"[..]);
+        assert_eq!(will.properties.unwrap().subscription_identifiers, [17]);
+        sink.send(codec::frame(0x40, &will.pkid.to_be_bytes()))
+            .await;
+        sink.send(vec![0xc0, 0]).await;
+        assert_eq!(sink.recv().await, (0xd0, vec![]));
+        publish(&mut source, "v5/barrier", b"after-restart", 1, &[], false).await;
+        let (header, body) = sink.recv().await;
+        let barrier = decoded(header, &body);
+        assert_eq!(barrier.payload, b"after-restart"[..]);
+        sink.send(codec::frame(0x40, &barrier.pkid.to_be_bytes()))
+            .await;
+        sink.send(vec![0xc0, 0]).await;
+        assert_eq!(sink.recv().await, (0xd0, vec![]));
+        assert_eq!(broker.status().pending_wills, 0);
+        assert_eq!(broker.status().will_records, 0);
+        assert_eq!(broker.status().pending_messages, 0);
+        stop(&app).await;
+        drop((app, source, sink));
+        std::fs::remove_file(path).unwrap();
+    }
+}
+
+#[cfg(feature = "mqtt5")]
+#[tokio::test]
+async fn mqtt5_disconnect_reason_will_state_survives_sqlite_restart() {
+    use super::mqtt5::{connect, decoded, publish, sub};
+    for (reason, empty) in [(0, true), (0, false), (0x80, false)] {
+        let path = database_path();
+        let cfg = MqttBrokerConfig {
+            mqtt5: true,
+            ..persistent_config()
+        };
+        let (app, broker) = attempt(&path, cfg.clone(), Faults::default()).await;
+        let app = app.unwrap();
+        let address = broker.local_addr().unwrap();
+        let (mut sink, _) = connect(address, "sink", false, 60, &[], None).await;
+        sub(&mut sink, &[("v5/#", 1)], Some(17)).await;
+        sink.disconnect().await;
+        let (mut owner, _) = connect(address, "owner", true, 60, &[], Some((1, 30))).await;
+        // Both RL=0 and RL=1 omit Property Length in the actual input.
+        let reason_bytes = [reason];
+        owner
+            .send(codec::frame(0xe0, if empty { &[] } else { &reason_bytes }))
+            .await;
+        assert_eq!(owner.0.read(&mut [0]).await.unwrap(), 0);
+        assert_eq!(broker.status().will_records, usize::from(reason != 0));
+        stop(&app).await;
+        drop((app, owner));
+
+        let (app, broker) = attempt(&path, cfg, Faults::default()).await;
+        let app = app.unwrap();
+        let address = broker.local_addr().unwrap();
+        let (mut sink, present) = connect(address, "sink", false, 60, &[], None).await;
+        assert!(present);
+        if reason != 0 {
+            let (h, b) = sink.recv().await;
+            let will = decoded(h, &b);
+            assert_eq!(will.topic, b"v5/will"[..]);
+            assert_eq!(will.properties.unwrap().subscription_identifiers, [17]);
+            sink.send(codec::frame(0x40, &will.pkid.to_be_bytes()))
+                .await;
+        }
+        let (mut source, _) = connect(address, "source", true, 0, &[], None).await;
+        publish(&mut source, "v5/barrier", b"after-restart", 1, &[], false).await;
+        let (h, b) = sink.recv().await;
+        let barrier = decoded(h, &b);
+        assert_eq!(barrier.topic, b"v5/barrier"[..]);
+        sink.send(codec::frame(0x40, &barrier.pkid.to_be_bytes()))
+            .await;
+        sink.send(vec![0xc0, 0]).await;
+        assert_eq!(sink.recv().await, (0xd0, vec![]));
+        assert_eq!(broker.status().will_records, 0);
+        stop(&app).await;
+        drop((app, sink, source));
+        std::fs::remove_file(path).unwrap();
+    }
+}
+
+#[tokio::test]
+async fn paginated_recovery_deadline_closes_ingress_and_retry_preserves_committed_image() {
+    let path = database_path();
+    let (app, broker) = launch(&path, Faults::default()).await;
+    let (mut source, _) = Client::connect(broker.local_addr().unwrap(), "writer", true).await;
+    source.publish("recover/value", b"committed", 1, true).await;
+    stop(&app).await;
+    drop((app, source));
+
+    let faults = Faults::default();
+    faults.mode.store(6, Ordering::Release);
+    let mut cfg = persistent_config();
+    let store = cfg.storage.as_mut().unwrap();
+    store.recovery_page_bytes = 73;
+    store.recovery_timeout = Duration::from_millis(150);
+    let recovery = attempt(&path, cfg, faults.clone());
+    tokio::pin!(recovery);
+    let (result, broker) = tokio::select! {
+        // On an overloaded host the absolute deadline may expire during Begin
+        // itself, before Page reaches the latch. That is the same fail-closed
+        // outcome, and must not strand the test waiting for an impossible Page.
+        result = &mut recovery => result,
+        _ = faults.entered.notified() => {
+            // Hold Page across the whole recovery deadline; the individual
+            // request still has 2s. Abort drains after this release.
+            tokio::time::sleep(Duration::from_millis(300)).await;
+            faults.mode.store(0, Ordering::Release);
+            faults.release.notify_one();
+            recovery.await
+        }
+    };
+    let error = result.err().expect("recovery must fail closed");
+    assert!(
+        format!("{error:?}").contains("RecoveryDeadline"),
+        "{error:?}"
+    );
+    assert!(
+        TcpStream::connect(broker.local_addr().unwrap())
+            .await
+            .is_err()
+    );
+
+    let faults = Faults::default();
+    let mut cfg = persistent_config();
+    cfg.storage.as_mut().unwrap().recovery_page_bytes = 73;
+    let (app, broker) = attempt(&path, cfg, faults.clone()).await;
+    let app = app.unwrap();
+    assert!(faults.pages.load(Ordering::Relaxed) > 1);
+    let (mut sink, _) = Client::connect(broker.local_addr().unwrap(), "reader", true).await;
+    sink.subscribe(&[("recover/#", 1)]).await;
+    let (topic, payload, header, _) = sink.message().await;
+    assert_eq!(topic, "recover/value");
+    assert_eq!(payload, b"committed");
+    assert_eq!(header & 1, 1);
+    stop(&app).await;
+    drop((app, sink));
+    std::fs::remove_file(&path).unwrap();
+}
+
+#[tokio::test]
+async fn store_diagnostics_distinguish_admission_queued_running_and_provider_failures() {
+    use crate::persistence::{Hub, call};
+    let path = database_path();
+    let faults = Faults::default();
+    let (app, _) = launch(&path, faults.clone()).await;
+    let hub = app.event_hub().external();
+    let mut cfg = persistent_config().storage.unwrap();
+    cfg.timeout = Duration::from_secs(2);
+    let query = || StoreRequest::Query {
+        epoch: 0,
+        operation_id: "probe".into(),
+        digest: [0; 32],
+    };
+    let check = |err: MqttError, expected| {
+        assert!(
+            matches!(err, MqttError::Storage { operation: "query", failure } if failure == expected),
+            "{err:?}"
+        );
+    };
+    let mut bad = cfg.clone();
+    bad.component = "missing-store".into();
+    check(
+        call(Hub::External(&hub), &bad, query()).await.unwrap_err(),
+        StoreCallFailure::Admission,
+    );
+    bad = cfg.clone();
+    bad.access = StoreAccessKey([42; 32]);
+    // Proxy itself does not authenticate; the real SQLite Provider checks it.
+    check(
+        call(Hub::External(&hub), &bad, query()).await.unwrap_err(),
+        StoreCallFailure::Provider(StoreError::NotAuthorized),
+    );
+
+    manual_clock(async {
+        let mut short = cfg.clone();
+        short.timeout = Duration::from_millis(150);
+        faults.mode.store(5, Ordering::Release);
+        let running = call(Hub::External(&hub), &short, query());
+        tokio::pin!(running);
+        tokio::select! {
+            biased;
+            result = &mut running => panic!("query did not reach latch: {result:?}"),
+            _ = faults.entered.notified() => {},
+        }
+        tokio::time::advance(Duration::from_millis(151)).await;
+        check(running.await.unwrap_err(), StoreCallFailure::Indeterminate);
+        // Occupied serial handler: expire a second request while still Queued.
+        let queued = call(Hub::External(&hub), &short, query());
+        tokio::pin!(queued);
+        assert!(
+            std::future::poll_fn(|cx| std::task::Poll::Ready(
+                queued.as_mut().poll(cx).is_pending()
+            ))
+            .await
+        );
+        tokio::time::advance(Duration::from_millis(151)).await;
+        check(
+            queued.await.unwrap_err(),
+            StoreCallFailure::CanceledBeforeStart,
+        );
+    })
+    .await;
+    faults.mode.store(0, Ordering::Release);
+    faults.release.notify_one();
+    // A subsequent typed request verifies the serial queue drains after release.
+    check(
+        call(Hub::External(&hub), &cfg, query()).await.unwrap_err(),
+        StoreCallFailure::Provider(StoreError::Fenced),
+    );
+    stop(&app).await;
+    drop(app);
+    std::fs::remove_file(path).unwrap();
+}
+
+async fn fault_connect(addr: SocketAddr, id: &str, v5: bool) -> (Client, bool) {
+    #[cfg(feature = "mqtt5")]
+    if v5 {
+        return super::mqtt5::connect(addr, id, false, 60, &[], None).await;
+    }
+    let _ = v5;
+    Client::connect(addr, id, false).await
+}
+
+#[tokio::test]
+async fn ping_on_idle_connection_does_not_wait_for_another_connections_store_commit() {
+    for v5 in [false, cfg!(feature = "mqtt5")]
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>()
+    {
+        let path = database_path();
+        let faults = Faults::default();
+        let mut cfg = persistent_config();
+        cfg.mqtt5 = cfg!(feature = "mqtt5");
+        cfg.storage.as_mut().unwrap().timeout = Duration::from_secs(4);
+        let (app, broker) = attempt(&path, cfg, faults.clone()).await;
+        let app = app.unwrap();
+        let addr = broker.local_addr().unwrap();
+        let (mut idle, _) = fault_connect(addr, "ping-only", v5).await;
+        let (mut writer, _) = fault_connect(addr, "writer", v5).await;
+        super::qos2::ping(&mut idle).await;
+        faults.mode.store(1, Ordering::Release);
+        fault_publish(&mut writer, v5, b"held-durable-promise").await;
+        writer.send(vec![0xc0, 0]).await;
+        tokio::time::timeout(Duration::from_secs(1), faults.entered.notified())
+            .await
+            .unwrap();
+        idle.send(vec![0xc0, 0]).await;
+        let response = tokio::time::timeout(Duration::from_secs(1), idle.recv()).await;
+        assert_eq!(
+            writer.0.try_read(&mut [0]).unwrap_err().kind(),
+            std::io::ErrorKind::WouldBlock,
+            "same-connection PING overtook durable PUBREC"
+        );
+        // Always release the actual SQLite commit, even on the pre-fix failure.
+        faults.release.notify_one();
+        assert_eq!(writer.recv().await, (0x50, vec![0, 9]));
+        assert_eq!(writer.recv().await, (0xd0, vec![]));
+        assert_eq!(
+            response.expect("PINGRESP blocked by unrelated Store commit"),
+            (0xd0, vec![])
+        );
+        assert_eq!(broker.status().incoming_qos2, 1);
+        assert_eq!(broker.status().storage_commit_failures, 0);
+        stop(&app).await;
+        drop((app, idle, writer));
+        std::fs::remove_file(path).unwrap();
+    }
+}
+async fn fault_subscribe(c: &mut Client, v5: bool) {
+    let mut b = vec![0, 1];
+    if v5 {
+        b.push(0);
+    }
+    b.extend(string("q2"));
+    b.push(2);
+    c.send(codec::frame(0x82, &b)).await;
+    let (h, b) = c.recv().await;
+    assert_eq!(h, 0x90);
+    assert_eq!(b, if v5 { vec![0, 1, 0, 2] } else { vec![0, 1, 2] });
+}
+async fn fault_publish(c: &mut Client, v5: bool, payload: &[u8]) {
+    let mut b = string("q2");
+    b.extend([0, 9]);
+    if v5 {
+        b.push(0);
+    }
+    b.extend(payload);
+    c.send(codec::frame(0x34, &b)).await;
+}
+
+#[tokio::test]
+async fn qos2_receiver_duplicate_content_retained_and_id_reuse_survive_sqlite_restart() {
+    async fn send(c: &mut Client, v5: bool, dup: bool, payload: &[u8]) {
+        let mut body = string("q2");
+        body.extend([0, 9]);
+        if v5 {
+            // Real Content Type property differs between original/duplicate.
+            body.extend([4, 3, 0, 1, payload[0]]);
+        }
+        body.extend(payload);
+        c.send(codec::frame(if dup { 0x3d } else { 0x35 }, &body))
+            .await;
+        assert_eq!(c.recv().await, (0x50, vec![0, 9]));
+    }
+    async fn delivery(c: &mut Client, v5: bool, payload: &[u8], retained: bool) {
+        let (h, body) = c.recv().await;
+        assert_eq!((h & 7, h & 8), (4 | u8::from(retained), 0));
+        let n = usize::from(u16::from_be_bytes([body[0], body[1]]));
+        let id = [body[n + 2], body[n + 3]];
+        if v5 {
+            #[cfg(feature = "mqtt5")]
+            {
+                let p = super::mqtt5::decoded(h, &body);
+                assert_eq!(p.payload, payload);
+                assert_eq!(
+                    p.properties.unwrap().content_type.as_deref(),
+                    Some(std::str::from_utf8(&payload[..1]).unwrap())
+                );
+            }
+        } else {
+            assert_eq!(&body[n + 4..], payload);
+        }
+        c.send(codec::frame(0x50, &id)).await;
+        assert_eq!(c.recv().await, (0x62, id.to_vec()));
+        c.send(codec::frame(0x70, &id)).await;
+        // FIFO barrier makes an accidentally rerouted duplicate observable.
+        super::qos2::ping(c).await;
+    }
+    for v5 in [false, cfg!(feature = "mqtt5")]
+        .into_iter()
+        .collect::<std::collections::BTreeSet<_>>()
+    {
+        for restart in [false, true] {
+            for dup in [false, true] {
+                eprintln!(
+                    "receiver wire matrix: mqtt5={v5} sqlite_restart={restart} duplicate_flag={dup}"
+                );
+                let path = database_path();
+                let (mut app, mut broker) = launch_qos2(&path, Faults::default()).await;
+                let (mut sink, _) = fault_connect(broker.local_addr().unwrap(), "reader", v5).await;
+                fault_subscribe(&mut sink, v5).await;
+                sink.send(vec![0xe0, 0]).await;
+                assert_eq!(sink.0.read(&mut [0]).await.unwrap(), 0);
+                drop(sink);
+                let (mut source, _) =
+                    fault_connect(broker.local_addr().unwrap(), "writer", v5).await;
+                send(&mut source, v5, false, b"original").await;
+                source.send(vec![0xe0, 0]).await;
+                assert_eq!(source.0.read(&mut [0]).await.unwrap(), 0);
+                drop(source);
+                if restart {
+                    stop(&app).await;
+                    drop(app);
+                    (app, broker) = launch_qos2(&path, Faults::default()).await;
+                }
+                let addr = broker.local_addr().unwrap();
+                let (mut source, present) = fault_connect(addr, "writer", v5).await;
+                assert!(present);
+                // Method B identifies the receiver-owned exchange by Packet ID,
+                // even if a peer changes DUP, payload and application properties.
+                send(&mut source, v5, dup, b"changed-must-not-replace").await;
+                assert_eq!(broker.status().incoming_qos2, 1);
+                let (mut sink, present) = fault_connect(addr, "reader", v5).await;
+                assert!(present);
+                delivery(&mut sink, v5, b"original", false).await;
+                let (mut late, _) = fault_connect(addr, "late", v5).await;
+                fault_subscribe(&mut late, v5).await;
+                delivery(&mut late, v5, b"original", true).await;
+                late.send(vec![0xe0, 0]).await;
+                assert_eq!(late.0.read(&mut [0]).await.unwrap(), 0);
+                for _ in 0..2 {
+                    source.send(codec::frame(0x62, &[0, 9])).await;
+                    assert_eq!(source.recv().await, (0x70, vec![0, 9]));
+                }
+                assert_eq!(broker.status().incoming_qos2, 0);
+                // PUBCOMP releases the ID; the next PUBLISH is new ownership.
+                send(&mut source, v5, false, b"reused").await;
+                delivery(&mut sink, v5, b"reused", false).await;
+                assert_eq!(broker.status().incoming_qos2, 1);
+                assert_eq!(broker.status().storage_commit_failures, 0);
+                stop(&app).await;
+                drop((app, sink, source, late));
+                std::fs::remove_file(path).unwrap();
+            }
+        }
+    }
+}
+
+#[cfg(feature = "mqtt5")]
+#[tokio::test]
+async fn mqtt5_sqlite_recovered_pubrel_has_fresh_connection_quota() {
+    use super::mqtt5::{connect, decoded, publish, sub};
+    let path = database_path();
+    let (app, broker) = launch_qos2(&path, Faults::default()).await;
+    let addr = broker.local_addr().unwrap();
+    let (mut sink, _) = connect(addr, "quota", false, 60, &[0x21, 0, 1], None).await;
+    sub(&mut sink, &[("q2", 2)], None).await;
+    let (mut source, _) = connect(addr, "source", true, 0, &[], None).await;
+    publish(&mut source, "q2", b"old", 2, &[], false).await;
+    let (h, b) = sink.recv().await;
+    let old = decoded(h, &b);
+    sink.send(codec::frame(0x50, &old.pkid.to_be_bytes())).await;
+    assert_eq!(sink.recv().await, (0x62, old.pkid.to_be_bytes().to_vec()));
+    stop(&app).await;
+    drop((app, sink, source));
+    let (app, broker) = launch_qos2(&path, Faults::default()).await;
+    let addr = broker.local_addr().unwrap();
+    let (mut sink, present) = connect(addr, "quota", false, 60, &[0x21, 0, 1], None).await;
+    assert!(present);
+    assert_eq!(sink.recv().await, (0x62, old.pkid.to_be_bytes().to_vec()));
+    let (mut source, _) = connect(addr, "source", true, 0, &[], None).await;
+    publish(&mut source, "q2", b"new", 1, &[], false).await;
+    let (h, b) = sink.recv().await;
+    let new = decoded(h, &b);
+    assert_eq!(new.payload, b"new"[..]);
+    sink.send(codec::frame(0x70, &old.pkid.to_be_bytes())).await;
+    sink.send(codec::frame(0x40, &new.pkid.to_be_bytes())).await;
+    sink.send(vec![0xc0, 0]).await;
+    assert_eq!(sink.recv().await, (0xd0, vec![]));
+    stop(&app).await;
+    drop(app);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[tokio::test]
+async fn actual_committed_store_timeout_is_resolved_by_original_operation_before_next_commit() {
+    use crate::persistence::{Hub, call};
+    use sha2::{Digest, Sha256};
+    let path = database_path();
+    let cfg = persistent_config().storage.unwrap();
+    let faults = Faults::default();
+    let mut builder = ApplicationBuilder::new("commit-timeout-probe");
+    builder
+        .register_module(
+            SqliteStorageFactory::new(SqliteStorageConfig {
+                name: "sqlite-store".into(),
+                broker: "mqtt-broker".into(),
+                subscription_id: 5000,
+                access: cfg.access.clone(),
+                database: path.clone(),
+                max_snapshot_bytes: 1024 * 1024,
+                disk_budget_bytes: 12 * 1024 * 1024,
+            })
+            .unwrap(),
+        )
+        .unwrap();
+    builder.register_module(Proxy(faults.clone())).unwrap();
+    let mut selection = ComponentSelection::new();
+    selection
+        .enable_module("sqlite-store")
+        .enable_module("store-proxy");
+    let app = builder
+        .selection(selection)
+        .build()
+        .unwrap()
+        .start()
+        .await
+        .unwrap();
+    let hub = app.event_hub().external();
+    let StoreReply::Recovery { epoch, version, .. } = call(
+        Hub::External(&hub),
+        &cfg,
+        StoreRequest::Begin {
+            recovery_id: "timeout-probe".into(),
+        },
+    )
+    .await
+    .unwrap() else {
+        panic!()
+    };
+    call(Hub::External(&hub), &cfg, StoreRequest::Complete { epoch })
+        .await
+        .unwrap();
+    let image = bytes::Bytes::from_static(b"opaque-provider-test-image");
+    let digest: [u8; 32] = Sha256::digest(&image).into();
+    let operation_id = format!("{epoch}:{}", version + 1);
+    faults.mode.store(1, Ordering::Release);
+    let handle = hub
+        .request::<_, StoreResult>(
+            STORAGE_TOPIC,
+            Destination::Component(ComponentRef::module("store-proxy")),
+            StoreEnvelope {
+                access: cfg.access.clone(),
+                request: StoreRequest::Commit {
+                    epoch,
+                    expected_version: version,
+                    operation_id: operation_id.clone(),
+                    digest,
+                    image: image.clone(),
+                },
+            },
+            MessageOptions {
+                payload_bytes: Some(4096),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    // Observe a real SQLite commit before starting the short wait. This avoids
+    // assuming disk work finishes within a fixed sleep/scheduling gap.
+    tokio::time::timeout(Duration::from_secs(3), faults.entered.notified())
+        .await
+        .unwrap();
+    assert!(matches!(
+        handle.wait(Duration::from_millis(150)).await,
+        Err(FrameworkError::Indeterminate(_))
+    ));
+    faults.release.notify_one();
+    assert!(
+        matches!(call(Hub::External(&hub),&cfg,StoreRequest::Query{epoch,operation_id,digest}).await.unwrap(),StoreReply::Committed{version:v} if v==version+1)
+    );
+    assert!(
+        matches!(call(Hub::External(&hub),&cfg,StoreRequest::Commit{epoch,expected_version:version+1,operation_id:format!("{epoch}:{}",version+2),digest,image}).await.unwrap(),StoreReply::Committed{version:v} if v==version+2)
+    );
+    stop(&app).await;
+    drop(app);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[cfg(feature = "mqtt5")]
+#[tokio::test]
+async fn mqtt5_shared_offline_sqlite_restart_preserves_selected_owners_and_expiry() {
+    use super::mqtt5::{connect, publish, sub};
+    use super::mqtt5_protocol::receive_reliable;
+    let path = database_path();
+    let cfg = MqttBrokerConfig {
+        mqtt5: true,
+        ..persistent_config()
+    };
+    let (app, broker) = attempt(&path, cfg.clone(), Faults::default()).await;
+    let app = app.unwrap();
+    let addr = broker.local_addr().unwrap();
+    for id in ["a", "b"] {
+        let (mut c, _) = connect(addr, id, true, 60, &[], None).await;
+        sub(&mut c, &[("$share/g/jobs", 2)], Some(7)).await;
+        c.send(vec![0xe0, 0]).await;
+        assert_eq!(c.0.read(&mut [0]).await.unwrap(), 0);
+    }
+    let (mut source, _) = connect(addr, "source", true, 0, &[], None).await;
+    publish(&mut source, "jobs", b"one", 1, &[], false).await;
+    publish(&mut source, "jobs", b"two", 2, &[], false).await;
+    // Expiry=0 must not survive disconnection or receive shared work.
+    let (mut gone, _) = connect(addr, "gone", true, 0, &[], None).await;
+    sub(&mut gone, &[("$share/g/jobs", 2)], None).await;
+    gone.send(vec![0xe0, 0]).await;
+    assert_eq!(gone.0.read(&mut [0]).await.unwrap(), 0);
+    // Expired publications do not enter any member's reliable queue.
+    publish(&mut source, "jobs", b"expired", 1, &[2, 0, 0, 0, 0], false).await;
+    stop(&app).await;
+    drop((app, source, gone));
+    let (app, broker) = attempt(&path, cfg, Faults::default()).await;
+    let app = app.unwrap();
+    let addr = broker.local_addr().unwrap();
+    let (mut a, present) = connect(addr, "a", false, 60, &[], None).await;
+    assert!(present);
+    let (mut b, present) = connect(addr, "b", false, 60, &[], None).await;
+    assert!(present);
+    receive_reliable(&mut a, b"one", 1).await;
+    receive_reliable(&mut b, b"two", 2).await;
+    for c in [&mut a, &mut b] {
+        c.send(vec![0xc0, 0]).await;
+        assert_eq!(c.recv().await, (0xd0, vec![]));
+    }
+    let (_gone, present) = connect(addr, "gone", false, 60, &[], None).await;
+    assert!(!present);
+    stop(&app).await;
+    drop(app);
+    std::fs::remove_file(path).unwrap();
+}
+
+#[cfg(feature = "mqtt5")]
+async fn sender_matrix_connect(addr: SocketAddr, v5: bool, resume: bool) -> Client {
+    let (mut sink, present) = if v5 {
+        super::mqtt5::connect(addr, "sender-matrix", !resume, 60, &[], None).await
+    } else {
+        Client::connect(addr, "sender-matrix", false).await
+    };
+    assert_eq!(present, resume);
+    if !resume {
+        if v5 {
+            super::mqtt5::sub(&mut sink, &[("matrix/q2", 2)], Some(17)).await;
+        } else {
+            assert_eq!(sink.subscribe(&[("matrix/q2", 2)]).await, [2]);
+        }
+    }
+    sink
+}
+#[cfg(feature = "mqtt5")]
+async fn sender_matrix_delivery(sink: &mut Client, v5: bool, dup: bool, payload: &[u8]) -> u16 {
+    sender_matrix_delivery_qos(sink, v5, 2, dup, payload).await
+}
+#[cfg(feature = "mqtt5")]
+async fn sender_matrix_delivery_qos(
+    sink: &mut Client,
+    v5: bool,
+    qos: u8,
+    dup: bool,
+    payload: &[u8],
+) -> u16 {
+    let (head, body) = sink.recv().await;
+    assert_eq!(head, 0x30 | (qos << 1) | if dup { 8 } else { 0 });
+    assert_eq!(
+        &body[..11],
+        &[0, 9, b'm', b'a', b't', b'r', b'i', b'x', b'/', b'q', b'2']
+    );
+    let id = u16::from_be_bytes([body[11], body[12]]);
+    assert_ne!(id, 0);
+    let at = if v5 {
+        assert_eq!(&body[13..16], &[2, 0x0b, 17]);
+        16
+    } else {
+        13
+    };
+    assert_eq!(&body[at..], payload);
+    id
+}
+#[cfg(feature = "mqtt5")]
+async fn sender_matrix_finish(sink: &mut Client, release: bool, id: u16) {
+    if !release {
+        sink.send(codec::frame(0x50, &id.to_be_bytes())).await;
+        assert_eq!(sink.recv().await, (0x62, id.to_be_bytes().to_vec()));
+    }
+    sink.send(codec::frame(0x70, &id.to_be_bytes())).await;
+    super::qos2::ping(sink).await;
+}
+
+#[cfg(feature = "mqtt5")]
+async fn duplex_publish_start(client: &mut Client, v5: bool, id: u16, payload: &[u8], dup: bool) {
+    let mut body = string("matrix/in");
+    body.extend(id.to_be_bytes());
+    if v5 {
+        body.push(0);
+    }
+    body.extend(payload);
+    client
+        .send(codec::frame(if dup { 0x3c } else { 0x34 }, &body))
+        .await;
+    assert_eq!(client.recv().await, (0x50, id.to_be_bytes().to_vec()));
+}
+
+#[cfg(feature = "mqtt5")]
+#[tokio::test]
+async fn qos2_same_identifier_bidirectional_matrix_keeps_sqlite_ownership_independent() {
+    // Both directions own exactly the same Packet ID. Complete each direction
+    // first in turn, then restart again to check persisted independence.
+    for v5 in [false, true] {
+        for release in [false, true] {
+            for incoming_first in [false, true] {
+                eprintln!(
+                    "duplex ID matrix: mqtt5={v5} release={release} incoming_first={incoming_first}"
+                );
+                let path = database_path();
+                let (app, broker) = launch_qos2(&path, Faults::default()).await;
+                let addr = broker.local_addr().unwrap();
+                let mut owner = sender_matrix_connect(addr, v5, false).await;
+                let (mut source, _) = Client::connect(addr, "duplex-source", true).await;
+                let (mut observer, _) = Client::connect(addr, "duplex-observer", true).await;
+                assert_eq!(observer.subscribe(&[("matrix/in", 0)]).await, [0]);
+                source.publish("matrix/q2", b"outgoing", 2, false).await;
+                let id = sender_matrix_delivery(&mut owner, v5, false, b"outgoing").await;
+                if release {
+                    super::qos2::received(&mut owner, id).await;
+                }
+                duplex_publish_start(&mut owner, v5, id, b"incoming", false).await;
+                let mut expected = string("matrix/in");
+                expected.extend(b"incoming");
+                assert_eq!(observer.recv().await, (0x30, expected));
+                assert_eq!(broker.status().incoming_qos2, 1);
+                assert_eq!(broker.status().pending_messages, 1);
+                stop(&app).await;
+                drop((app, owner, observer, source));
+
+                for after_completion in [false, true] {
+                    let (app, broker) = launch_qos2(&path, Faults::default()).await;
+                    let addr = broker.local_addr().unwrap();
+                    let mut owner = sender_matrix_connect(addr, v5, true).await;
+                    if !after_completion || incoming_first {
+                        if release {
+                            assert_eq!(owner.recv().await, (0x62, id.to_be_bytes().to_vec()));
+                        } else {
+                            assert_eq!(
+                                sender_matrix_delivery(&mut owner, v5, true, b"outgoing").await,
+                                id
+                            );
+                        }
+                    } else {
+                        super::qos2::ping(&mut owner).await;
+                    }
+                    let (mut observer, _) = Client::connect(addr, "duplex-observer", true).await;
+                    assert_eq!(observer.subscribe(&[("matrix/in", 0)]).await, [0]);
+                    if !after_completion || !incoming_first {
+                        duplex_publish_start(&mut owner, v5, id, b"changed-duplicate", true).await;
+                        super::qos2::ping(&mut observer).await;
+                    }
+                    assert_eq!(
+                        broker.status().incoming_qos2,
+                        usize::from(!after_completion || !incoming_first)
+                    );
+                    assert_eq!(
+                        broker.status().pending_messages,
+                        usize::from(!after_completion || incoming_first)
+                    );
+                    if incoming_first != after_completion {
+                        super::qos2::release(&mut owner, id).await;
+                    } else {
+                        sender_matrix_finish(&mut owner, release, id).await;
+                    }
+                    assert_eq!(
+                        broker.status().incoming_qos2,
+                        usize::from(!after_completion && !incoming_first)
+                    );
+                    assert_eq!(
+                        broker.status().pending_messages,
+                        usize::from(!after_completion && incoming_first)
+                    );
+                    if after_completion {
+                        // Both namespaces are now free. The old inbound ID
+                        // admits a new message, and outbound allocation proceeds.
+                        duplex_publish_start(&mut owner, v5, id, b"new-incoming", false).await;
+                        let mut expected = string("matrix/in");
+                        expected.extend(b"new-incoming");
+                        assert_eq!(observer.recv().await, (0x30, expected));
+                        super::qos2::release(&mut owner, id).await;
+                        let (mut source, _) = Client::connect(addr, "duplex-source", true).await;
+                        source.publish("matrix/q2", b"next", 2, false).await;
+                        let next = sender_matrix_delivery(&mut owner, v5, false, b"next").await;
+                        sender_matrix_finish(&mut owner, false, next).await;
+                        super::qos2::ping(&mut observer).await;
+                        assert_eq!(broker.status().incoming_qos2, 0);
+                        assert_eq!(broker.status().pending_messages, 0);
+                    }
+                    stop(&app).await;
+                    drop((app, owner, observer));
+                }
+                std::fs::remove_file(path).unwrap();
+            }
+        }
+    }
+}
+
+#[cfg(feature = "mqtt5")]
+#[tokio::test]
+async fn mqtt5_zero_expiry_retained_qos_matrix_preserves_handshake_across_sqlite_restarts() {
+    use super::mqtt5::{connect, publish};
+    for qos in [0, 1, 2] {
+        for retain in [false, true] {
+            for payload in [b"".as_slice(), b"expired".as_slice()] {
+                eprintln!("zero expiry matrix: qos={qos} retain={retain} payload={payload:?}");
+                let path = database_path();
+                let (app, broker) = launch_qos2(&path, Faults::default()).await;
+                let addr = broker.local_addr().unwrap();
+                let (mut source, present) =
+                    connect(addr, "expiry-source", true, 60, &[], None).await;
+                assert!(!present);
+                publish(&mut source, "expiry/value", b"old-retained", 1, &[], true).await;
+                let (mut observer, _) = Client::connect(addr, "expiry-observer", true).await;
+                assert_eq!(observer.subscribe(&[("expiry/value", 0)]).await, [0]);
+                let mut old_retained = string("expiry/value");
+                old_retained.extend(b"old-retained");
+                assert_eq!(observer.recv().await, (0x31, old_retained.clone()));
+
+                // Expiry=0 avoids clock races. Stop QoS2 after PUBREC so the
+                // expired Application Message still has a live receiver record.
+                let mut body = string("expiry/value");
+                if qos != 0 {
+                    body.extend([0, 23]);
+                }
+                body.extend([5, 2, 0, 0, 0, 0]);
+                body.extend(payload);
+                source
+                    .send(codec::frame(0x30 | (qos << 1) | u8::from(retain), &body))
+                    .await;
+                if qos != 0 {
+                    assert_eq!(
+                        source.recv().await,
+                        (if qos == 1 { 0x40 } else { 0x50 }, vec![0, 23])
+                    );
+                }
+                super::qos2::ping(&mut source).await;
+                super::qos2::ping(&mut observer).await;
+                assert_eq!(broker.status().retained, usize::from(!retain));
+                assert_eq!(broker.status().incoming_qos2, usize::from(qos == 2));
+                stop(&app).await;
+                drop((app, source, observer));
+
+                for completed in [false, true] {
+                    let (app, broker) = launch_qos2(&path, Faults::default()).await;
+                    let addr = broker.local_addr().unwrap();
+                    let (mut source, present) =
+                        connect(addr, "expiry-source", false, 60, &[], None).await;
+                    assert!(present);
+                    // PING also rejects any unexpected retransmitted message.
+                    super::qos2::ping(&mut source).await;
+                    let (mut observer, _) = Client::connect(addr, "expiry-observer", true).await;
+                    assert_eq!(observer.subscribe(&[("expiry/value", 0)]).await, [0]);
+                    if !retain {
+                        assert_eq!(observer.recv().await, (0x31, old_retained.clone()));
+                    }
+                    super::qos2::ping(&mut observer).await;
+                    assert_eq!(
+                        broker.status().incoming_qos2,
+                        usize::from(qos == 2 && !completed)
+                    );
+                    if qos == 2 {
+                        if !completed {
+                            // Changing a duplicate to an unexpired retained
+                            // message must not resurrect or replace its content.
+                            let mut duplicate = string("expiry/value");
+                            duplicate.extend([0, 23, 0]);
+                            duplicate.extend(b"must-not-resurrect");
+                            source.send(codec::frame(0x3d, &duplicate)).await;
+                            assert_eq!(source.recv().await, (0x50, vec![0, 23]));
+                            super::qos2::ping(&mut observer).await;
+                        }
+                        // Repeated PUBREL after the second restart still
+                        // completes, without replaying expired application data.
+                        super::qos2::release(&mut source, 23).await;
+                    }
+                    super::qos2::ping(&mut observer).await;
+                    assert_eq!(broker.status().retained, usize::from(!retain));
+                    assert_eq!(broker.status().incoming_qos2, 0);
+                    assert_eq!(broker.status().pending_messages, 0);
+                    if completed {
+                        // Once PUBCOMP has completed, the same ID is a new
+                        // exchange; a normal retained publication works again.
+                        let mut fresh = string("expiry/value");
+                        fresh.extend([0, 23, 0]);
+                        fresh.extend(b"fresh");
+                        source.send(codec::frame(0x33, &fresh)).await;
+                        assert_eq!(source.recv().await, (0x40, vec![0, 23]));
+                        let mut expected = string("expiry/value");
+                        expected.extend(b"fresh");
+                        assert_eq!(observer.recv().await, (0x30, expected));
+                        assert_eq!(broker.status().retained, 1);
+                    }
+                    stop(&app).await;
+                    drop((app, source, observer));
+                }
+                std::fs::remove_file(path).unwrap();
+            }
+        }
+    }
+}
+
+#[cfg(feature = "mqtt5")]
+#[tokio::test]
+async fn qos2_sender_wrong_ack_phase_matrix_preserves_ownership_across_sqlite_restart() {
+    for v5 in [false, true] {
+        for release in [false, true] {
+            for event in ["wrong-kind", "wrong-id", "premature-or-duplicate"] {
+                eprintln!("sender restart matrix: mqtt5={v5} release={release} event={event}");
+                let path = database_path();
+                let (app, broker) = launch_qos2(&path, Faults::default()).await;
+                let addr = broker.local_addr().unwrap();
+                let mut sink = sender_matrix_connect(addr, v5, false).await;
+                let (mut source, _) = Client::connect(addr, "sender-source", true).await;
+                source.publish("matrix/q2", b"original", 2, false).await;
+                let id = sender_matrix_delivery(&mut sink, v5, false, b"original").await;
+                if release {
+                    sink.send(codec::frame(0x50, &id.to_be_bytes())).await;
+                    assert_eq!(sink.recv().await, (0x62, id.to_be_bytes().to_vec()));
+                }
+                stop(&app).await;
+                drop((app, sink, source));
+                // Two real restarts: the second must preserve the state after
+                // the wrong ACK, not just the initial pre-fault image.
+                for after_fault in [false, true] {
+                    let (app, broker) = launch_qos2(&path, Faults::default()).await;
+                    let addr = broker.local_addr().unwrap();
+                    let mut sink = sender_matrix_connect(addr, v5, true).await;
+                    if release {
+                        assert_eq!(sink.recv().await, (0x62, id.to_be_bytes().to_vec()));
+                    } else {
+                        assert_eq!(
+                            sender_matrix_delivery(&mut sink, v5, true, b"original").await,
+                            id
+                        );
+                    }
+                    assert_eq!(broker.status().pending_messages, 1);
+                    if !after_fault {
+                        let (head, sent_id) = match event {
+                            "wrong-kind" => (0x40, id),
+                            "wrong-id" => (if release { 0x70 } else { 0x50 }, id ^ 0x8000),
+                            _ => (if release { 0x50 } else { 0x70 }, id),
+                        };
+                        sink.send(codec::frame(head, &sent_id.to_be_bytes())).await;
+                        if release && event == "premature-or-duplicate" {
+                            assert_eq!(sink.recv().await, (0x62, id.to_be_bytes().to_vec()));
+                        }
+                        super::qos2::ping(&mut sink).await;
+                        assert_eq!(broker.status().pending_messages, 1);
+                    } else {
+                        sender_matrix_finish(&mut sink, release, id).await;
+                        assert_eq!(broker.status().pending_messages, 0);
+                        let (mut source, _) = Client::connect(addr, "sender-source", true).await;
+                        source.publish("matrix/q2", b"next", 2, false).await;
+                        let next = sender_matrix_delivery(&mut sink, v5, false, b"next").await;
+                        assert_ne!(next, id);
+                        sender_matrix_finish(&mut sink, false, next).await;
+                        assert_eq!(broker.status().pending_messages, 0);
+                        assert_eq!(broker.status().incoming_qos2, 0);
+                    }
+                    assert_eq!(broker.status().generation, 1);
+                    stop(&app).await;
+                    drop((app, sink));
+                }
+                std::fs::remove_file(path).unwrap();
+            }
+        }
+    }
+}
+
+#[cfg(feature = "mqtt5")]
+#[tokio::test]
+async fn mqtt5_negative_pubrec_reason_matrix_after_sqlite_restart_only_releases_publish_phase() {
+    // Seven legal Client failure reasons x Publish/Release phase. A late
+    // negative PUBREC must not discard a transfer already advanced to PUBREL.
+    for release in [false, true] {
+        for reason in [0x80, 0x83, 0x87, 0x90, 0x91, 0x97, 0x99] {
+            eprintln!("negative PUBREC restart matrix: release={release} reason={reason:02x}");
+            let path = database_path();
+            let (app, broker) = launch_qos2(&path, Faults::default()).await;
+            let addr = broker.local_addr().unwrap();
+            let mut sink = sender_matrix_connect(addr, true, false).await;
+            let (mut source, _) = Client::connect(addr, "sender-source", true).await;
+            source.publish("matrix/q2", b"original", 2, false).await;
+            let id = sender_matrix_delivery(&mut sink, true, false, b"original").await;
+            if release {
+                sink.send(codec::frame(0x50, &id.to_be_bytes())).await;
+                assert_eq!(sink.recv().await, (0x62, id.to_be_bytes().to_vec()));
+            }
+            stop(&app).await;
+            drop((app, sink, source));
+            let (app, broker) = launch_qos2(&path, Faults::default()).await;
+            let mut sink = sender_matrix_connect(broker.local_addr().unwrap(), true, true).await;
+            if release {
+                assert_eq!(sink.recv().await, (0x62, id.to_be_bytes().to_vec()));
+            } else {
+                assert_eq!(
+                    sender_matrix_delivery(&mut sink, true, true, b"original").await,
+                    id
+                );
+            }
+            let mut body = id.to_be_bytes().to_vec();
+            body.push(reason);
+            sink.send(codec::frame(0x50, &body)).await;
+            super::qos2::ping(&mut sink).await;
+            assert_eq!(broker.status().pending_messages, usize::from(release));
+            stop(&app).await;
+            drop((app, sink));
+            let (app, broker) = launch_qos2(&path, Faults::default()).await;
+            let addr = broker.local_addr().unwrap();
+            let mut sink = sender_matrix_connect(addr, true, true).await;
+            if release {
+                assert_eq!(sink.recv().await, (0x62, id.to_be_bytes().to_vec()));
+                sender_matrix_finish(&mut sink, true, id).await;
+            } else {
+                super::qos2::ping(&mut sink).await;
+            }
+            assert_eq!(broker.status().pending_messages, 0);
+            let (mut source, _) = Client::connect(addr, "sender-source", true).await;
+            source.publish("matrix/q2", b"next", 2, false).await;
+            let next = sender_matrix_delivery(&mut sink, true, false, b"next").await;
+            assert_ne!(next, id);
+            sender_matrix_finish(&mut sink, false, next).await;
+            assert_eq!(broker.status().pending_messages, 0);
+            stop(&app).await;
+            drop((app, sink, source));
+            std::fs::remove_file(path).unwrap();
+        }
+    }
+}
+
+#[cfg(feature = "mqtt5")]
+#[tokio::test]
+async fn client_ack_server_only_reason_matrix_closes_without_mutating_sqlite_sender_ownership() {
+    // MQTT5 Server-only0x10 is not a valid Client ACK. In3.1.1 the
+    // extra Reason Code/Property Length bytes are themselves malformed.
+    for v5 in [false, true] {
+        for phase in ["qos1", "qos2-publish", "qos2-release"] {
+            for explicit in [false, true] {
+                eprintln!("ACK role matrix: mqtt5={v5} phase={phase} explicit={explicit}");
+                let qos = if phase == "qos1" { 1 } else { 2 };
+                let release = phase == "qos2-release";
+                let path = database_path();
+                let (app, broker) = launch_qos2(&path, Faults::default()).await;
+                let addr = broker.local_addr().unwrap();
+                let mut sink = sender_matrix_connect(addr, v5, false).await;
+                let (mut source, _) = Client::connect(addr, "role-source", true).await;
+                source.publish("matrix/q2", b"original", qos, false).await;
+                let id = sender_matrix_delivery_qos(&mut sink, v5, qos, false, b"original").await;
+                if release {
+                    sink.send(codec::frame(0x50, &id.to_be_bytes())).await;
+                    assert_eq!(sink.recv().await, (0x62, id.to_be_bytes().to_vec()));
+                }
+                let mut body = id.to_be_bytes().to_vec();
+                body.push(0x10);
+                if explicit {
+                    body.push(0);
+                }
+                sink.send(codec::frame(if qos == 1 { 0x40 } else { 0x50 }, &body))
+                    .await;
+                assert_eq!(
+                    tokio::time::timeout(Duration::from_secs(2), sink.0.read(&mut [0]))
+                        .await
+                        .unwrap()
+                        .unwrap(),
+                    0,
+                    "illegal ACK must close before another success response"
+                );
+                // An unrelated connection can still exchange control and data;
+                // rejection neither completes nor advances the owned message.
+                super::qos2::ping(&mut source).await;
+                source.publish("matrix/health", b"healthy", 1, false).await;
+                assert_eq!(broker.status().pending_messages, 1);
+                stop(&app).await;
+                drop((app, sink, source));
+                let (app, broker) = launch_qos2(&path, Faults::default()).await;
+                let addr = broker.local_addr().unwrap();
+                let mut sink = sender_matrix_connect(addr, v5, true).await;
+                if release {
+                    assert_eq!(sink.recv().await, (0x62, id.to_be_bytes().to_vec()));
+                } else {
+                    assert_eq!(
+                        sender_matrix_delivery_qos(&mut sink, v5, qos, true, b"original").await,
+                        id
+                    );
+                }
+                if qos == 1 {
+                    sink.send(codec::frame(0x40, &id.to_be_bytes())).await;
+                    super::qos2::ping(&mut sink).await;
+                } else {
+                    sender_matrix_finish(&mut sink, release, id).await;
+                }
+                assert_eq!(broker.status().pending_messages, 0);
+                let (mut source, _) = Client::connect(addr, "role-source", true).await;
+                source.publish("matrix/q2", b"next", 2, false).await;
+                let next = sender_matrix_delivery(&mut sink, v5, false, b"next").await;
+                assert_ne!(next, id);
+                sender_matrix_finish(&mut sink, false, next).await;
+                assert_eq!(broker.status().pending_messages, 0);
+                assert_eq!(broker.status().incoming_qos2, 0);
+                stop(&app).await;
+                drop((app, sink, source));
+                std::fs::remove_file(path).unwrap();
+            }
+        }
+    }
+}
+
+#[cfg(feature = "mqtt5")]
+#[tokio::test]
+async fn mqtt5_client_ack_legal_reason_matrix_completes_once_across_sqlite_restarts() {
+    // Both ACK kinds x eight legal Client reasons x shortened/explicit
+    // Properties. A negative PUBREC ends Publish ownership without PUBREL.
+    for qos in [1, 2] {
+        for reason in [0, 0x80, 0x83, 0x87, 0x90, 0x91, 0x97, 0x99] {
+            for explicit in [false, true] {
+                eprintln!("legal ACK matrix: qos={qos} reason={reason:02x} explicit={explicit}");
+                let path = database_path();
+                let (app, broker) = launch_qos2(&path, Faults::default()).await;
+                let addr = broker.local_addr().unwrap();
+                let mut sink = sender_matrix_connect(addr, true, false).await;
+                let (mut source, _) = Client::connect(addr, "legal-source", true).await;
+                source.publish("matrix/q2", b"original", qos, false).await;
+                let id = sender_matrix_delivery_qos(&mut sink, true, qos, false, b"original").await;
+                stop(&app).await;
+                drop((app, sink, source));
+                let (app, broker) = launch_qos2(&path, Faults::default()).await;
+                let mut sink =
+                    sender_matrix_connect(broker.local_addr().unwrap(), true, true).await;
+                assert_eq!(
+                    sender_matrix_delivery_qos(&mut sink, true, qos, true, b"original").await,
+                    id
+                );
+                let mut body = id.to_be_bytes().to_vec();
+                body.push(reason);
+                if explicit {
+                    body.push(0);
+                }
+                sink.send(codec::frame(if qos == 1 { 0x40 } else { 0x50 }, &body))
+                    .await;
+                if qos == 2 && reason == 0 {
+                    assert_eq!(sink.recv().await, (0x62, id.to_be_bytes().to_vec()));
+                    sink.send(codec::frame(0x70, &id.to_be_bytes())).await;
+                }
+                // A surprising PUBREL, extra PUBLISH or connection closure
+                // cannot pass this FIFO barrier.
+                super::qos2::ping(&mut sink).await;
+                assert_eq!(broker.status().pending_messages, 0);
+                stop(&app).await;
+                drop((app, sink));
+                let (app, broker) = launch_qos2(&path, Faults::default()).await;
+                let addr = broker.local_addr().unwrap();
+                let mut sink = sender_matrix_connect(addr, true, true).await;
+                super::qos2::ping(&mut sink).await;
+                let (mut source, _) = Client::connect(addr, "legal-source", true).await;
+                source.publish("matrix/q2", b"next", 2, false).await;
+                let next = sender_matrix_delivery(&mut sink, true, false, b"next").await;
+                assert_ne!(next, id);
+                sender_matrix_finish(&mut sink, false, next).await;
+                assert_eq!(broker.status().pending_messages, 0);
+                stop(&app).await;
+                drop((app, sink, source));
+                std::fs::remove_file(path).unwrap();
+            }
+        }
+    }
+}
+
+#[cfg(feature = "mqtt5")]
+#[tokio::test]
+async fn qos2_duplex_same_id_commit_fault_matrix_recovers_each_direction_independently() {
+    for v5 in [false, true] {
+        for release in [false, true] {
+            for incoming in [false, true] {
+                // Before commit, lost receipt resolved by Query, and committed
+                // but unconfirmable until recovery are different durable states.
+                for mode in [3, 2, 7] {
+                    eprintln!(
+                        "duplex commit matrix: mqtt5={v5} release={release} incoming={incoming} mode={mode}"
+                    );
+                    let path = database_path();
+                    let faults = Faults::default();
+                    let (app, broker) = launch_qos2(&path, faults.clone()).await;
+                    let addr = broker.local_addr().unwrap();
+                    let mut owner = sender_matrix_connect(addr, v5, false).await;
+                    let (mut source, _) = Client::connect(addr, "fault-source", true).await;
+                    source.publish("matrix/q2", b"original", 2, false).await;
+                    let id = sender_matrix_delivery(&mut owner, v5, false, b"original").await;
+                    if release {
+                        super::qos2::received(&mut owner, id).await;
+                    }
+                    duplex_publish_start(&mut owner, v5, id, b"inbound", false).await;
+                    assert_eq!(broker.status().incoming_qos2, 1);
+                    assert_eq!(broker.status().pending_messages, 1);
+                    faults.mode.store(mode, Ordering::Release);
+                    let head = if incoming {
+                        0x62
+                    } else if release {
+                        0x70
+                    } else {
+                        0x50
+                    };
+                    owner.send(codec::frame(head, &id.to_be_bytes())).await;
+                    if mode == 2 {
+                        if incoming || !release {
+                            assert_eq!(
+                                owner.recv().await,
+                                (
+                                    if incoming { 0x70 } else { 0x62 },
+                                    id.to_be_bytes().to_vec()
+                                )
+                            );
+                        }
+                        super::qos2::ping(&mut owner).await;
+                        assert_eq!(broker.status().storage_commit_failures, 0);
+                        assert_eq!(faults.mode.load(Ordering::Acquire), 0);
+                    } else {
+                        assert!(matches!(
+                            tokio::time::timeout(Duration::from_secs(2), owner.0.read_u8()).await,
+                            Ok(Err(_))
+                        ));
+                        assert!(broker.status().storage_commit_failures > 0);
+                    }
+                    assert!(faults.queries.load(Ordering::Relaxed) > 0);
+                    stop(&app).await;
+                    drop((app, owner, source));
+
+                    let (app, broker) = launch_qos2(&path, Faults::default()).await;
+                    let addr = broker.local_addr().unwrap();
+                    let committed = mode != 3;
+                    let inbound_owned = !(committed && incoming);
+                    let outbound_owned = !(committed && !incoming && release);
+                    let resumed_release = release || (committed && !incoming);
+                    assert_eq!(broker.status().incoming_qos2, usize::from(inbound_owned));
+                    assert_eq!(
+                        broker.status().pending_messages,
+                        usize::from(outbound_owned)
+                    );
+                    let mut owner = sender_matrix_connect(addr, v5, true).await;
+                    if outbound_owned {
+                        if resumed_release {
+                            assert_eq!(owner.recv().await, (0x62, id.to_be_bytes().to_vec()));
+                        } else {
+                            assert_eq!(
+                                sender_matrix_delivery(&mut owner, v5, true, b"original").await,
+                                id
+                            );
+                        }
+                    } else {
+                        super::qos2::ping(&mut owner).await;
+                    }
+                    let (mut observer, _) = Client::connect(addr, "fault-observer", true).await;
+                    assert_eq!(observer.subscribe(&[("matrix/in", 0)]).await, [0]);
+                    if inbound_owned {
+                        duplex_publish_start(&mut owner, v5, id, b"changed", true).await;
+                        super::qos2::ping(&mut observer).await;
+                        super::qos2::release(&mut owner, id).await;
+                    }
+                    assert_eq!(
+                        broker.status().pending_messages,
+                        usize::from(outbound_owned)
+                    );
+                    if outbound_owned {
+                        sender_matrix_finish(&mut owner, resumed_release, id).await;
+                    }
+                    duplex_publish_start(&mut owner, v5, id, b"reused", false).await;
+                    let mut expected = string("matrix/in");
+                    expected.extend(b"reused");
+                    assert_eq!(observer.recv().await, (0x30, expected));
+                    super::qos2::release(&mut owner, id).await;
+                    super::qos2::ping(&mut observer).await;
+                    assert_eq!(broker.status().incoming_qos2, 0);
+                    assert_eq!(broker.status().pending_messages, 0);
+                    stop(&app).await;
+                    drop((app, owner, observer));
+                    let (app, broker) = launch_qos2(&path, Faults::default()).await;
+                    let mut owner =
+                        sender_matrix_connect(broker.local_addr().unwrap(), v5, true).await;
+                    super::qos2::ping(&mut owner).await;
+                    assert_eq!(broker.status().incoming_qos2, 0);
+                    assert_eq!(broker.status().pending_messages, 0);
+                    stop(&app).await;
+                    drop((app, owner));
+                    std::fs::remove_file(path).unwrap();
+                }
+            }
+        }
+    }
+}
+
+#[cfg(feature = "mqtt5")]
+fn retained_expiry(broker: &BrokerHandle) -> u64 {
+    let snapshot = serde_json::to_value(broker.state.lock().unwrap().snapshot()).unwrap();
+    snapshot["retained"][0]["properties"]["expires_at_ms"]
+        .as_u64()
+        .unwrap()
+}
+
+#[cfg(feature = "mqtt5")]
+async fn wait_unix(deadline: u64) {
+    while unix_time_ms() < deadline {
+        tokio::time::sleep(Duration::from_millis(
+            deadline - unix_time_ms().min(deadline),
+        ))
+        .await;
+    }
+}
+
+#[cfg(feature = "mqtt5")]
+async fn ttl_delivery(client: &mut Client, dup: bool, expiry_zero: bool) -> u16 {
+    let (head, body) = client.recv().await;
+    assert_eq!(head, if dup { 0x3c } else { 0x34 });
+    assert_eq!(&body[..11], string("matrix/q2"));
+    let id = u16::from_be_bytes([body[11], body[12]]);
+    assert_ne!(id, 0);
+    assert_eq!(&body[13..15], &[7, 2]);
+    let remaining = u32::from_be_bytes(body[15..19].try_into().unwrap());
+    if expiry_zero {
+        assert_eq!(remaining, 0);
+    } else {
+        assert!((1..=4).contains(&remaining));
+    }
+    assert_eq!(&body[19..22], &[0x0b, 17, b't']);
+    assert_eq!(&body[21..], b"ttl-payload");
+    id
+}
+
+#[cfg(feature = "mqtt5")]
+#[tokio::test]
+async fn mqtt5_positive_ttl_phase_restart_matrix_expires_only_unsent_messages_and_retained() {
+    use super::mqtt5::{connect, publish, sub};
+    for phase in ["queued", "publish", "release"] {
+        for expire_before_restart in [false, true] {
+            eprintln!(
+                "positive TTL matrix: phase={phase} expire_before_restart={expire_before_restart}"
+            );
+            let path = database_path();
+            let (app, broker) = launch_qos2(&path, Faults::default()).await;
+            let addr = broker.local_addr().unwrap();
+            let mut sink = sender_matrix_connect(addr, true, false).await;
+            if phase == "queued" {
+                sink.send(vec![0xe0, 0]).await;
+                assert_eq!(sink.0.read(&mut [0]).await.unwrap(), 0);
+            }
+            let (mut source, _) = connect(addr, "ttl-source", true, 60, &[], None).await;
+            publish(
+                &mut source,
+                "matrix/q2",
+                b"ttl-payload",
+                2,
+                &[2, 0, 0, 0, 4],
+                true,
+            )
+            .await;
+            let deadline = retained_expiry(&broker);
+            assert!(deadline > unix_time_ms());
+            let id = if phase == "queued" {
+                0
+            } else {
+                ttl_delivery(&mut sink, false, false).await
+            };
+            if phase == "release" {
+                super::qos2::received(&mut sink, id).await;
+            }
+            // A real wall-clock checkpoint checks decremented positive TTL on
+            // retained replay before crossing the absolute persisted deadline.
+            wait_unix(deadline.saturating_sub(1500)).await;
+            let (mut early, _) = connect(addr, "ttl-early", true, 0, &[], None).await;
+            sub(&mut early, &[("matrix/q2", 0)], None).await;
+            let (head, body) = early.recv().await;
+            assert_eq!(head, 0x31);
+            assert_eq!(
+                &body[..13],
+                &[
+                    0, 9, b'm', b'a', b't', b'r', b'i', b'x', b'/', b'q', b'2', 5, 2
+                ]
+            );
+            let remaining = u32::from_be_bytes(body[13..17].try_into().unwrap());
+            assert!((1..=2).contains(&remaining));
+            assert_eq!(&body[17..], b"ttl-payload");
+            if expire_before_restart {
+                wait_unix(deadline + 1).await;
+            }
+            stop(&app).await;
+            drop((app, source, sink, early));
+            let (app, broker) = launch_qos2(&path, Faults::default()).await;
+            let addr = broker.local_addr().unwrap();
+            if !expire_before_restart {
+                assert!(
+                    unix_time_ms() < deadline,
+                    "restart must finish before expiry in this branch"
+                );
+                assert_eq!(retained_expiry(&broker), deadline);
+                wait_unix(deadline + 1).await;
+            }
+            let mut sink = sender_matrix_connect(addr, true, true).await;
+            if phase == "queued" {
+                super::qos2::ping(&mut sink).await;
+            } else if phase == "publish" {
+                assert_eq!(ttl_delivery(&mut sink, true, true).await, id);
+                sender_matrix_finish(&mut sink, false, id).await;
+            } else {
+                assert_eq!(sink.recv().await, (0x62, id.to_be_bytes().to_vec()));
+                sender_matrix_finish(&mut sink, true, id).await;
+            }
+            let (mut late, _) = Client::connect(addr, "ttl-late", true).await;
+            assert_eq!(late.subscribe(&[("matrix/q2", 0)]).await, [0]);
+            super::qos2::ping(&mut late).await;
+            assert_eq!(broker.status().pending_messages, 0);
+            let (mut source, _) = Client::connect(addr, "ttl-next", true).await;
+            source.publish("matrix/q2", b"fresh", 2, false).await;
+            let next = sender_matrix_delivery(&mut sink, true, false, b"fresh").await;
+            sender_matrix_finish(&mut sink, false, next).await;
+            let mut expected = string("matrix/q2");
+            expected.extend(b"fresh");
+            assert_eq!(late.recv().await, (0x30, expected));
+            stop(&app).await;
+            drop((app, sink, late, source));
+            let (app, broker) = launch_qos2(&path, Faults::default()).await;
+            let mut sink = sender_matrix_connect(broker.local_addr().unwrap(), true, true).await;
+            super::qos2::ping(&mut sink).await;
+            assert_eq!(broker.status().pending_messages, 0);
+            assert_eq!(broker.status().retained, 0);
+            stop(&app).await;
+            drop((app, sink));
+            std::fs::remove_file(path).unwrap();
+        }
+    }
+}
+
+#[cfg(all(feature = "mqtt5", unix))]
+struct CrashChild {
+    process: std::process::Child,
+    port_file: std::path::PathBuf,
+}
+#[cfg(all(feature = "mqtt5", unix))]
+impl CrashChild {
+    async fn start(database: &std::path::Path) -> (Self, SocketAddr) {
+        let port_file = database.with_extension("port");
+        let _ = std::fs::remove_file(&port_file);
+        let process = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "tests::storage::qos2_duplex_same_id_sigkill_matrix_restores_both_directions_and_completion",
+                "--nocapture",
+            ])
+            .env("MQTT_DUPLEX_CHILD_DATABASE", database)
+            .env("MQTT_DUPLEX_CHILD_PORT", &port_file)
+            .stdout(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+        let mut child = Self { process, port_file };
+        let addr = tokio::time::timeout(Duration::from_secs(10), async {
+            loop {
+                if let Ok(text) = std::fs::read_to_string(&child.port_file) {
+                    if let Ok(addr) = text.parse() {
+                        break addr;
+                    }
+                }
+                assert!(
+                    child.process.try_wait().unwrap().is_none(),
+                    "crash fixture exited before listening"
+                );
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+        })
+        .await
+        .unwrap();
+        (child, addr)
+    }
+    fn crash(&mut self) {
+        use std::os::unix::process::ExitStatusExt;
+        self.process.kill().unwrap();
+        assert_eq!(self.process.wait().unwrap().signal(), Some(9));
+    }
+}
+#[cfg(all(feature = "mqtt5", unix))]
+impl Drop for CrashChild {
+    fn drop(&mut self) {
+        if self.process.try_wait().ok().flatten().is_none() {
+            let _ = self.process.kill();
+            let _ = self.process.wait();
+        }
+        let _ = std::fs::remove_file(&self.port_file);
+    }
+}
+
+#[cfg(all(feature = "mqtt5", unix))]
+#[tokio::test]
+async fn qos2_duplex_same_id_sigkill_matrix_restores_both_directions_and_completion() {
+    // The same exact test is the explicit child entry point. Its child branch
+    // never reports a test pass: the parent kills it and checks signal9. Keeping
+    // this inside the parent avoids ignored/no-op fixtures in strict evidence.
+    if let Some(database) = std::env::var_os("MQTT_DUPLEX_CHILD_DATABASE") {
+        let port_file = std::env::var_os("MQTT_DUPLEX_CHILD_PORT").unwrap();
+        let (_app, broker) = launch_qos2(std::path::Path::new(&database), Faults::default()).await;
+        std::fs::write(port_file, broker.local_addr().unwrap().to_string()).unwrap();
+        std::future::pending::<()>().await;
+    }
+    for v5 in [false, true] {
+        for release in [false, true] {
+            eprintln!("duplex SIGKILL matrix: mqtt5={v5} release={release}");
+            let path = database_path();
+            let (mut child, addr) = CrashChild::start(&path).await;
+            let mut owner = sender_matrix_connect(addr, v5, false).await;
+            let (mut source, _) = Client::connect(addr, "crash-source", true).await;
+            source
+                .publish("matrix/q2", b"crash-outbound", 2, false)
+                .await;
+            let id = sender_matrix_delivery(&mut owner, v5, false, b"crash-outbound").await;
+            if release {
+                super::qos2::received(&mut owner, id).await;
+            }
+            duplex_publish_start(&mut owner, v5, id, b"crash-inbound", false).await;
+            child.crash();
+            drop((child, owner, source));
+            let (mut child, addr) = CrashChild::start(&path).await;
+            let mut owner = sender_matrix_connect(addr, v5, true).await;
+            if release {
+                assert_eq!(owner.recv().await, (0x62, id.to_be_bytes().to_vec()));
+            } else {
+                assert_eq!(
+                    sender_matrix_delivery(&mut owner, v5, true, b"crash-outbound").await,
+                    id
+                );
+            }
+            let (mut observer, _) = Client::connect(addr, "crash-observer", true).await;
+            assert_eq!(observer.subscribe(&[("matrix/in", 0)]).await, [0]);
+            duplex_publish_start(&mut owner, v5, id, b"changed", true).await;
+            super::qos2::ping(&mut observer).await;
+            super::qos2::release(&mut owner, id).await;
+            sender_matrix_finish(&mut owner, release, id).await;
+            duplex_publish_start(&mut owner, v5, id, b"reused", false).await;
+            let mut expected = string("matrix/in");
+            expected.extend(b"reused");
+            assert_eq!(observer.recv().await, (0x30, expected));
+            super::qos2::release(&mut owner, id).await;
+            // The second real SIGKILL also verifies durable completion; normal
+            // Application shutdown must not be the event that saves these ACKs.
+            child.crash();
+            drop((child, owner, observer));
+            let (app, broker) = launch_qos2(&path, Faults::default()).await;
+            let addr = broker.local_addr().unwrap();
+            let mut owner = sender_matrix_connect(addr, v5, true).await;
+            super::qos2::ping(&mut owner).await;
+            assert_eq!(broker.status().incoming_qos2, 0);
+            assert_eq!(broker.status().pending_messages, 0);
+            let (mut source, _) = Client::connect(addr, "crash-next", true).await;
+            source.publish("matrix/q2", b"next", 2, false).await;
+            let next = sender_matrix_delivery(&mut owner, v5, false, b"next").await;
+            sender_matrix_finish(&mut owner, false, next).await;
+            stop(&app).await;
+            drop((app, owner, source));
+            std::fs::remove_file(path).unwrap();
+        }
     }
 }

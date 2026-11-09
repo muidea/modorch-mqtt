@@ -1,2 +1,0 @@
-$ python3 scripts/check-conformance.py --results docs/validation/2026-11-08-source-session-fixes/check-final.log --output docs/validation/2026-11-08-source-session-fixes/scenarios.json
-Scenario evidence Passed; normative conformance Partial

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise the TOML CLI using only local subprocesses and standard-library MQTT IO."""
 from pathlib import Path
+import os
 import re
 import selectors
 import signal
@@ -9,7 +10,7 @@ import subprocess
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-BINARY = ROOT / "target/debug/standalone-broker"
+BINARY = ROOT / os.environ.get("CARGO_TARGET_DIR", "target") / "debug/standalone-broker"
 PROFILE = ROOT / "examples/standalone-broker/mqtt.toml"
 SECRET = "must-not-appear-in-config-diagnostic"
 

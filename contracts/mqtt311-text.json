@@ -554,25 +554,52 @@
       "clauses": [
         "MQTT-4.3.2-1"
       ],
-      "source_text": "[MQTT-4.3.2-1]."
+      "source_text": "[MQTT-4.3.2-1].",
+      "preceding_context": "In the QoS 1 delivery protocol, the Sender",
+      "preceding_normative": [
+        "· MUST assign an unused Packet Identifier each time it has a new Application Message to publish.",
+        "· MUST send a PUBLISH Packet containing this Packet Identifier with QoS=1, DUP=0.",
+        "· MUST treat the PUBLISH Packet as “unacknowledged” until it has received the corresponding PUBACK packet from the receiver. See Section 4.4 for a discussion of unacknowledged messages."
+      ]
     },
     {
       "clauses": [
         "MQTT-4.3.2-2"
       ],
-      "source_text": "[MQTT-4.3.2-2]."
+      "source_text": "[MQTT-4.3.2-2].",
+      "preceding_context": "In the QoS 1 delivery protocol, the Receiver",
+      "preceding_normative": [
+        "MUST respond with a PUBACK Packet containing the Packet Identifier from the incoming PUBLISH Packet, having accepted ownership of the Application Message",
+        "After it has sent a PUBACK Packet the Receiver MUST treat any incoming PUBLISH packet that contains the same Packet Identifier as being a new publication, irrespective of the setting of its DUP flag."
+      ]
     },
     {
       "clauses": [
         "MQTT-4.3.3-1"
       ],
-      "source_text": "[MQTT-4.3.3-1]."
+      "source_text": "[MQTT-4.3.3-1].",
+      "preceding_context": "In the QoS 2 delivery protocol, the Sender",
+      "preceding_normative": [
+        "MUST assign an unused Packet Identifier when it has a new Application Message to publish.",
+        "MUST send a PUBLISH packet containing this Packet Identifier with QoS=2, DUP=0.",
+        "MUST treat the PUBLISH packet as “unacknowledged” until it has received the corresponding PUBREC packet from the receiver. See Section 4.4 for a discussion of unacknowledged messages.",
+        "MUST send a PUBREL packet when it receives a PUBREC packet from the receiver. This PUBREL packet MUST contain the same Packet Identifier as the original PUBLISH packet.",
+        "MUST treat the PUBREL packet as “unacknowledged” until it has received the corresponding PUBCOMP packet from the receiver.",
+        "MUST NOT re-send the PUBLISH once it has sent the corresponding PUBREL packet."
+      ]
     },
     {
       "clauses": [
         "MQTT-4.3.3-2"
       ],
-      "source_text": "[MQTT-4.3.3-2]."
+      "source_text": "[MQTT-4.3.3-2].",
+      "preceding_context": "In the QoS 2 delivery protocol, the Receiver",
+      "preceding_normative": [
+        "MUST respond with a PUBREC containing the Packet Identifier from the incoming PUBLISH Packet, having accepted ownership of the Application Message.",
+        "Until it has received the corresponding PUBREL packet, the Receiver MUST acknowledge any subsequent PUBLISH packet with the same Packet Identifier by sending a PUBREC. It MUST NOT cause duplicate messages to be delivered to any onward recipients in this case.",
+        "MUST respond to a PUBREL packet by sending a PUBCOMP packet containing the same Packet Identifier as the PUBREL.",
+        "After it has sent a PUBCOMP, the receiver MUST treat any subsequent PUBLISH packet that contains that Packet Identifier as being a new publication."
+      ]
     },
     {
       "clauses": [

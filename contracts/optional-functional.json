@@ -19,27 +19,60 @@
     },
     {
       "id": "OPT-MQTT5",
-      "scope": "混合3.1.1/5.0、属性/别名/选项/流控/过期/共享/负ACK及Will、在线零过期Session接管、桥接属性独立限额及幂等恢复预算/校验、跨协议恢复拒绝/显式清理重建、混合监听包长边界恢复、No Local来源持久化和旧格式保守迁移、合法Topic Alias展开的持久恢复/完整预算及线帧拒绝边界",
+      "scope": "混合3.1.1/5.0、属性/别名/选项/流控/过期/共享/负ACK及Will、在线零过期Session接管、桥接属性独立限额及幂等恢复预算/校验、跨协议恢复拒绝/显式清理重建、混合监听包长边界恢复、No Local来源持久化和旧格式保守迁移、合法Topic Alias展开的持久恢复/完整预算及线帧拒绝边界、到期后背压Will跨Session恢复/Clean Start/接管及两轮SQLite重启保留，到期前取消对照；DISCONNECT所有合法客户端原因、短格式与Will取消/触发、拒绝服务端专用原因、重复UNSUB顺序、27种属性的方向/重复/截断及SQLite恢复；共享组无在线成员时为有效持久成员接纳QoS1/2，在线优先、单一所有权、Session/Message过期、原子预算拒绝和SQLite恢复；入站Receive Maximum仅在完整PUBACK/PUBCOMP写出后归还，QoS0豁免、0x93拒绝、重连与重复完成不增额；双协议发送端错误ACK/阶段经两轮SQLite重启保留，MQTT5七种负PUBREC仅释放Publish阶段，Release阶段的迟到失败不丢所有权；R-19客户端PUBACK/PUBREC的Server专用0x10拒绝，双协议/三发送阶段/两种额外字节形式的SQLite恢复隔离，以及八种合法客户端原因/两种长度形式的完成持久性；双向同Packet ID的QoS2在两阶段/两种完成顺序及两轮SQLite重启后所有权独立；立即过期的QoS0/1/2×Retain×空/非空载荷不转发，Retain决定旧保留消息删除或保留，过期QoS2接收记录跨重启继续去重/握手，完成后ID可重用；同号双向QoS2的24个提交失败/丢回执/查询不可用组合、16个单字节ACK部分写取消/EOF组合及4个Unix双SIGKILL组合；正TTL在未发送/已发PUBLISH/Release三阶段与重启前后到期的6组合，剩余Expiry递减、绝对到期不重置、过期Retained不回放和已发QoS2仍完成",
       "tests": [
-        "tests::mqtt5::mqtt5_alias_metadata_subscription_options_window_unsubscribe_and_mixed311",
-        "tests::mqtt5::mqtt5_delayed_will_cancel_resume_session_expiry_and_message_expiry",
-        "tests::mqtt5::mqtt5_shared_groups_distribute_and_invalid_properties_close_only_offender",
-        "tests::mqtt5::mqtt5_negotiated_packet_limit_discards_oversized_delivery_without_blocking_session",
-        "tests::mqtt5::mqtt5_negative_pubrec_releases_ownership_and_disconnect_four_publishes_will",
-        "tests::storage::mqtt5_sqlite_restart_preserves_options_metadata_and_qos2_ownership",
-        "tests::mqtt5::mqtt5_online_zero_expiry_takeover_preserves_subscriptions_and_both_qos2_directions",
-        "tests::mqtt5::mqtt5_user_property_limits_reserve_two_unique_bridge_slots_and_preserve_byte_limits",
-        "tests::storage::mqtt5_sqlite_idempotency_properties_keep_their_budget_and_identity_after_restart",
-        "state::snapshot::tests::mqtt5_idempotency_restore_validates_real_properties_and_refuses_insufficient_budget",
-        "tests::storage::mixed_protocol_session_resume_is_rejected_before_fencing_and_clean_switch_survives_restart",
-        "tests::storage::mixed_listener_sqlite_restores_packet_boundary_retained_pending_qos2_and_will",
-        "tests::storage::mqtt5_no_local_retained_origin_survives_clean_reconnect_and_sqlite_restart",
-        "state::snapshot::regressions::cross_protocol_resume_rejection_keeps_both_qos2_directions_ids_and_owner",
-        "state::snapshot::regressions::retained_origin_legacy_migration_filters_no_local_and_rejects_invalid_ledger_atomically",
-        "state::snapshot::regressions::recovery_packet_bounds_cover_empty_metadata_real_properties_and_broker_identifiers",
+        "connection::receive_tests::partial_ack_write_enforces_mqtt5_receive_maximum_without_limiting_mqtt311",
+        "connection::receive_tests::queued_duplicate_pubcomp_cannot_release_reused_identifier_receive_quota",
+        "connection::receive_tests::receive_quota_requires_pubcomp_and_resets_on_reconnect_with_old_receiver_records",
+        "mqtt5::validation::tests::mqtt5_all_property_types_follow_client_direction_cardinality_and_field_boundaries",
+        "state::shared_regressions::shared_offline_global_budget_rejection_does_not_accept_or_change_retained",
+        "state::shared_regressions::shared_offline_selection_matrix_excludes_expired_sessions_and_qos0",
         "state::snapshot::alias_regressions::alias_recovery_checks_binding_real_properties_budget_and_nonnetwork_limits",
+        "state::snapshot::regressions::cross_protocol_resume_rejection_keeps_both_qos2_directions_ids_and_owner",
+        "state::snapshot::regressions::recovery_packet_bounds_cover_empty_metadata_real_properties_and_broker_identifiers",
+        "state::snapshot::regressions::retained_origin_legacy_migration_filters_no_local_and_rejects_invalid_ledger_atomically",
+        "state::snapshot::tests::mqtt5_idempotency_restore_validates_real_properties_and_refuses_insufficient_budget",
+        "tests::mqtt5::mqtt5_alias_metadata_subscription_options_window_unsubscribe_and_mixed311",
+        "tests::mqtt5::mqtt5_alias_rejects_invalid_unbound_reconnected_oversize_and_unfunded_messages_atomically",
+        "tests::mqtt5::mqtt5_delayed_will_cancel_resume_session_expiry_and_message_expiry",
+        "tests::mqtt5::mqtt5_expired_delay_will_survives_backpressure_resume_clean_start_and_takeover",
+        "tests::mqtt5::mqtt5_negative_pubrec_releases_ownership_and_disconnect_four_publishes_will",
+        "tests::mqtt5::mqtt5_negotiated_packet_limit_discards_oversized_delivery_without_blocking_session",
+        "tests::mqtt5::mqtt5_online_zero_expiry_takeover_preserves_subscriptions_and_both_qos2_directions",
+        "tests::mqtt5::mqtt5_shared_groups_distribute_and_invalid_properties_close_only_offender",
+        "tests::mqtt5::mqtt5_user_property_limits_reserve_two_unique_bridge_slots_and_preserve_byte_limits",
+        "tests::mqtt5_protocol::mqtt5_ack_and_disconnect_reason_tables_enforce_packet_kind_and_sender_role",
+        "tests::mqtt5_protocol::mqtt5_connack_omits_optional_diagnostics_and_defaults_allow_qos2_retained_with_exact_packet_limit",
+        "tests::mqtt5_protocol::mqtt5_disconnect_nonzero_reasons_publish_will_and_normal_disconnect_cancels",
+        "tests::mqtt5_protocol::mqtt5_receive_maximum_rejects_before_retained_routing_and_isolates_the_connection",
+        "tests::mqtt5_protocol::mqtt5_server_only_disconnect_is_abnormal_and_does_not_suppress_will",
+        "tests::mqtt5_protocol::mqtt5_shared_all_offline_selects_one_member_and_prefers_online_members",
+        "tests::mqtt5_protocol::mqtt5_shared_offline_full_backlog_rejects_atomically_and_clean_start_discards",
+        "tests::mqtt5_protocol::mqtt5_shared_offline_single_member_preserves_reliable_messages_and_options",
+        "tests::mqtt5_protocol::mqtt5_shared_qos2_ownership_is_not_reassigned_on_reconnect_rejection_or_session_loss",
+        "tests::mqtt5_protocol::mqtt5_unsubscribe_duplicate_filters_report_sequential_results_and_keep_inflight",
+        "tests::storage::mixed_listener_sqlite_restores_packet_boundary_retained_pending_qos2_and_will",
+        "tests::storage::mixed_protocol_session_resume_is_rejected_before_fencing_and_clean_switch_survives_restart",
         "tests::storage::mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and_real_properties",
-        "tests::mqtt5::mqtt5_alias_rejects_invalid_unbound_reconnected_oversize_and_unfunded_messages_atomically"
+        "tests::storage::mqtt5_disconnect_reason_will_state_survives_sqlite_restart",
+        "tests::storage::mqtt5_expired_delay_will_survives_sqlite_restart_and_repeated_session_resume",
+        "tests::storage::mqtt5_no_local_retained_origin_survives_clean_reconnect_and_sqlite_restart",
+        "tests::storage::mqtt5_shared_offline_sqlite_restart_preserves_selected_owners_and_expiry",
+        "tests::storage::mqtt5_sqlite_idempotency_properties_keep_their_budget_and_identity_after_restart",
+        "tests::storage::mqtt5_sqlite_restart_preserves_options_metadata_and_qos2_ownership",
+        "tests::storage::ping_on_idle_connection_does_not_wait_for_another_connections_store_commit",
+        "tests::storage::qos2_receiver_duplicate_content_retained_and_id_reuse_survive_sqlite_restart",
+        "connection::receive_tests::interrupted_partial_ack_reconnect_preserves_receiver_ownership_and_reclaims_connection_budget",
+        "tests::storage::qos2_sender_wrong_ack_phase_matrix_preserves_ownership_across_sqlite_restart",
+        "tests::storage::mqtt5_negative_pubrec_reason_matrix_after_sqlite_restart_only_releases_publish_phase",
+        "tests::storage::client_ack_server_only_reason_matrix_closes_without_mutating_sqlite_sender_ownership",
+        "tests::storage::mqtt5_client_ack_legal_reason_matrix_completes_once_across_sqlite_restarts",
+        "tests::storage::qos2_same_identifier_bidirectional_matrix_keeps_sqlite_ownership_independent",
+        "tests::storage::mqtt5_zero_expiry_retained_qos_matrix_preserves_handshake_across_sqlite_restarts",
+        "tests::storage::qos2_duplex_same_id_commit_fault_matrix_recovers_each_direction_independently",
+        "connection::receive_tests::duplex_same_id_partial_ack_interrupt_matrix_preserves_outbound_and_receiver_state",
+        "tests::storage::qos2_duplex_same_id_sigkill_matrix_restores_both_directions_and_completion",
+        "tests::storage::mqtt5_positive_ttl_phase_restart_matrix_expires_only_unsent_messages_and_retained"
       ]
     },
     {
@@ -75,6 +108,28 @@
       "scope": "编译Feature与运行时启用分别校验",
       "tests": [
         "optional_network_features_require_compilation_and_explicit_configuration"
+      ]
+    },
+    {
+      "id": "OPT-STORAGE-TIMING",
+      "scope": "脱敏区分准入拒绝、Queued取消、Running结果未知、Provider错误和总恢复期限；真实SQLite提交后丢回执按原operation_id/digest查询，73字节分页超时关闭入口且重试保留原像。功能分页4096字节与显式150ms超时探针分开，不声明生产延迟SLO。 独立连接PING不等待无关存储提交，同连接保持持久ACK顺序；TCP/TLS认证4999/5001ms受控边界拒绝迟到会话。；TCP/TLS在Authenticate及SessionAttach两个阶段验证4999/5001ms总握手边界与迟到授权不建Session",
+      "tests": [
+        "tests::auth::handshake_deadline_during_authentication_closes_tcp_and_tls_without_late_session",
+        "tests::storage::actual_committed_store_timeout_is_resolved_by_original_operation_before_next_commit",
+        "tests::storage::paginated_recovery_deadline_closes_ingress_and_retry_preserves_committed_image",
+        "tests::storage::ping_on_idle_connection_does_not_wait_for_another_connections_store_commit",
+        "tests::storage::store_diagnostics_distinguish_admission_queued_running_and_provider_failures",
+        "tests::auth::handshake_deadline_during_session_authorization_closes_tcp_and_tls_without_late_session"
+      ]
+    },
+    {
+      "id": "OPT-AUTH",
+      "scope": "有界密码准入4、单物理Argon2任务、8并发Handler；密码等待不阻塞Session/ACL，快照revision隔离、超额快速Unavailable、Running超时保留所有权直至受管工作退出；受控物理CPU闭包执行中Running超时、Owner取消、StopIncomplete/Forced后双permit持有至实际退出，监督重建等待原工作排空并拒绝旧Scheduler；已准入旧请求可在原lease下排空，不假定全部撤销",
+      "tests": [
+        "tests::blocked_password_work_does_not_block_session_acl_or_new_policy_decisions",
+        "tests::saturated_password_admission_fails_fast_while_acl_runs_and_running_timeout_retains_ownership",
+        "tests::physical_password_timeout_stop_incomplete_and_forced_shutdown_keep_permits_until_cpu_exit",
+        "tests::supervised_auth_rebuild_waits_for_old_physical_password_and_fences_old_scheduler"
       ]
     }
   ]

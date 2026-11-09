@@ -26,6 +26,8 @@
 
 Hub Request 的准入成功不等于业务成功或磁盘提交。Queued 超时表示 `CanceledBeforeStart`；Running 超时可能为 `Indeterminate`，不能推断回滚或以新 ID 安全重发。优先查询原 request_id，必要时用同源同 ID 同内容重试。
 
+Core 的 `MqttError::Storage { operation, failure }`保留固定操作名和脱敏的`StoreCallFailure`：Admission、CanceledBeforeStart、Indeterminate、Transport、Provider(StoreError)或RecoveryDeadline。不附带SQL、路径、capability、image或业务标识；RecoveryDeadline标识整个预监听恢复超时并保持入口关闭；提交结果未知时仍先查询原operation_id/digest，无法确定则关闭本代，不能将诊断类别当作回滚证明。
+
 Core 用 `MqttError` 区分配置、协议、授权、容量、存储与连接错误；内部发布使用独立的 `MqttPublishRejection`。MQTT3.1.1 线上错误遵循具体控制报文：CONNECT 明确 ID 拒绝使用 CONNACK 2，不可用使用 3，授权拒绝使用 5；无法归类时关闭连接。非法报文通常关闭当前连接，不能把任意内部错误转换成成功 ACK。
 
 ## 扩展接口

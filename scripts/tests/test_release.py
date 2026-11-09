@@ -164,8 +164,126 @@ class ReleaseTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             gate.read_json(path)
 
+    def test_review_aliases_are_rejected_at_every_execution_boundary(self):
+        import os
+        for alias in ['direct', 'dot', 'symlink', 'hardlink']:
+            for location in ['review', 'nested', 'results']:
+                with self.subTest(alias=alias, location=location):
+                    self.approve()
+                    reference = dict(self.bundle['reviews']['MQTT-1.5.3-1'])
+                    target = self.root / reference['path']
+                    if alias == 'dot':
+                        reference['path'] = './' + reference['path']
+                    elif alias in {'symlink', 'hardlink'}:
+                        link = self.root / f'{alias}-{location}.json'
+                        if alias == 'symlink':
+                            link.symlink_to(target)
+                        else:
+                            os.link(target, link)
+                        reference['path'] = link.name
+                    bundle = copy.deepcopy(self.bundle)
+                    if location == 'results':
+                        bundle['results'] = reference
+                    elif location == 'review':
+                        self.update_review('MQTT-ARCH-001', lambda r: r.update(evidence=[reference]))
+                        bundle = self.bundle
+                    else:
+                        self.replace_gate_execution(reference)
+                        bundle = self.bundle
+                    with self.assertRaisesRegex(ValueError, 'execution evidence'):
+                        gate.evaluate(self.root, bundle)
+
+    def replace_gate_execution(self, reference):
+        review = gate.read_json(self.root / self.bundle['reviews']['F8-REMOTE-CI']['path'])
+        report = gate.read_json(self.root / review['report']['path'])
+        report['checks'][0]['evidence'] = [reference]
+        new_ref = self.put('F8-REMOTE-CI-report.json', report)
+        self.update_review('F8-REMOTE-CI', lambda r: r.update(report=new_ref, evidence=[new_ref]))
+
+    def test_nested_report_cannot_use_its_own_file_alias_as_execution(self):
+        import os
+        for alias in ['dot', 'symlink', 'hardlink']:
+            with self.subTest(alias=alias):
+                self.approve()
+                target = self.root / 'F8-REMOTE-CI-report.json'
+                reference = dict(path='./'+target.name, sha256='0'*64)
+                if alias != 'dot':
+                    link = self.root / f'report-{alias}.json'
+                    if alias == 'symlink':
+                        link.symlink_to(target)
+                    else:
+                        os.link(target, link)
+                    reference['path'] = link.name
+                # A self hash cannot be constructed; identity must be rejected
+                # before attempting to validate that impossible recursive hash.
+                self.replace_gate_execution(reference)
+                with self.assertRaisesRegex(ValueError, 'execution evidence'):
+                    gate.evaluate(self.root, self.bundle)
+
+    def test_legal_log_aliases_keep_the_complete_pass_path(self):
+        import os
+        for alias in ['dot', 'symlink', 'hardlink']:
+            with self.subTest(alias=alias):
+                self.approve()
+                reference = dict(self.bundle['results'], path='./cargo.log')
+                if alias != 'dot':
+                    link = self.root / f'log-{alias}'
+                    if alias == 'symlink':
+                        link.symlink_to(self.root / 'cargo.log')
+                    else:
+                        os.link(self.root / 'cargo.log', link)
+                    reference['path'] = link.name
+                self.replace_gate_execution(reference)
+                self.assertEqual(gate.evaluate(self.root, self.bundle)['overall_status'], 'Passed')
+
+    def test_review_copies_cannot_be_execution_evidence_at_any_boundary(self):
+        import shutil
+        for location in ['review', 'nested', 'results']:
+            with self.subTest(location=location):
+                self.approve()
+                reference = dict(self.bundle['reviews']['MQTT-1.5.3-1'])
+                copied = self.root / f'copied-{location}.json'
+                shutil.copyfile(self.root / reference['path'], copied)
+                reference['path'] = copied.name
+                bundle = copy.deepcopy(self.bundle)
+                if location == 'review':
+                    self.update_review('MQTT-ARCH-001', lambda r: r.update(evidence=[reference]))
+                    bundle = self.bundle
+                elif location == 'nested':
+                    self.replace_gate_execution(reference)
+                    bundle = self.bundle
+                else:
+                    bundle['results'] = reference
+                with self.assertRaisesRegex(ValueError, 'execution evidence'):
+                    gate.evaluate(self.root, bundle)
+
+    def test_legitimate_copied_logs_still_pass_nested_checks(self):
+        import shutil
+        self.approve()
+        copied = self.root / 'copied-cargo.log'
+        shutil.copyfile(self.root / 'cargo.log', copied)
+        reference = dict(self.bundle['results'], path=copied.name)
+        self.replace_gate_execution(reference)
+        self.assertEqual(gate.evaluate(self.root, self.bundle)['overall_status'], 'Passed')
+
 
 class CatalogTests(unittest.TestCase):
+    def test_standalone_qos_markers_cannot_hide_missing_lists_or_wrong_role(self):
+        read = gate.read_json
+        for change in ["missing", "truncated", "wrong-role"]:
+            with self.subTest(change=change):
+                text = read(REPO / "contracts/mqtt311-text.json")
+                row = next(p for p in text["paragraphs"] if "MQTT-4.3.3-2" in p["clauses"])
+                if change == "missing":
+                    row.pop("preceding_normative")
+                elif change == "truncated":
+                    row["preceding_normative"].pop()
+                else:
+                    row["preceding_context"] = "In the QoS 2 delivery protocol, the Sender"
+                with patch.object(gate, "read_json", side_effect=lambda p: text if p.name == "mqtt311-text.json" else read(p)):
+                    with self.assertRaisesRegex(ValueError, "QoS obligation text"):
+                        gate.catalog(REPO)
+
     def test_real_catalog_preserves_all_design_must_and_all_normative_obligations(self):
         rows, excluded = gate.catalog(REPO)
         self.assertEqual(len(rows), 178)

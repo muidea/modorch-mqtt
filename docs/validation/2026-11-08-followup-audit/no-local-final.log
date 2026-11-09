@@ -1,5 +1,0 @@
-Binary sha256: c46b12287a12f8d14787d9c5e50eef817af189079753540a3fb5c14a0d7ab80d
-REPRODUCED No Local: publishing ClientID receives its own retained PUBLISH on NoLocal=1 subscription [(51, b'\x00\x0eaudit/no-local\x00\x01\x00payload')]
-CONTROL: different ClientID with NoLocal=1 receives retained PUBLISH
-CONTROL: live own publication is filtered; PINGRESP barrier reached without PUBLISH
-Broker checked shutdown: exit 0

@@ -164,6 +164,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         Ok(())
     }
     .await;
+    if let Err(error) = &run_result {
+        // Emit the host failure before checked cleanup can close client sockets;
+        // preserve the cause even if a diagnostic client aborts the process.
+        eprintln!(
+            "secure host run failed before checked shutdown: {error}; broker_status={:?}",
+            mqtt.handle().status()
+        );
+    }
     // Once started, always complete checked cleanup, including a metrics or
     // signal error. Keep the shutdown failure visible before returning run errors.
     let shutdown_result = app.shutdown_checked(ShutdownOptions::graceful()).await;

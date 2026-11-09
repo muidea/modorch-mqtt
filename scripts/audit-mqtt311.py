@@ -91,15 +91,33 @@ def numbered_inventory(raw, matrix):
         def handle_endtag(self, tag):
             if self.blocks and tag == self.blocks[-1][0]:
                 _, fragments = self.blocks.pop()
-                self.items.append(re.sub(r"\s+", " ", "".join(fragments)).strip())
+                value = re.sub(r"\s+", " ", "".join(fragments)).strip()
+                if value and not self.blocks:
+                    self.items.append(value)
 
     parser = Blocks()
     parser.feed(raw.decode("cp1252"))
     rows = []
-    for text in parser.items:
+    for index, text in enumerate(parser.items):
         ids = re.findall(r"\[(MQTT[-–][0-9]+(?:[-.][0-9]+)+\.?-[0-9]+)\]", text)
         if ids:
             row = {"clauses": list(dict.fromkeys(i.replace("MQTT-3.3.1.-1", "MQTT-3.3.1-1") for i in ids)), "source_text": text}
+            # Four QoS markers are standalone paragraphs in the official HTML.
+            # Their obligations precede them in p/li blocks, including nested
+            # inline markup. A bare identifier alone is not reviewable text.
+            if re.fullmatch(r"\[MQTT[-–][\d.]+-\d+\]\.?", text):
+                preceding = []
+                at = index - 1
+                while at >= 0 and re.search(r"\b(MUST|SHALL|REQUIRED)\b", parser.items[at]):
+                    candidate = parser.items[at]
+                    if re.search(r"MQTT[-–]", candidate):
+                        break
+                    preceding.insert(0, candidate)
+                    at -= 1
+                if not preceding or at < 0:
+                    raise ValueError("standalone clause marker lacks preceding normative text/context")
+                row["preceding_context"] = parser.items[at]
+                row["preceding_normative"] = preceding
             if row not in rows:
                 rows.append(row)
     found = {clause for row in rows for clause in row["clauses"]}

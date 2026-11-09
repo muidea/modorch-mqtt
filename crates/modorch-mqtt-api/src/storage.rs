@@ -133,3 +133,21 @@ pub struct StoreEnvelope {
     /// Requested storage operation.
     pub request: StoreRequest,
 }
+
+/// Sanitized distinction between Store admission, execution uncertainty and reply errors.
+/// A caller timeout is never proof that a running durable operation rolled back.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StoreCallFailure {
+    /// The Hub rejected the request before returning a response handle.
+    Admission,
+    /// Queued work was canceled without starting its handler.
+    CanceledBeforeStart,
+    /// A running handler did not return in time; its durable outcome is unknown.
+    Indeterminate,
+    /// The Hub could not supply the typed response for another execution reason.
+    Transport,
+    /// The whole paginated recovery exceeded its deadline; ingress stays closed.
+    RecoveryDeadline,
+    /// The Provider returned a sanitized business error.
+    Provider(StoreError),
+}

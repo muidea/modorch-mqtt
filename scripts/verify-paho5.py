@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Independent Paho MQTT5 TCP/WebSocket verification; uses an existing isolated venv."""
+import os
 import queue
 import re
 import selectors
@@ -11,6 +12,7 @@ from pathlib import Path
 import paho.mqtt.client as mqtt
 from paho.mqtt.packettypes import PacketTypes
 from paho.mqtt.properties import Properties
+from paho.mqtt.reasoncodes import ReasonCode
 from paho.mqtt.subscribeoptions import SubscribeOptions
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -23,11 +25,12 @@ def run(websocket):
     if websocket:
         profile += '\n[mqtt.websocket]\nenabled=true\npath="/mqtt"\n'
     clients = []
+    unsubscribed = queue.Queue()
     with tempfile.TemporaryDirectory(prefix="mqtt5-interop-") as directory:
         path = Path(directory) / "broker.toml"
         path.write_text(profile)
         process = subprocess.Popen(
-            [str(ROOT / "target/debug/standalone-broker"), "--config", str(path)],
+            [str(ROOT / os.environ.get("CARGO_TARGET_DIR", "target") / "debug/standalone-broker"), "--config", str(path)],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
         )
         try:
@@ -39,7 +42,7 @@ def run(websocket):
             assert match, line
             port = int(match.group(1))
 
-            def client(identity):
+            def client(identity, *, will=False):
                 ready, subscribed, received = queue.Queue(), queue.Queue(), queue.Queue()
                 c = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, identity,
                                 protocol=mqtt.MQTTv5,
@@ -49,6 +52,9 @@ def run(websocket):
                 c.on_connect = lambda _c, _u, _f, reason, props: ready.put((reason, props))
                 c.on_subscribe = lambda _c, _u, _id, reasons, _p: subscribed.put(reasons)
                 c.on_message = lambda _c, _u, message: received.put(message)
+                c.on_unsubscribe = lambda _c, _u, _id, reasons, _p: unsubscribed.put(reasons)
+                if will:
+                    c.will_set("paho5/will", b"nonzero-disconnect", qos=1)
                 connect_props = Properties(PacketTypes.CONNECT)
                 connect_props.SessionExpiryInterval = 30
                 connect_props.ReceiveMaximum = 1
@@ -83,7 +89,13 @@ def run(websocket):
                 assert message.properties.UserProperty == [("kind", "interop")]
                 assert message.properties.CorrelationData == b"\x00\xff"
                 assert message.properties.ResponseTopic == "replies/one"
-            print(f"PASS: Paho MQTT5 {'WebSocket' if websocket else 'TCP'} QoS0/1/2, properties, alias and subscription identifier")
+            owner, _, _ = client("paho5-will", will=True)
+            owner.disconnect(reasoncode=ReasonCode(PacketTypes.DISCONNECT, "Unspecified error"))
+            will = messages.get(timeout=5)
+            assert will.topic == "paho5/will" and will.payload == b"nonzero-disconnect"
+            subscriber.unsubscribe(["paho5/#", "paho5/#"])
+            assert unsubscribed.get(timeout=5) == [0, 0x11]
+            print(f"PASS: Paho MQTT5 {'WebSocket' if websocket else 'TCP'} QoS0/1/2, properties, alias, subscription identifier, nonzero DISCONNECT Will and sequential duplicate UNSUBSCRIBE")
         finally:
             for c in clients:
                 c.disconnect()

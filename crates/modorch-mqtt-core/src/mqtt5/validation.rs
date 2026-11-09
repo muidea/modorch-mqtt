@@ -181,7 +181,17 @@ pub(super) fn validate(bytes: &[u8]) -> Result<Option<LoginBytes>, MqttError> {
                 return Err(invalid());
             }
             if !r.0.is_empty() {
-                r.byte()?;
+                let reason = r.byte()?;
+                // Tables3-4/3-5 reserve No matching subscribers(0x10)
+                // for Server senders. Check the Client direction before a
+                // decoded ACK can complete or advance durable ownership.
+                let allowed = match kind {
+                    4 | 5 => matches!(reason, 0 | 0x80 | 0x83 | 0x87 | 0x90 | 0x91 | 0x97 | 0x99),
+                    _ => matches!(reason, 0 | 0x92),
+                };
+                if !allowed {
+                    return Err(invalid());
+                }
                 if !r.0.is_empty() {
                     r.props(kind)?;
                 }
@@ -190,7 +200,14 @@ pub(super) fn validate(bytes: &[u8]) -> Result<Option<LoginBytes>, MqttError> {
         12 => {}
         14 => {
             if !r.0.is_empty() {
-                r.byte()?;
+                // Table3-10 distinguishes Client and Server senders. A
+                // server-only code is not a valid graceful client disconnect.
+                if !matches!(
+                    r.byte()?,
+                    0 | 4 | 0x80..=0x83 | 0x90 | 0x93..=0x99
+                ) {
+                    return Err(invalid());
+                }
                 if !r.0.is_empty() {
                     r.props(14)?;
                 }
@@ -202,4 +219,129 @@ pub(super) fn validate(bytes: &[u8]) -> Result<Option<LoginBytes>, MqttError> {
         return Err(invalid());
     }
     Ok(None)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // Table2-4 property identifiers/types, with legal nonzero scalar values.
+    const PROPERTIES: &[(u8, &[u8])] = &[
+        (1, &[1]),
+        (2, &[0, 0, 0, 1]),
+        (3, &[0, 1, b'x']),
+        (8, &[0, 1, b't']),
+        (9, &[0, 1, 0xff]),
+        (11, &[1]),
+        (17, &[0, 0, 0, 1]),
+        (18, &[0, 1, b'c']),
+        (19, &[0, 1]),
+        (21, &[0, 1, b'm']),
+        (22, &[0, 1, 0xff]),
+        (23, &[1]),
+        (24, &[0, 0, 0, 1]),
+        (25, &[1]),
+        (26, &[0, 1, b'r']),
+        (28, &[0, 1, b's']),
+        (31, &[0, 1, b'r']),
+        (33, &[0, 1]),
+        (34, &[0, 1]),
+        (35, &[0, 1]),
+        (36, &[1]),
+        (37, &[1]),
+        (38, &[0, 1, b'k', 0, 1, b'v']),
+        (39, &[0, 0, 0, 64]),
+        (40, &[1]),
+        (41, &[1]),
+        (42, &[1]),
+    ];
+
+    fn packet(kind: u8, props: &[u8]) -> Vec<u8> {
+        let mut body = match kind {
+            0 | 1 => vec![
+                0,
+                4,
+                b'M',
+                b'Q',
+                b'T',
+                b'T',
+                5,
+                if kind == 0 { 6 } else { 2 },
+                0,
+                0,
+            ],
+            3 => vec![0, 1, b't'],
+            4..=7 | 8 | 10 => vec![0, 1],
+            14 => vec![0],
+            _ => unreachable!(),
+        };
+        if kind == 0 {
+            body.extend([0, 0, 1, b'c']); // CONNECT props and ClientID
+        }
+        if matches!(kind, 4..=7) {
+            body.push(0); // explicit Success
+        }
+        body.push(props.len() as u8);
+        body.extend(props);
+        match kind {
+            0 => body.extend([0, 1, b'w', 0, 1, b'p']), // Will topic and binary payload
+            1 => body.extend([0, 1, b'c']),
+            8 => body.extend([0, 1, b't', 0]),
+            10 => body.extend([0, 1, b't']),
+            _ => (),
+        }
+        let header = match kind {
+            0 | 1 => 0x10,
+            6 | 8 | 10 => (kind << 4) | 2,
+            _ => kind << 4,
+        };
+        codec::frame(header, &body)
+    }
+
+    #[test]
+    fn mqtt5_all_property_types_follow_client_direction_cardinality_and_field_boundaries() {
+        // Independently transcribed Table2-4 plus per-packet direction rules.
+        let cases: &[(u8, &[u8])] = &[
+            (0, &[1, 2, 3, 8, 9, 24, 38]),
+            (1, &[17, 21, 22, 23, 25, 33, 34, 38, 39]),
+            (3, &[1, 2, 3, 8, 9, 35, 38]),
+            (4, &[31, 38]),
+            (5, &[31, 38]),
+            (6, &[31, 38]),
+            (7, &[31, 38]),
+            (8, &[11, 38]),
+            (10, &[38]),
+            (14, &[17, 31, 38]),
+        ];
+        for (kind, allowed) in cases {
+            assert!(validate(&packet(*kind, &[])).is_ok());
+            for (id, value) in PROPERTIES {
+                let mut prop = vec![*id];
+                prop.extend(*value);
+                assert_eq!(
+                    validate(&packet(*kind, &prop)).is_ok(),
+                    allowed.contains(id),
+                    "packet {kind}, property {id}"
+                );
+                if !allowed.contains(id) {
+                    continue;
+                }
+                let twice = [prop.as_slice(), prop.as_slice()].concat();
+                assert_eq!(
+                    validate(&packet(*kind, &twice)).is_ok(),
+                    *id == 38,
+                    "duplicate packet {kind}, property {id}"
+                );
+                for end in 1..prop.len() {
+                    assert!(
+                        validate(&packet(*kind, &prop[..end])).is_err(),
+                        "truncated packet {kind}, property {id}, end {end}"
+                    );
+                }
+            }
+            for id in [0, 4, 0x7f, 0xff] {
+                assert!(validate(&packet(*kind, &[id, 0])).is_err());
+            }
+        }
+    }
 }
