@@ -49,12 +49,35 @@ pub use modorch_mqtt_storage::{SqliteStorageConfig, SqliteStorageFactory};
 /// Factory assembly only. Construction/registration does not listen or spawn.
 pub struct MqttBrokerBundle {
     config: MqttBrokerConfig,
+    failure_policy: Option<modorch::FailurePolicy>,
 }
 
 impl MqttBrokerBundle {
     /// Build an unstarted assembly from an explicit configuration.
     pub fn new(config: MqttBrokerConfig) -> Self {
-        Self { config }
+        Self {
+            config,
+            failure_policy: None,
+        }
+    }
+
+    /// Choose Core supervision before registration without changing the host builder.
+    ///
+    /// Omitting this keeps the Core default (Restart, three attempts, 50ms backoff).
+    /// A host composing services can explicitly choose `FailurePolicy::FailFast`.
+    /// Connection-local protocol/authentication/quota failures remain local; this
+    /// policy applies to component failures. Registration still creates no work.
+    pub fn with_failure_policy(mut self, policy: modorch::FailurePolicy) -> Self {
+        self.failure_policy = Some(policy);
+        self
+    }
+
+    fn into_factory(self) -> Result<MqttBrokerFactory, MqttError> {
+        let factory = MqttBrokerFactory::new(self.config)?;
+        Ok(match self.failure_policy {
+            Some(policy) => factory.with_failure_policy(policy),
+            None => factory,
+        })
     }
 
     /// Register Core in the supplied builder; does not implicitly enable it.
@@ -63,7 +86,7 @@ impl MqttBrokerBundle {
         builder: &mut modorch::ApplicationBuilder,
     ) -> Result<MqttRegisteredComponents, MqttError> {
         let name = self.config.name.clone();
-        let factory = MqttBrokerFactory::new(self.config)?;
+        let factory = self.into_factory()?;
         let handle = factory.handle();
         builder
             .register_module(factory)
@@ -101,3 +124,39 @@ pub use modorch_mqtt_extensions::SqliteAuditConfig;
 /// Optional explicit MQTT5 network Bridge.
 #[cfg(feature = "bridge")]
 pub use modorch_mqtt_bridge as bridge;
+
+#[cfg(test)]
+mod bundle_tests {
+    use super::*;
+    use modorch::{FailurePolicy, ModuleFactory};
+    use std::time::Duration;
+
+    #[test]
+    fn bundle_supervision_preserves_core_default_and_explicit_host_choice() {
+        let cfg = MqttBrokerConfig::loopback_development;
+        let default = MqttBrokerBundle::new(cfg()).into_factory().unwrap();
+        assert_eq!(
+            default.descriptor().failure,
+            FailurePolicy::Restart {
+                max_attempts: 3,
+                backoff: Duration::from_millis(50),
+            }
+        );
+        for policy in [
+            FailurePolicy::FailFast,
+            FailurePolicy::StopDependents,
+            FailurePolicy::Restart {
+                max_attempts: 1,
+                backoff: Duration::from_millis(75),
+            },
+        ] {
+            let factory = MqttBrokerBundle::new(cfg())
+                .with_failure_policy(policy.clone())
+                .into_factory()
+                .unwrap();
+            assert_eq!(factory.descriptor().failure, policy);
+            assert!(factory.handle().local_addr().is_none());
+            assert!(!factory.handle().status().active);
+        }
+    }
+}

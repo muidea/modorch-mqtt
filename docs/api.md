@@ -14,6 +14,12 @@
 
 控制 Topic 位于 `$modorch/mqtt/control/`，网络客户端不能发布、订阅或将其用作 Will。订阅 ID 为 Application 全局唯一，多个 Broker 和扩展必须统一分配。
 
+## 宿主监督策略
+
+`MqttBrokerBundle::new(config).with_failure_policy(modorch::FailurePolicy::FailFast).register(&mut builder)` 显式选择组件级监督策略；省略时保留Core原默认Restart（最多3次、50ms backoff）。也可透传其他现有FailurePolicy。选择仅发生于注册前，不修改宿主Builder的全局预算或生命周期，不隐式启用组件。
+
+组件级故障按策略处理；非法报文、单连接认证/容量失败仍只关闭或拒绝对应连接。FailFast下组件故障使App失败，宿主保留原失败并checked drain，正常排空不把运行失败改成成功。无需新Runtime、Hub、信号或业务重放。可运行证据见[Facade监督测试](../crates/modorch-mqtt/tests/supervision.rs)与Core契约映射。
+
 ## 发布与幂等
 
 `MqttPublishRequest` 包含 `request_id`、原 MQTT Topic、Bytes payload、`Qos`、retain 和默认空的 `MqttProperties`。request_id 限 1..128 UTF-8 字节且无 NUL；完整报文仍受 Core 大小和预算限制。可编译用法见 [业务 Handler 示例](../examples/existing-modorch-server/src/main.rs) 与 [EventHub 说明](eventhub.md)。

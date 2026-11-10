@@ -37,7 +37,7 @@ cargo check -p modorch-mqtt --no-default-features --locked
 python3 .agents/skills/modorch-module-development/scripts/preflight.py --manifest-path Cargo.toml
 ```
 
-`check.sh` 检查格式、编译、Clippy、测试、Rustdoc、真实宿主和 SIGKILL 恢复，并从实际测试日志核对规范场景。共享 Topic 向量、忽略/缺失/失败日志的反向断言都进入该流程。[CI](../.github/workflows/check.yml) 另运行 MSRV 和 Paho TCP/TLS；工作流的存在不代表远端已运行通过。
+`check.sh` 检查格式、编译、Clippy、测试、Rustdoc、真实宿主和 SIGKILL 恢复，并从实际测试日志核对规范场景。共享 Topic 向量、忽略/缺失/失败日志的反向断言都进入该流程。[CI](../.github/workflows/check.yml)在push、PR和手动触发时执行，固定Ubuntu24.04、Rust1.94.0和Python3.12，另安装Rust1.85.0检查MSRV，并运行Paho TCP/TLS及MQTT5/WebSocket互操作。Action使用固定发布commit，日志进入CI artifact；开发Partial清单不作为完整发布批准，工作流存在不代表远端已运行通过。
 
 开发检查允许报告 Partial；完整规范门禁使用相同日志并加 `--require-complete`：
 

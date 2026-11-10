@@ -85,7 +85,7 @@ cargo build -p standalone-broker --locked --features modorch-mqtt/mqtt5,modorch-
 python3 scripts/verify-paho5.py
 ```
 
-[项目开发 Skill](.agents/skills/modorch-mqtt-development/SKILL.md) 当前为 1.0.4，绑定 Modorch 0.0.3 / Skill Bundle 1.0.7。Linux CI 定义见 [check.yml](.github/workflows/check.yml)；定义存在不代表远端已执行。
+[项目开发 Skill](.agents/skills/modorch-mqtt-development/SKILL.md) 当前为 1.0.5，绑定 Modorch 0.0.3 / Skill Bundle 1.0.7。Linux CI 定义见 [check.yml](.github/workflows/check.yml)；定义存在不代表远端已执行。
 
 本地测试提供限定场景的 `TargetedEvidence`。完整 MQTT3.1.1/5.0 符合性与生产发布仍为 **Partial**，178 项发布义务尚无独立评审批准；`--allow-partial` 仅用于开发清单检查。发布流程见[发布证据说明](docs/release.md)，待验收项见[剩余需求清单](docs/remaining-work.md)。短 loopback 测量不能替代生产负载、长期 RSS、高负载退出/恢复 SLO 或硬件断电验证。
 
@@ -98,3 +98,5 @@ python3 scripts/verify-paho5.py
 - 验证结论：[最终验证与收口记录](docs/validation/README.md)。归档只保留最终结论，过程日志、数据库、探针和未批准包不随源码归档；严格验收仍须真实同轮材料。
 
 [协议完整性收口](docs/protocol-integrity.md)记录QoS跨段义务、MQTT5断开/Will与取消订阅修复及规范表回归；完整F6/F7独立验收仍Partial。
+
+组合宿主可在注册前通过 `MqttBrokerBundle::with_failure_policy(FailurePolicy::FailFast)` 显式选择组件监督；省略保留默认Restart，连接级错误仍隔离。完整边界见[API说明](docs/api.md#宿主监督策略)。

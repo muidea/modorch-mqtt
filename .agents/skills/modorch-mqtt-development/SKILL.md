@@ -1,9 +1,9 @@
 ---
 name: modorch-mqtt-development
 description: "在宿主 Modorch 应用中接入或修改本项目 MQTT Broker、配置可选扩展、验证 Topic/持久化/生命周期及更新能力证据时使用。"
-compatibility: "Rust >= 1.85; Modorch 0.0.3, Skill Bundle 1.0.7"
 metadata:
-  version: "1.0.4"
+  compatibility: "Rust >= 1.85; Modorch 0.0.3, Skill Bundle 1.0.7"
+  version: "1.0.5"
   author: "modorch-mqtt maintainers"
 ---
 
@@ -23,6 +23,7 @@ metadata:
 ## 装配与实现规则
 
 - 已有宿主只复用其 ApplicationBuilder、EventHub 和 Scheduler。普通 Tokio 入口自行创建一个 Application，再采用相同模式。Bundle 只注册 Core Factory；宿主将返回的 module_ids 加入 ComponentSelection，再统一启动并检查式退出。
+- Bundle支持 `.with_failure_policy(modorch::FailurePolicy::FailFast)` 注册前显式选择组件监督，省略仍为Core默认Restart（3次/50ms）。不改全局预算或隐式启用；连接级非法报文/认证/配额错误继续隔离，组件故障FailFast须保留运行失败并checked drain。
 - Cargo `auth/tls/admin/metrics/storage/toml/mqtt5/websocket/bridge/bootstrap/audit/http` 均默认关闭。Feature 编译、Factory 注册、Core Provider 配置、Selection 显式启用分别处理；不要默认激活扩展。订阅 ID 是 Application 全局唯一。
 - `toml`只解析独立64KiB Core配置，默认禁用、未知/不支持字段拒绝且错误脱敏。Provider引用不注册Factory；宿主注入Store capability、注册Provider并显式选择。相对TLS路径由宿主提供基目录，不在解析器内读文件或创建Runtime。
 - 网络入口只在相关 ready 和持久恢复完成后 listen；监听、连接、维护和 CPU/I/O 工作使用宿主管理的任务。保留旧代际 fencing，禁止 detached 后台任务或锁内等待 I/O。

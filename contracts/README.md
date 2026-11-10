@@ -7,6 +7,7 @@
 | MQTT-ARCH-001 / ARCH-002 | 一个宿主 Application/Hub；API/Core/Facade 单向依赖；Bundle 不启动，必须显式选择 | registration_is_explicit_and_status_uses_the_hosts_hub；existing-modorch-server --once |
 | MQTT-LIFE-001 | 所有 ready 通过后 listen，连接/监听均为受管任务 | all_ready_before_listen_and_listener_spawn_quota_compensates_bound_socket；cancel_start_while_ready_still_completes_owned_compensation |
 | MQTT-LIFE-002 | 后续入口失败、Listener/连接任务限额均无端口或任务泄漏 | later_activation_failure_and_listener_quota_release_the_port；all_ready_before_listen_and_listener_spawn_quota_compensates_bound_socket |
+| MQTT-LIFE-004 | Bundle默认Restart(3次/50ms)，with_failure_policy显式透传；FailFast组件故障停止App，连接级错误不升级；不新增自动副作用重放 | Facade bundle_tests、tests/supervision.rs、Core failfast_core_fault_stops_without_restart_and_drains_connections |
 | MQTT-LIFE-003 / STATE-004 | 旧 generation/connection ID 拒绝；Core 重建及一次激活失败补偿保留 Factory 内存 | restart_preserves_memory_sessions_retained_inflight_and_fences_old_generation |
 | MQTT-TOPIC-001 | Topic/Filter 空层、`+/#`、`$` 匹配；合法长 Topic 不受 Hub 1024 字节预算影响 | codec::tests::mqtt_topic_edges；long_topics_qos0_self_echo_and_reserved_namespaces |
 | MQTT-ROUTE-001 | 每 Session 订阅独立，重叠按最高匹配 QoS、受原发布 QoS 限制 | qos1_overlap_retained_delete_and_unsubscribe；rumqttc 集成测试 |

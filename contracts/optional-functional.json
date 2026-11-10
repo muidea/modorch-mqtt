@@ -131,6 +131,15 @@
         "tests::physical_password_timeout_stop_incomplete_and_forced_shutdown_keep_permits_until_cpu_exit",
         "tests::supervised_auth_rebuild_waits_for_old_physical_password_and_fences_old_scheduler"
       ]
+    },
+    {
+      "id": "OPT-SUPERVISION",
+      "scope": "Bundle保持默认Restart，显式透传宿主FailFast；真实Core故障停止且不重建，非法连接隔离与检查式排空",
+      "tests": [
+        "bundle_tests::bundle_supervision_preserves_core_default_and_explicit_host_choice",
+        "failfast_bundle_is_explicit_and_malformed_connections_remain_local",
+        "tests::failfast_core_fault_stops_without_restart_and_drains_connections"
+      ]
     }
   ]
 }

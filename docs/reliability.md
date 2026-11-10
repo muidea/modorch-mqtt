@@ -52,3 +52,7 @@ Core 通过独立 SQLite Module 的定向 Request 提交完整有界状态 image
 [验证结论摘要](validation/README.md#protocol)验证PUBLISH只写出前缀后被本地写超时关闭：内存持久Session仍保留QoS1/2所有权，新连接按原PacketID和DUP重试，直至相应ACK完成。QoS0不享有重连重传保证。此项使用确定性duplex流，不代表真实TCP/TLS或SQLite所有中断时序均已验证。
 
 真实TCP慢消费者在AwaitPubComp阶段继续占用窗口和可靠积压，容量不足时新的可靠发布（包括Retained替换）整体拒绝，不发送成功PUBREC，不向其他目标部分投递，也不建立已成功接纳的入站QoS2记录。容量释放后同ID重试可正常接纳；其后重复PUBLISH不再次路由。有限状态正确性不等于生产背压/RSS/SLO验收。
+
+## 宿主选择组件监督
+
+Bundle支持with_failure_policy显式透传Core既有策略，默认仍Restart（3次/50ms）。统一FailFast的宿主按组件故障停止整个Application，保留失败并checked drain；非法客户端不会因此升级为组件故障。策略不改变既有发布幂等、未知结果或真实资源排空语义，见[API说明](api.md#宿主监督策略)。

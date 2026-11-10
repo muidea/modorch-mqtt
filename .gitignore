@@ -5,7 +5,16 @@ __pycache__/
 # Local client environment and CI output.
 /.venv/
 /validation/
-/.env
+.env
+.env.*
+!.env.example
+!.env.sample
+/secrets/
+*.log
+*.swp
+*.swo
+*~
+.DS_Store
 
 # Archive only the final validation record; generated runs remain local.
 /docs/validation/*

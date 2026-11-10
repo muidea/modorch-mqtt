@@ -801,3 +801,45 @@ mod websocket;
 mod mqtt5;
 #[cfg(feature = "mqtt5")]
 mod mqtt5_protocol;
+
+#[tokio::test]
+async fn failfast_core_fault_stops_without_restart_and_drains_connections() {
+    let factory = MqttBrokerFactory::new(config())
+        .unwrap()
+        .with_failure_policy(FailurePolicy::FailFast);
+    let handle = factory.handle();
+    let mut builder = ApplicationBuilder::new("failfast-core");
+    builder.register_module(factory).unwrap();
+    let mut selection = ComponentSelection::new();
+    selection.enable_module("mqtt-broker");
+    let app = builder
+        .selection(selection)
+        .build()
+        .unwrap()
+        .start()
+        .await
+        .unwrap();
+    let address = handle.local_addr().unwrap();
+    let (mut client, _) = Client::connect(address, "failfast-client", true).await;
+    let generation = handle.status().generation;
+    handle.state.lock().unwrap().fail_listener = true;
+    assert!(
+        tokio::time::timeout(Duration::from_secs(5), app.wait())
+            .await
+            .unwrap()
+            .is_err()
+    );
+    stop(&app).await;
+    assert_eq!(handle.status().generation, generation);
+    assert!(!handle.status().active);
+    assert_eq!(handle.status().connections, 0);
+    assert_eq!(app.task_metrics().tasks, 0);
+    let health = app.health();
+    let core = &health.components[&ComponentRef::module("mqtt-broker")];
+    assert_eq!(core.restarts, 0);
+    assert!(health.failure.is_some());
+    let mut buf = [0];
+    assert_eq!(client.0.read(&mut buf).await.unwrap(), 0);
+    let port = tokio::net::TcpListener::bind(address).await.unwrap();
+    drop(port);
+}
