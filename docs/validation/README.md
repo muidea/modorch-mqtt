@@ -86,6 +86,18 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 
 **结论**：6 个输入在限定范围内证据充分，未发现运行时缺陷；不关闭 F67-02 整体，也不构成独立批准。F67-02 累计 8/437 输入完成实现侧复核，其余 429 个输入及 339 个表格行仍待。
 
+### 2026-11-12 F67-02 批次 03（实现侧，非独立批准）
+
+**范围**：MQTT3.1.1 `MQTT-3.3.1-4`—`-12`（PUBLISH QoS 非法值、Retained 存储/替换/删除/非 Retained 发布、向新订阅回放的 RETAIN 标志）。
+
+**实现核对**：PUBLISH QoS=3 在 codec/连接层拒绝并只关闭违规连接；Retained 值按 QoS 覆盖，零字节 Retained 删除，非 Retained 发布不替换也不删除旧值；实时交付 RETAIN=0，新订阅回放 RETAIN=1。
+
+**证据**：
+- `malformed_client_and_invalid_qos_close_only_that_connection`：QoS=3 关闭违规连接。
+- `retained_replacement_qos0_delete_and_nonretained_publish_obey_wire_flags`：QoS2/0/1 Retained 替换，late 订阅 header `0x31/0x33`、实时 header `0x30/0x32/0x34`，零字节 Retained 删除，非 Retained 空/非空发布不改变旧值。
+
+**结论**：9 个输入在限定范围内证据充分，未发现运行时缺陷；不关闭 F67-02 整体，也不构成独立批准。F67-02 累计 17/437 输入完成实现侧复核，其余 420 个输入及 339 个表格行仍待。
+
 ### 2026-11-12 F67-03 批次复核（实现侧，非独立批准）
 
 **范围**：MQTT5 `MQTT-3.3.2-1`/`-2`（PUBLISH Topic UTF-8、禁止通配符）、`MQTT-3.3.2-4`（Payload Format Indicator 原样转发）、`MQTT-3.3.2-5/6`（Message Expiry 到期删除与转发递减）、`MQTT-3.3.2-7/8`（Topic Alias 不跨连接、禁止 0）、`MQTT-3.3.2-15/16/17/18/20`（Response Topic、Correlation Data、User Property 顺序、Content Type 原样转发）、`MQTT-3.3.4-2`（重叠订阅最高匹配 QoS）、`MQTT-3.3.4-3`/`-4`（单副本携带全部匹配 Subscription Identifier）、`MQTT-3.8.3-1`—`-5`（过滤器 UTF-8、非空载荷、No Local、Shared No Local、保留位）、`MQTT-3.8.4-1`—`-7`（SUBACK、逐过滤器原因码、重复过滤器替换、多过滤器合并响应）、`MQTT-3.8.4-8`（下行 QoS 取发布 QoS 与最高授予的最小值）。
