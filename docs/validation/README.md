@@ -98,6 +98,19 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 
 **结论**：9 个输入在限定范围内证据充分，未发现运行时缺陷；不关闭 F67-02 整体，也不构成独立批准。F67-02 累计 17/437 输入完成实现侧复核，其余 420 个输入及 339 个表格行仍待。
 
+### 2026-11-12 F67-02 批次 04（实现侧，非独立批准）
+
+**范围**：MQTT3.1.1 `MQTT-3.10.1-1`、`MQTT-3.10.3-1/2`、`MQTT-3.10.4-1`—`-6`（UNSUBSCRIBE 固定头、UTF-8/非空过滤器、精确删除、停止新投递、完成已开始 QoS1/2、UNSUBACK 与多过滤器合并），以及 `MQTT-3.14.1-1`、`MQTT-3.14.4-3`（DISCONNECT 固定头、丢弃 Will）。
+
+**实现核对**：
+- UNSUBSCRIBE 只接受固定头 `0xA2`、非空 UTF-8 过滤器；精确匹配删除，未知过滤器仍返回 UNSUBACK。
+- 删除后停止新路由，但已开始的 QoS1/2 交付继续；多过滤器合并为单个 UNSUBACK，Packet Identifier 保持。
+- 正常 DISCONNECT 丢弃当前连接的 Will；`3.14.4-1/2` 是 ClientOnly，不属于 Server 验收范围。
+
+**证据**：`malformed_packets_and_second_connect_close_only_the_offending_connection`、`malformed_utf8_in_each_connect_and_filter_field_is_rejected_but_password_is_binary`、`replacement_subscription_replays_retained_and_unsubscribe_is_exact`、`unsubscribe_keeps_started_qos1_and_qos2_deliveries_but_stops_new_routing`、`will_on_abrupt_close_and_takeover_but_not_disconnect`。
+
+**结论**：11 个输入在限定范围内证据充分，未发现运行时缺陷；不关闭 F67-02 整体，也不构成独立批准。F67-02 累计 28/437 输入完成实现侧复核，其余 409 个输入及 339 个表格行仍待。
+
 ### 2026-11-12 F67-03 批次复核（实现侧，非独立批准）
 
 **范围**：MQTT5 `MQTT-3.3.2-1`/`-2`（PUBLISH Topic UTF-8、禁止通配符）、`MQTT-3.3.2-4`（Payload Format Indicator 原样转发）、`MQTT-3.3.2-5/6`（Message Expiry 到期删除与转发递减）、`MQTT-3.3.2-7/8`（Topic Alias 不跨连接、禁止 0）、`MQTT-3.3.2-15/16/17/18/20`（Response Topic、Correlation Data、User Property 顺序、Content Type 原样转发）、`MQTT-3.3.4-2`（重叠订阅最高匹配 QoS）、`MQTT-3.3.4-3`/`-4`（单副本携带全部匹配 Subscription Identifier）、`MQTT-3.8.3-1`—`-5`（过滤器 UTF-8、非空载荷、No Local、Shared No Local、保留位）、`MQTT-3.8.4-1`—`-7`（SUBACK、逐过滤器原因码、重复过滤器替换、多过滤器合并响应）、`MQTT-3.8.4-8`（下行 QoS 取发布 QoS 与最高授予的最小值）。
