@@ -50,7 +50,7 @@
 | F67-01 | 固定两版验收 Profile | 实现侧 v1 已固化到 [acceptance-profile.json](../contracts/acceptance-profile.json)；协议、角色、传输、存储、Feature、客户端、平台证据及排除边界已机器校验；独立审查仍 NotRun，工具宿主声明不能代替全部库验收 Profile | 协议、角色、传输、存储、Feature、宿主/平台及排除条件清单 | 两版范围明确，条件能力与现有声明一致，范围变化可追溯；工具宿主声明不能代替全部库验收 Profile |
 | F67-02 | F6 完整语义审查 | 待完成；批次 01—04 已完成 `MQTT-3.3.1-4`—`-12`、`MQTT-3.3.5-1`、`MQTT-3.8.4-1`—`-6`、`MQTT-3.10.1/3.10.3/3.10.4`、`MQTT-3.14.1/3.14.4` 共 28/437 输入实现侧复核；其余 409 输入及 339 表格行仍待；独立批准 NotRun | 437 输入及其中 339 表格行的逐项核对记录 | 完整正文、关联上下文、角色、适用性及断言充分性均有结论；缺口逐条登记 |
 | F67-03 | F7 完整语义审查 | 待完成；批次 01/02 已复核 `MQTT-3.3.2-1/2/4/5/6/7/8/15/16/17/18/20`、`MQTT-3.3.4-2/3/4`、`MQTT-3.4.2-1/2/3`、`MQTT-3.5.2-1/2/3`、`MQTT-3.8.3-1`—`-5`、`MQTT-3.8.4-1`—`-8`、`MQTT-4.9.0-1/2/3` 共 37/607 输入；其余 570 输入及 505 表格行仍待；独立批准 NotRun | 607 输入及其中 505 表格行的逐项核对记录 | 同 F67-02；属性、原因码发送角色及条件能力均结合完整上下文核对 |
-| F67-04 | 剩余状态/故障组合定界 | 18 个既有矩阵已形成覆盖基线；必需新增用例和排除理由仍待 F67-02/03 语义审查后定界 | 现有 18 矩阵的覆盖对照、必需新增用例及排除理由 | 每个新增用例关联义务和缺失断言；已覆盖项不重复登记；无笼统“其他组合”待办 |
+| F67-04 | 剩余状态/故障组合定界 | 18 个既有矩阵已形成覆盖基线；2026-11-12 已登记新增组合定界草案（已复核批次不新增矩阵，连接/会话等待审查）；最终新增/排除仍待 F67-02/03 完成 | 现有 18 矩阵的覆盖对照、必需新增用例及排除理由 | 每个新增用例关联义务和缺失断言；已覆盖项不重复登记；无笼统“其他组合”待办 |
 | F67-05 | 按实际缺口修复与补测 | 待 F67-02～04 识别具体项 | 缺陷反例、代码修复、验证补齐及更新后的精确映射 | 已确认缺陷修复并回归；适用验证缺口有充分证据；没有未处理失败 |
 | F67-06 | 客户端与功能组合验收 | 已有限定证据，待完整核对 | 客户端版本、传输、协议、Feature、恢复方式的执行矩阵及原始材料 | Profile 内必需组合已执行或有充分的不适用依据；Paho/rumqttc 旧材料仅在适用范围内复用 |
 | F67-07 | 当前输入的真实独立实审 | 待执行，批准 0 | 绑定当前源码、规范、日志摘要的独立评审记录 | 所有要求的对象/checks 完整；两版 acceptance 分别审查；不存在自评或失效批准 |
@@ -80,6 +80,22 @@
 | 16 | `DUPLEX-SAME-ID-PARTIAL-ACK-INTERRUPT` | protocols=2 / sender_phases=2 / partial_ack_kinds=2 / interruption_modes=2 | 16 | `connection::receive_tests::duplex_same_id_partial_ack_interrupt_matrix_preserves_outbound_and_receiver_state` |
 | 17 | `DUPLEX-SAME-ID-UNIX-SIGKILL` | protocols=2 / sender_phases=2 | 4 | `tests::storage::qos2_duplex_same_id_sigkill_matrix_restores_both_directions_and_completion` |
 | 18 | `MQTT5-POSITIVE-TTL-PHASE-RESTART` | delivery_phases=3 / expiry_restart_orders=2 | 6 | `tests::storage::mqtt5_positive_ttl_phase_restart_matrix_expires_only_unsent_messages_and_retained` |
+
+### F67-04 新增组合定界草案（2026-11-12）
+
+以下只记录已完成批次的初步决定，**不是 F67-04 最终清单**，也不改变 18 矩阵/222 组合基线。完整新增/排除项仍须在 F67-02/F67-03 全部输入审查后审定。
+
+| 候选域 | 已复核证据 | 草案决定 | 待办 |
+|---|---|---|---|
+| 重叠订阅 QoS / Subscription Identifier | F6/F7 新增重叠 QoS、多标识、SUBACK 用例 | 属于协议场景证据，不新增 state/fault 矩阵 | 独立审查 |
+| SUBSCRIBE/UNSUBSCRIBE 非法输入与替换 | 非法载荷/选项、重复替换、多过滤器 UNSUBACK 用例 | 属于输入/响应场景，不新增矩阵 | 独立审查 |
+| Retained / Will | Retained QoS/删除/回放、Will 丢弃/触发、SQLite 恢复用例 | 由现有 retained/TTL/存储矩阵覆盖，不重复新增 | 检查与 MQTT5 交叉 |
+| ACK 原因码与 Receive Maximum | 3.4.2/3.5.2/4.9 批次及 7 个现有 ACK/配额矩阵 | 现有矩阵已覆盖，不新增 | 独立审查 |
+| Message Expiry / Topic Alias | 正 TTL 矩阵、Alias 负例与 SQLite 恢复 | 现有矩阵+场景已覆盖，不新增 | 检查组合边界 |
+| 连接/会话、KeepAlive、CONNECT/CONNACK | 尚未形成本计划批次 | 暂列为候选，未决定新增/排除 | F67-02/F67-03 下一批 |
+| TLS/持久化故障、WebSocket、Bridge、Admin HTTP | 当前验收 Profile 外或仅条件能力 | 排除出当前 F6/F7 矩阵范围 | 保持独立专项 |
+
+**当前结论**：已复核批次未发现必须新增的 state/fault 矩阵；18 矩阵/222 组合不变。连接/会话等候选仍待审查，不能把本草案当作 F67-04 完成或完整符合性证据。
 
 执行顺序为 F67-01 → F67-02/F67-03 → F67-04 → F67-05/F67-06 → F67-07 → F67-08。语义审查可分批推进，发现可复现缺陷即可修复；最终批准必须针对稳定后的当前输入。
 
@@ -174,5 +190,6 @@ python3 scripts/check-protocol-review.py \
 | 2026-11-12 | F67-02 批次 02：复核 `MQTT-3.8.4-1`—`-6`，核对 SUBACK 顺序/ID、重复过滤器替换、Retained 重放与最小 QoS | 6/437 输入完成实现侧复核；发现 `MQTT-3.8.4-6` 漏映射混合订阅/替换用例并修正；累计 8/437；未发现运行时缺陷；独立审查仍 NotRun，F67-02 整体未关闭 | [验证记录](validation/README.md#verification)、`contracts/protocol-review.json` |
 | 2026-11-12 | F67-02 批次 03：复核 `MQTT-3.3.1-4`—`-12`，核对非法 QoS、Retained 替换/删除/非 Retained 发布与回放 RETAIN 标志 | 9/437 输入完成实现侧复核；累计 17/437；未发现运行时缺陷；独立审查仍 NotRun，F67-02 整体未关闭 | [验证记录](validation/README.md#verification)、`crates/modorch-mqtt-core/src/tests/protocol.rs` |
 | 2026-11-12 | F67-02 批次 04：复核 UNSUBSCRIBE 固定头/过滤器/精确删除/多过滤器 UNSUBACK 与 DISCONNECT Will 丢弃 | 11/437 输入完成实现侧复核；累计 28/437；未发现运行时缺陷；独立审查仍 NotRun，F67-02 整体未关闭 | [验证记录](validation/README.md#verification)、`crates/modorch-mqtt-core/src/tests/protocol.rs`、`crates/modorch-mqtt-core/src/tests/conformance.rs` |
+| 2026-11-12 | F67-04 新增组合定界草案：汇总已复核批次，列出候选域与暂定新增/排除决定 | 已复核批次未发现必须新增的 state/fault 矩阵，18/222 基线不变；连接/会话等待审查；F67-04 整体仍未关闭 | 本页“F67-04 新增组合定界草案” |
 | 2026-11-12 | F67-03 批次 01：复核 `MQTT-3.3.2-1/2/4/5/6/7/8/15/16/17/18/20` 等，新增 Topic/属性转发、重叠 QoS、多过滤器 SUBACK 与非法 SUBSCRIBE 用例 | 28/607 输入完成实现侧复核；补上 Message Expiry 递减/Topic Alias 负例及 PUBLISH 属性证据；发现 `MQTT-3.3.2-7/8` 漏映射并修正；显式 PFI=0 归一化按等价语义保留；独立审查仍 NotRun | [验证记录](validation/README.md#verification)、`crates/modorch-mqtt-core/src/tests/mqtt5_protocol.rs` |
 | 2026-11-12 | F67-03 批次 02：复核 `MQTT-3.4.2-1/2/3`、`MQTT-3.5.2-1/2/3`、`MQTT-4.9.0-1/2/3` 的 ACK 原因码/属性大小与流控配额 | 9/607 输入完成实现侧复核，累计 37/607；Reason String/User Property 无发送路径按适用性结论处理；未发现运行时缺陷；独立审查仍 NotRun | [验证记录](validation/README.md#verification)、`crates/modorch-mqtt-core/src/tests/mqtt5_protocol.rs`、`crates/modorch-mqtt-core/src/tests/storage.rs` |
