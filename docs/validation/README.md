@@ -121,6 +121,19 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 
 **边界说明**：实现把显式 Payload Format Indicator=0 归一化为缺失；MQTT5 §3.3.2.3.2 规定 0 等价于不发送，本批未将其判为代码缺陷，也未把该归一化作为“原样 0”证据。
 
+### 2026-11-12 F67-03 批次 02：ACK 原因码与流控（实现侧，非独立批准）
+
+**范围**：MQTT5 `MQTT-3.4.2-1/2/3`（PUBACK 原因码、Reason String/User Property 的大小限制）、`MQTT-3.5.2-1/2/3`（PUBREC 对应项）、`MQTT-4.9.0-1/2/3`（Receive Maximum、发送配额、配额耗尽时仍处理其他控制包）。
+
+**实现核对**：
+- PUBACK/PUBREC 只由固定 reason code 与最小属性构造；实现没有发送 Reason String 或 ACK User Property 的路径，因此“不得因这些属性超过对端 Maximum Packet Size”的约束不会被违反。
+- 存储矩阵覆盖 Client 合法/Server-only reason code、错误阶段与重连后的所有权。
+- 流控按 `max_inbound_qos2_per_client` 与 PUBCOMP 释放配额；重连不重复消耗/归还，配额耗尽时 PUBLISH QoS>0 被拒绝而 PING/其他控制包仍处理。
+
+**证据**：`mqtt5_ack_and_disconnect_reason_tables_enforce_packet_kind_and_sender_role`、`mqtt5_outbound_control_frames_match_independent_literal_layouts`、`mqtt5_client_ack_legal_reason_matrix_completes_once_across_sqlite_restarts`、`client_ack_server_only_reason_matrix_closes_without_mutating_sqlite_sender_ownership`、`mqtt5_receive_maximum_rejects_before_retained_routing_and_isolates_the_connection`、`mqtt5_reconnected_pubrel_does_not_consume_fresh_receive_quota_or_replenish_it_twice`、`mqtt5_sqlite_recovered_pubrel_has_fresh_connection_quota`。
+
+**结论**：9 个输入在限定范围内证据充分；Reason String/User Property 两项属于“无发送路径”的适用性结论，不是代码缺陷。不关闭 F67-03 整体，也不构成独立批准。F67-03 累计 37/607 输入完成实现侧复核，其余 570 输入及 505 表格行仍待。
+
 此前一轮为“同号双向 QoS2 故障交叉与正 TTL 收口”。清理前记录的历史结果为：
 
 | 检查 | 历史结论 |
