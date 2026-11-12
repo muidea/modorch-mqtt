@@ -88,7 +88,7 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 
 ### 2026-11-12 F67-03 批次复核（实现侧，非独立批准）
 
-**范围**：MQTT5 `MQTT-3.3.2-1`/`-2`（PUBLISH Topic UTF-8、禁止通配符）、`MQTT-3.3.2-4`（Payload Format Indicator 原样转发）、`MQTT-3.3.2-15/16/17/18/20`（Response Topic、Correlation Data、User Property 顺序、Content Type 原样转发）、`MQTT-3.3.4-2`（重叠订阅最高匹配 QoS）、`MQTT-3.3.4-3`/`-4`（单副本携带全部匹配 Subscription Identifier）、`MQTT-3.8.3-1`—`-5`（过滤器 UTF-8、非空载荷、No Local、Shared No Local、保留位）、`MQTT-3.8.4-1`—`-7`（SUBACK、逐过滤器原因码、重复过滤器替换、多过滤器合并响应）、`MQTT-3.8.4-8`（下行 QoS 取发布 QoS 与最高授予的最小值）。
+**范围**：MQTT5 `MQTT-3.3.2-1`/`-2`（PUBLISH Topic UTF-8、禁止通配符）、`MQTT-3.3.2-4`（Payload Format Indicator 原样转发）、`MQTT-3.3.2-5/6`（Message Expiry 到期删除与转发递减）、`MQTT-3.3.2-7/8`（Topic Alias 不跨连接、禁止 0）、`MQTT-3.3.2-15/16/17/18/20`（Response Topic、Correlation Data、User Property 顺序、Content Type 原样转发）、`MQTT-3.3.4-2`（重叠订阅最高匹配 QoS）、`MQTT-3.3.4-3`/`-4`（单副本携带全部匹配 Subscription Identifier）、`MQTT-3.8.3-1`—`-5`（过滤器 UTF-8、非空载荷、No Local、Shared No Local、保留位）、`MQTT-3.8.4-1`—`-7`（SUBACK、逐过滤器原因码、重复过滤器替换、多过滤器合并响应）、`MQTT-3.8.4-8`（下行 QoS 取发布 QoS 与最高授予的最小值）。
 
 **实现核对**：与 F6 共用 `crates/modorch-mqtt-core/src/state.rs:638` 的 `max(sub.qos.min(message.qos))` 路径；单副本聚合所有匹配订阅的 identifier，符合 `MQTT-3.3.4-3/-4` 的方向。
 
@@ -98,10 +98,14 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 - `mqtt5_invalid_subscribe_payload_and_options_close_only_offender`：空载荷、非法 UTF-8、非法 `a/#/b`、QoS3、保留位、Retain Handling=3、Shared No Local 均只关闭违规连接，健康连接 PING 仍可用。
 - `mqtt5_invalid_publish_topic_closes_only_offender`：空 Topic、`a/#`、`a/+`、非法 UTF-8 Topic 均只关闭违规连接，健康连接 PING 仍可用。
 - `mqtt5_payload_format_indicator_one_is_forwarded`：Payload Format Indicator=1 的合法 UTF-8 载荷转发后仍为 1；`mqtt5_publish_all_qos_preserves_binary_metadata_user_order_and_outgoing_flags` 同时核对 Response Topic、Correlation Data、User Property 顺序和 Content Type 原样转发。
+- `mqtt5_positive_ttl_phase_restart_matrix_expires_only_unsent_messages_and_retained`：真实墙钟等待后 Retained 重放的 Message Expiry 由 4 递减为 1—2，到期阶段删除 queued/publish/release 与 Retained。
+- `mqtt5_alias_rejects_invalid_unbound_reconnected_oversize_and_unfunded_messages_atomically`：Topic Alias 不跨连接携带，Alias=0 与未绑定别名被拒，原 Retained 保持不变。
 
 **本轮发现**：既有 MQTT5 重叠测试只覆盖相同 QoS 与两个标识，没有覆盖不同授予下的最高/最小 QoS 组合；新用例补上该有限等价类，并映射至 `MQTT-3.3.4-2/3/4` 与 `MQTT-3.8.4-8`。测试使用两个匹配标识；手工三标识原始帧由 rumqttc 0.25.1 解码时仅返回两个标识，因此未把三标识作为通过证据，也没有据此判定产品缺陷。
 
-**结论**：在上述限定范围内证据充分，未发现运行时缺陷；不关闭 F67-03 整体，也不构成独立批准。批次 01 共覆盖 24/607 个输入；F67-03 仍待其余 583 个输入及 505 个表格行的逐项审查。
+**结论**：在上述限定范围内证据充分，未发现运行时缺陷；不关闭 F67-03 整体，也不构成独立批准。批次 01 共覆盖 28/607 个输入；F67-03 仍待其余 579 个输入及 505 个表格行的逐项审查。
+
+**本轮发现并修正**：`MQTT-3.3.2-7/8` 原先未映射现成的 `mqtt5_alias_rejects_invalid_unbound_reconnected_oversize_and_unfunded_messages_atomically`；已补齐映射。
 
 **边界说明**：实现把显式 Payload Format Indicator=0 归一化为缺失；MQTT5 §3.3.2.3.2 规定 0 等价于不发送，本批未将其判为代码缺陷，也未把该归一化作为“原样 0”证据。
 
