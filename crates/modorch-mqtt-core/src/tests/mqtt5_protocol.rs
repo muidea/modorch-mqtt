@@ -442,6 +442,42 @@ fn mqtt5_outbound_control_frames_match_independent_literal_layouts() {
 }
 
 #[tokio::test]
+async fn mqtt5_invalid_subscribe_payload_and_options_close_only_offender() {
+    let (app, broker) = start(MqttBrokerConfig {
+        mqtt5: true,
+        ..config()
+    })
+    .await;
+    let addr = broker.local_addr().unwrap();
+    let (mut sink, _) = connect(addr, "valid-sink", true, 0, &[], None).await;
+    let cases: Vec<Vec<u8>> = vec![
+        vec![0, 1, 0],
+        [&[0, 1, 0, 0, 1, 0xff, 0][..]].concat(),
+        [&[0, 1, 0, 0, 5, b'/', b'#', b'/', b'b', 0][..]].concat(),
+        [&[0, 1, 0, 0, 2, b'o', b'k', 3][..]].concat(),
+        [&[0, 1, 0, 0, 2, b'o', b'k', 0x40][..]].concat(),
+        [&[0, 1, 0, 0, 2, b'o', b'k', 0x30][..]].concat(),
+        [&[
+            0, 1, 0, 0, 11, b'$', b's', b'h', b'a', b'r', b'e', b'/', b'g', b'/', b'a', 0x04,
+        ][..]]
+        .concat(),
+    ];
+    for (index, body) in cases.iter().enumerate() {
+        let (mut offender, _) =
+            connect(addr, &format!("invalid-{index}"), true, 0, &[], None).await;
+        offender.send(codec::frame(0x82, body)).await;
+        let first = offender.0.read(&mut [0]).await.unwrap();
+        assert!(
+            first == 0 || first == 0xe0,
+            "invalid SUBSCRIBE {index} was accepted"
+        );
+        sink.send(vec![0xc0, 0]).await;
+        assert_eq!(sink.recv().await, (0xd0, vec![]));
+    }
+    stop(&app).await;
+}
+
+#[tokio::test]
 async fn mqtt5_multi_filter_subscribe_reports_codes_and_replaces_duplicate() {
     let (app, broker) = start(MqttBrokerConfig {
         mqtt5: true,

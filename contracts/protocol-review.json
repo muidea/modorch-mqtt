@@ -9853,7 +9853,8 @@
             "mqtt5::validation::tests::mqtt5_all_property_types_follow_client_direction_cardinality_and_field_boundaries",
             "tests::mqtt5::mqtt5_alias_metadata_subscription_options_window_unsubscribe_and_mixed311",
             "tests::mqtt5_protocol::mqtt5_all_256_fixed_headers_follow_direction_flags_and_exact_frame_boundaries",
-            "tests::mqtt5_protocol::mqtt5_retained_handling_replacement_overlap_identifiers_and_shared_suppression"
+            "tests::mqtt5_protocol::mqtt5_retained_handling_replacement_overlap_identifiers_and_shared_suppression",
+            "tests::mqtt5_protocol::mqtt5_invalid_subscribe_payload_and_options_close_only_offender"
           ],
           "independent_review": "NotRun"
         },
@@ -9873,7 +9874,8 @@
             "mqtt5::validation::tests::mqtt5_all_property_types_follow_client_direction_cardinality_and_field_boundaries",
             "tests::mqtt5::mqtt5_alias_metadata_subscription_options_window_unsubscribe_and_mixed311",
             "tests::mqtt5_protocol::mqtt5_all_256_fixed_headers_follow_direction_flags_and_exact_frame_boundaries",
-            "tests::mqtt5_protocol::mqtt5_retained_handling_replacement_overlap_identifiers_and_shared_suppression"
+            "tests::mqtt5_protocol::mqtt5_retained_handling_replacement_overlap_identifiers_and_shared_suppression",
+            "tests::mqtt5_protocol::mqtt5_invalid_subscribe_payload_and_options_close_only_offender"
           ],
           "independent_review": "NotRun"
         },
@@ -9913,7 +9915,8 @@
             "mqtt5::validation::tests::mqtt5_all_property_types_follow_client_direction_cardinality_and_field_boundaries",
             "tests::mqtt5::mqtt5_alias_metadata_subscription_options_window_unsubscribe_and_mixed311",
             "tests::mqtt5_protocol::mqtt5_all_256_fixed_headers_follow_direction_flags_and_exact_frame_boundaries",
-            "tests::mqtt5_protocol::mqtt5_retained_handling_replacement_overlap_identifiers_and_shared_suppression"
+            "tests::mqtt5_protocol::mqtt5_retained_handling_replacement_overlap_identifiers_and_shared_suppression",
+            "tests::mqtt5_protocol::mqtt5_invalid_subscribe_payload_and_options_close_only_offender"
           ],
           "independent_review": "NotRun"
         },
@@ -9933,7 +9936,8 @@
             "mqtt5::validation::tests::mqtt5_all_property_types_follow_client_direction_cardinality_and_field_boundaries",
             "tests::mqtt5::mqtt5_alias_metadata_subscription_options_window_unsubscribe_and_mixed311",
             "tests::mqtt5_protocol::mqtt5_all_256_fixed_headers_follow_direction_flags_and_exact_frame_boundaries",
-            "tests::mqtt5_protocol::mqtt5_retained_handling_replacement_overlap_identifiers_and_shared_suppression"
+            "tests::mqtt5_protocol::mqtt5_retained_handling_replacement_overlap_identifiers_and_shared_suppression",
+            "tests::mqtt5_protocol::mqtt5_invalid_subscribe_payload_and_options_close_only_offender"
           ],
           "independent_review": "NotRun"
         },

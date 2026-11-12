@@ -60,7 +60,7 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 
 2026-11-10 的开发样例收口已通过完整 `scripts/check.sh`：226 项 Rust、53 项脚本测试，以及 fmt/check/all-features Clippy/Rustdoc、契约、TLS/Auth/Storage 与 SIGKILL 恢复检查。新增 4 项受管任务测试和真实 SIGINT/SIGTERM、MQTT 心跳、退出回执、端口重绑检查；Rust1.85 all-targets/all-features、最小 Feature 编译和 8 项 TOML 配置测试通过。正式指南见 [magicDataHub 集成](../magicdatahub-integration.md)。随后默认 Feature lint 收口只调整 Core 的条件 lint 与 TLS 可选字段初始化，不改变协议行为；默认 Feature Clippy 已进入门禁。当前源码再次通过完整检查、MSRV/最小 Feature 与宿主回归，并在新的隔离镜像验证；常驻服务未替换。未重新执行全部独立客户端扩展互操作/生产负载，完整符合性与发布仍 Partial。
 
-2026-11-12 新增两版实现侧验收 Profile 契约及 4 项反例、F67-04 矩阵台账校验及 4 项反例，脚本测试由 53 增至 61；新增重叠订阅最高匹配 QoS、最小(发布,授予) QoS 用例后 Rust 测试为 230 项。`cargo test --workspace --all-features --locked` 为 **230 passed / 0 failed / 0 ignored**，`check-conformance.py --results` 41/41 场景 TargetedEvidence 通过、规范仍 Partial，`check-protocol-review.py --results` 缺失证据 0。`scripts/check-acceptance-profile.py` 与 `scripts/check-matrix-inventory.py` 已通过；完整 `scripts/check.sh` 已重跑并 exit 0，包含 **230 Rust / 61 脚本测试**、fmt/check/all-features Clippy/Rustdoc、契约门禁、示例/TOML/Storage/SIGKILL 检查。该变化固定实现侧范围并防止自评/计数/Feature 漂移，F67-01 独立审查仍为 NotRun。
+2026-11-12 新增两版实现侧验收 Profile 契约及 4 项反例、F67-04 矩阵台账校验及 4 项反例，脚本测试由 53 增至 61；新增重叠订阅最高匹配 QoS、最小(发布,授予) QoS 用例后 Rust 测试为 231 项。`cargo test --workspace --all-features --locked` 为 **231 passed / 0 failed / 0 ignored**，`check-conformance.py --results` 41/41 场景 TargetedEvidence 通过、规范仍 Partial，`check-protocol-review.py --results` 缺失证据 0。`scripts/check-acceptance-profile.py` 与 `scripts/check-matrix-inventory.py` 已通过；完整 `scripts/check.sh` 已重跑并 exit 0，包含 **231 Rust / 61 脚本测试**、fmt/check/all-features Clippy/Rustdoc、契约门禁、示例/TOML/Storage/SIGKILL 检查。该变化固定实现侧范围并防止自评/计数/Feature 漂移，F67-01 独立审查仍为 NotRun。
 
 ### 2026-11-12 F67-02 批次复核（实现侧，非独立批准）
 
@@ -88,17 +88,18 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 
 ### 2026-11-12 F67-03 批次复核（实现侧，非独立批准）
 
-**范围**：MQTT5 `MQTT-3.3.4-2`（重叠订阅最高匹配 QoS）、`MQTT-3.3.4-3`/`-4`（单副本携带全部匹配 Subscription Identifier）、`MQTT-3.8.4-1`—`-7`（SUBACK、逐过滤器原因码、重复过滤器替换、多过滤器合并响应）、`MQTT-3.8.4-8`（下行 QoS 取发布 QoS 与最高授予的最小值）。
+**范围**：MQTT5 `MQTT-3.3.4-2`（重叠订阅最高匹配 QoS）、`MQTT-3.3.4-3`/`-4`（单副本携带全部匹配 Subscription Identifier）、`MQTT-3.8.3-1`—`-5`（过滤器 UTF-8、非空载荷、No Local、Shared No Local、保留位）、`MQTT-3.8.4-1`—`-7`（SUBACK、逐过滤器原因码、重复过滤器替换、多过滤器合并响应）、`MQTT-3.8.4-8`（下行 QoS 取发布 QoS 与最高授予的最小值）。
 
 **实现核对**：与 F6 共用 `crates/modorch-mqtt-core/src/state.rs:638` 的 `max(sub.qos.min(message.qos))` 路径；单副本聚合所有匹配订阅的 identifier，符合 `MQTT-3.3.4-3/-4` 的方向。
 
 **证据**：
 - `mqtt5_overlapping_subscriptions_use_max_qos_and_report_matching_identifiers`：最高授予 2/1/0 时，分别收到 QoS2（标识 `[7,9]`）、QoS1（标识 `[10,11]`）和 QoS0（标识 `[12]`）单副本。
 - `mqtt5_multi_filter_subscribe_reports_codes_and_replaces_duplicate`：单个 SUBSCRIBE 携带重复 `multi/#` 与 `$modorch/blocked`，单个 SUBACK 返回逐项 `[0,2,0x87]`；重复过滤器最终按 QoS2 替换并只投递 QoS2 单副本。
+- `mqtt5_invalid_subscribe_payload_and_options_close_only_offender`：空载荷、非法 UTF-8、非法 `a/#/b`、QoS3、保留位、Retain Handling=3、Shared No Local 均只关闭违规连接，健康连接 PING 仍可用。
 
 **本轮发现**：既有 MQTT5 重叠测试只覆盖相同 QoS 与两个标识，没有覆盖不同授予下的最高/最小 QoS 组合；新用例补上该有限等价类，并映射至 `MQTT-3.3.4-2/3/4` 与 `MQTT-3.8.4-8`。测试使用两个匹配标识；手工三标识原始帧由 rumqttc 0.25.1 解码时仅返回两个标识，因此未把三标识作为通过证据，也没有据此判定产品缺陷。
 
-**结论**：在上述限定范围内证据充分，未发现运行时缺陷；不关闭 F67-03 整体，也不构成独立批准。批次 01 共覆盖 11/607 个输入；F67-03 仍待其余 596 个输入及 505 个表格行的逐项审查。
+**结论**：在上述限定范围内证据充分，未发现运行时缺陷；不关闭 F67-03 整体，也不构成独立批准。批次 01 共覆盖 16/607 个输入；F67-03 仍待其余 591 个输入及 505 个表格行的逐项审查。
 
 此前一轮为“同号双向 QoS2 故障交叉与正 TTL 收口”。清理前记录的历史结果为：
 
