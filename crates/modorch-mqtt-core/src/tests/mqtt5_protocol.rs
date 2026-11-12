@@ -442,6 +442,36 @@ fn mqtt5_outbound_control_frames_match_independent_literal_layouts() {
 }
 
 #[tokio::test]
+async fn mqtt5_multi_filter_subscribe_reports_codes_and_replaces_duplicate() {
+    let (app, broker) = start(MqttBrokerConfig {
+        mqtt5: true,
+        ..config()
+    })
+    .await;
+    let addr = broker.local_addr().unwrap();
+    let (mut sink, _) = connect(addr, "multi-sink", true, 0, &[], None).await;
+    let mut body = vec![0, 1, 2, 0x0b, 7];
+    for (filter, option) in [("multi/#", 0), ("multi/#", 2), ("$modorch/blocked", 1)] {
+        body.extend(string(filter));
+        body.push(option);
+    }
+    sink.send(codec::frame(0x82, &body)).await;
+    assert_eq!(sink.recv().await, (0x90, vec![0, 1, 0, 0, 2, 0x87]));
+    let (mut source, _) = connect(addr, "multi-source", true, 0, &[], None).await;
+    publish(&mut source, "multi/item", b"replaced", 2, &[], false).await;
+    let (h, b) = sink.recv().await;
+    let p = decoded(h, &b);
+    assert_eq!(p.qos, rumqttc::v5::mqttbytes::QoS::ExactlyOnce);
+    assert_eq!(p.payload, b"replaced"[..]);
+    assert_eq!(p.properties.unwrap().subscription_identifiers, vec![7]);
+    let id = p.pkid.to_be_bytes();
+    sink.send(codec::frame(0x50, &id)).await;
+    assert_eq!(sink.recv().await, (0x62, id.to_vec()));
+    sink.send(codec::frame(0x70, &id)).await;
+    stop(&app).await;
+}
+
+#[tokio::test]
 async fn mqtt5_overlapping_subscriptions_use_max_qos_and_report_matching_identifiers() {
     let (app, broker) = start(MqttBrokerConfig {
         mqtt5: true,
