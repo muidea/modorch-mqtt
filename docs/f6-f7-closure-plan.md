@@ -48,7 +48,7 @@
 | 编号 | 待收口项 | 当前状态 | 交付物 | 完成标准 |
 |---|---|---|---|---|
 | F67-01 | 固定两版验收 Profile | 实现侧 v1 已固化到 [acceptance-profile.json](../contracts/acceptance-profile.json)；协议、角色、传输、存储、Feature、客户端、平台证据及排除边界已机器校验；独立审查仍 NotRun，工具宿主声明不能代替全部库验收 Profile | 协议、角色、传输、存储、Feature、宿主/平台及排除条件清单 | 两版范围明确，条件能力与现有声明一致，范围变化可追溯；工具宿主声明不能代替全部库验收 Profile |
-| F67-02 | F6 完整语义审查 | 待完成；批次 01 已完成 `MQTT-3.3.5-1`/`MQTT-3.8.4-6` 实现侧复核并修正映射缺口，其余 435 输入及 339 表格行仍待审查；独立批准 NotRun | 437 输入及其中 339 表格行的逐项核对记录 | 完整正文、关联上下文、角色、适用性及断言充分性均有结论；缺口逐条登记 |
+| F67-02 | F6 完整语义审查 | 待完成；批次 01/02 已完成 `MQTT-3.3.5-1`、`MQTT-3.8.4-1`—`-6` 共 8/437 输入实现侧复核并修正映射缺口；其余 429 输入及 339 表格行仍待；独立批准 NotRun | 437 输入及其中 339 表格行的逐项核对记录 | 完整正文、关联上下文、角色、适用性及断言充分性均有结论；缺口逐条登记 |
 | F67-03 | F7 完整语义审查 | 待完成；批次 01 已复核 `MQTT-3.3.4-2/3/4`、`MQTT-3.8.4-1`—`-8` 共 11/607 输入，补齐 MQTT5 重叠 QoS 与多过滤器 SUBACK 证据；其余 596 输入及 505 表格行仍待；独立批准 NotRun | 607 输入及其中 505 表格行的逐项核对记录 | 同 F67-02；属性、原因码发送角色及条件能力均结合完整上下文核对 |
 | F67-04 | 剩余状态/故障组合定界 | 18 个既有矩阵已形成覆盖基线；必需新增用例和排除理由仍待 F67-02/03 语义审查后定界 | 现有 18 矩阵的覆盖对照、必需新增用例及排除理由 | 每个新增用例关联义务和缺失断言；已覆盖项不重复登记；无笼统“其他组合”待办 |
 | F67-05 | 按实际缺口修复与补测 | 待 F67-02～04 识别具体项 | 缺陷反例、代码修复、验证补齐及更新后的精确映射 | 已确认缺陷修复并回归；适用验证缺口有充分证据；没有未处理失败 |
@@ -171,4 +171,5 @@ python3 scripts/check-protocol-review.py \
 | 2026-11-11 | 宿主工具MIXED v1补九行输入×请求QoS、实际授予/逐级ACK/交付及十八连接原始帧重建；重叠订阅行转MQTT-T07诊断 | 181项工具、15项宿主及68 PASS/1 BLOCKED/0 FAIL/0 ERROR/0 NOT_TESTED通过，必需门禁退出0；内部范围增至9个、事件56种，完整语义/充分性及独立批准仍待 | magicDataHub的`tools/mqtt-broker-validation/mixed_qos_evidence.py`、`mixed-qos-obligations.md`和`docs/validation.md` |
 | 2026-11-12 | 固化两版实现侧验收 Profile；登记 F67-04 既有 18 矩阵覆盖基线；同步 MIXED/T07 当前事实和脚本计数 | F67-01 实现侧收口；F67-04 已覆盖项登记完成并加机器校验、新增/排除仍待语义审查；验收Profile与矩阵台账各4项脚本反例；新增重叠订阅最高匹配QoS及最小(发布,授予)QoS用例，Rust测试230项；工具新增非门禁重叠诊断及3项测试，工具测试184项；完整 `scripts/check.sh` 重跑 exit 0；独立审查仍 NotRun；F6/F7 整体仍 Partial | [acceptance-profile.json](../contracts/acceptance-profile.json)、`scripts/check-acceptance-profile.py`、本页矩阵基线 |
 | 2026-11-12 | F67-02 批次 01：复核 `MQTT-3.3.5-1` 与 `MQTT-3.8.4-6`，核对 `state.rs` 最高匹配/最小 QoS 路径及新增测试 | 2/437 输入完成实现侧复核；发现 `MQTT-3.8.4-6` 与 `MQTT-ROUTE-001` 漏映射新增用例并修正；未发现运行时缺陷；独立审查仍 NotRun，F67-02 整体未关闭 | [验证记录](validation/README.md#verification)、`contracts/protocol-review.json` |
+| 2026-11-12 | F67-02 批次 02：复核 `MQTT-3.8.4-1`—`-6`，核对 SUBACK 顺序/ID、重复过滤器替换、Retained 重放与最小 QoS | 6/437 输入完成实现侧复核；发现 `MQTT-3.8.4-6` 漏映射混合订阅/替换用例并修正；累计 8/437；未发现运行时缺陷；独立审查仍 NotRun，F67-02 整体未关闭 | [验证记录](validation/README.md#verification)、`contracts/protocol-review.json` |
 | 2026-11-12 | F67-03 批次 01：复核 `MQTT-3.3.4-2/3/4`、`MQTT-3.8.4-1`—`-8`，新增 MQTT5 重叠 QoS/多标识与多过滤器 SUBACK 用例 | 11/607 输入完成实现侧复核；补上不同授予下的重叠 QoS 及逐过滤器原因码/重复过滤器替换证据；未发现运行时缺陷；独立审查仍 NotRun，F67-03 整体未关闭 | [验证记录](validation/README.md#verification)、`crates/modorch-mqtt-core/src/tests/mqtt5_protocol.rs` |

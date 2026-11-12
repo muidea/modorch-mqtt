@@ -74,6 +74,18 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 
 **结论**：在上述限定范围内证据充分，未发现运行时缺陷；但这只是实现侧批次复核，**不关闭 F67-02 整体**，也不构成独立批准。F67-02 仍待其余 435 个输入及 339 个表格行的逐项审查。
 
+### 2026-11-12 F67-02 批次 02（实现侧，非独立批准）
+
+**范围**：MQTT3.1.1 `MQTT-3.8.4-1`—`-6`（SUBACK 响应与 Packet Identifier、重复过滤器替换及 Retained 重放、多过滤器合并响应、逐过滤器返回码、下行 QoS 最小值）。
+
+**实现核对**：`State::subscribe` 按输入顺序逐项处理并汇总同一 SUBACK；重复过滤器经 `subscribe_one` 替换，`replaced` 路径保留已开始交换并重放匹配 Retained；逐项 code 由实际 QoS/失败生成，下行 QoS 使用 `min(publish, granted)`。
+
+**证据**：`mixed_subscribe_codes_follow_filter_order_and_duplicate_filters_replace_in_sequence` 使用同一 SUBSCRIBE 中的 `mix/#`(0)、`$modorch/#`(1)、重复 `mix/#`(2)、`extra`(1)，核对 SUBACK ID `0x1234` 与 codes `[0,0x80,2,1]`；替换后 Retained 重放 QoS 为 `[0,2]`，后续 live `mix/topic` 为 QoS2、`extra` 为 QoS1，且替换过滤器无重复 live 交付。
+
+**本轮发现并修正**：`MQTT-3.8.4-6` 原先未映射该混合订阅/替换用例，导致最小 QoS 证据链不完整；已补齐映射，`check-protocol-review.py --results` 通过。
+
+**结论**：6 个输入在限定范围内证据充分，未发现运行时缺陷；不关闭 F67-02 整体，也不构成独立批准。F67-02 累计 8/437 输入完成实现侧复核，其余 429 个输入及 339 个表格行仍待。
+
 ### 2026-11-12 F67-03 批次复核（实现侧，非独立批准）
 
 **范围**：MQTT5 `MQTT-3.3.4-2`（重叠订阅最高匹配 QoS）、`MQTT-3.3.4-3`/`-4`（单副本携带全部匹配 Subscription Identifier）、`MQTT-3.8.4-1`—`-7`（SUBACK、逐过滤器原因码、重复过滤器替换、多过滤器合并响应）、`MQTT-3.8.4-8`（下行 QoS 取发布 QoS 与最高授予的最小值）。
