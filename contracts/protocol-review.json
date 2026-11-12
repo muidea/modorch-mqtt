@@ -1803,7 +1803,9 @@
           ],
           "tests": [
             "codec::tests::qos2_control_flags_identifiers_and_complete_lengths_are_validated",
-            "tests::qos1_overlap_retained_delete_and_unsubscribe"
+            "tests::qos1_overlap_retained_delete_and_unsubscribe",
+            "tests::overlapping_subscriptions_deliver_one_copy_at_highest_matching_qos",
+            "tests::overlapping_subscription_delivery_qos_is_min_of_publish_and_max_grant"
           ],
           "independent_review": "NotRun"
         },
@@ -1841,7 +1843,9 @@
           ],
           "tests": [
             "codec::tests::qos2_control_flags_identifiers_and_complete_lengths_are_validated",
-            "tests::qos1_overlap_retained_delete_and_unsubscribe"
+            "tests::qos1_overlap_retained_delete_and_unsubscribe",
+            "tests::overlapping_subscriptions_deliver_one_copy_at_highest_matching_qos",
+            "tests::overlapping_subscription_delivery_qos_is_min_of_publish_and_max_grant"
           ],
           "independent_review": "NotRun"
         },

@@ -22,6 +22,8 @@ modorch-mqtt = { path = "../modorch-mqtt/crates/modorch-mqtt" }
 cargo run -p existing-modorch-server --locked -- --once
 ```
 
+样例支持 `--listen 127.0.0.1:0`；常驻时同时等待运行失败与 Unix SIGINT/SIGTERM，StopIncomplete 保留原 Runtime/Handle 重试，失败主因在排空后保留。正式服务、预算、依赖身份和扩展边界见 [magicDataHub 集成指南](magicdatahub-integration.md)。
+
 ## 普通 Tokio 程序
 
 由入口创建一个 Tokio Runtime 和一个 Modorch Application，再按相同注册模式启用 Broker。可以直接运行 [standalone-broker](../examples/standalone-broker/src/main.rs)：

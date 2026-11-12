@@ -4,7 +4,9 @@ use modorch_mqtt::{
     BrokerStatus, MqttBrokerBundle, MqttBrokerConfig, MqttInbound, MqttPublishRequest,
     MqttPublishResult, PUBLISH_TOPIC, Qos, STATUS_TOPIC,
 };
-use std::{sync::Arc, time::Duration};
+use std::{io::Write, sync::Arc, time::Duration};
+
+mod host;
 
 const BUSINESS_PUBLISH_TOPIC: &str = "$demo/business/publish";
 
@@ -132,35 +134,78 @@ impl SerialHandler for Business {
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let once = std::env::args().any(|arg| arg == "--once");
+async fn main() -> host::Result<()> {
+    let mut once = false;
+    let mut listener = None;
+    let mut arguments = std::env::args().skip(1);
+    while let Some(argument) = arguments.next() {
+        match argument.as_str() {
+            "--once" => once = true,
+            "--listen" => {
+                listener = Some(
+                    arguments
+                        .next()
+                        .ok_or("--listen requires an address")?
+                        .parse()?,
+                );
+            }
+            _ => return Err(format!("unknown argument: {argument}").into()),
+        }
+    }
+    let mut signals = host::Signals::install()?;
+    let budget = host::DrainBudget::default();
     let mut builder = ApplicationBuilder::new("existing-business-server");
     builder.register_module(Business)?;
     let config = MqttBrokerConfig {
-        listener: if once {
-            "127.0.0.1:0"
-        } else {
-            "127.0.0.1:1883"
-        }
-        .parse()?,
+        listener: listener.unwrap_or(
+            if once {
+                "127.0.0.1:0"
+            } else {
+                "127.0.0.1:1883"
+            }
+            .parse()?,
+        ),
         ..MqttBrokerConfig::loopback_development()
     };
-    let mqtt = MqttBrokerBundle::new(config).register(&mut builder)?;
+    let mqtt = MqttBrokerBundle::new(config)
+        .with_failure_policy(FailurePolicy::FailFast)
+        .register(&mut builder)?;
     let mut selected = ComponentSelection::new();
     selected.enable_module("business");
     for id in mqtt.module_ids() {
         selected.enable_module(id);
     }
-    let app = builder.selection(selected).build()?.start().await?;
-    println!(
-        "MQTT subset listening on {}",
-        mqtt.handle().local_addr().unwrap()
-    );
-    assert_eq!(mqtt.handle().status().publish_records, 1);
-    assert_eq!(mqtt.handle().status().retained, 1);
-    if !once {
-        tokio::signal::ctrl_c().await?;
+    let app = host::start(builder.selection(selected).build()?, budget).await?;
+    let observed: host::Result<()> = (|| {
+        let address = mqtt
+            .handle()
+            .local_addr()
+            .ok_or("MQTT listener missing after Ready")?;
+        let status = mqtt.handle().status();
+        if status.publish_records != 1 || status.retained != 1 {
+            return Err("startup business publication was not retained".into());
+        }
+        writeln!(
+            std::io::stdout().lock(),
+            "MQTT subset listening on {address}"
+        )?;
+        Ok(())
+    })();
+    if let Err(cause) = observed {
+        if let Err(cleanup) = host::drain(&app, budget).await {
+            eprintln!("Ready observation cleanup failed: {cleanup}; preserving observation cause");
+        }
+        return Err(cause);
     }
-    app.shutdown_checked(ShutdownOptions::graceful()).await?;
+    host::wait_and_drain(
+        &app,
+        async { if once { Ok(()) } else { signals.wait().await } },
+        budget,
+    )
+    .await?;
+    writeln!(
+        std::io::stdout().lock(),
+        "checked shutdown: GracefullyStopped"
+    )?;
     Ok(())
 }

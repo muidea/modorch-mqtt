@@ -37,7 +37,7 @@
 | connect-failure-codes | 错误协议名、超长ID、Will授权拒绝、Session满的不同响应 |
 | assigned-client-id | 空ClientID生成的唯一身份不接管既有会话 |
 | invalid-publish-qos | QoS3仅关闭违规连接 |
-| overlap-and-ack-flags | 重叠订阅最高QoS、PUBREL及确认报文固定标志/长度 |
+| overlap-and-ack-flags | 重叠订阅请求QoS0/1/2、发布QoS2时按最高匹配QoS单副本交付；发布QoS0/1/2时按最小(发布,最高授予)交付；PUBREL及确认报文固定标志/长度 |
 | publication-denial | QoS2发布ACL和可靠目标满额时不部分接纳 |
 | connect-unknown-failure | 存储不可用对应CONNACK3，未知错误不发错误CONNACK2 |
 | standard-client-and-stream | 独立rumqttc标准协议互通、TCP碎片/合并帧 |
@@ -87,7 +87,7 @@ PUBREL之前从可靠队列按原PUBLISH顺序挑选，多个PUBREC在写端阻�
 给上述复核命令增加 `--require-complete` 会在总体Partial时返回非零。该模式是完整规范发布的阻断条件，不是全部设计的发布批准器；独立Agent、生产安全/容量、平台和其他MUST由[统一发布门禁](release.md)核对，真实执行/审查尚未完成。
 
 
-正文未编号候选、表格和状态转换现单独维护于[审计说明](mqtt311-audit.md)与[mqtt311-audit.json](../contracts/mqtt311-audit.json)。9段候选经人工区分上下文、跨段编号续文及服务端/客户端义务；8张规范相关表有限定测试映射，7个非规范例表/图单列Informative；QoS2发送端ACK矩阵有12项转换测试。完整语义/FSM审计仍未完成。日志门禁同时验证这些映射，拒绝缺失、重复或与ignored矛盾的结果；全部工具测试现12项。报文审计历史执行见[验证结论摘要](validation/README.md#verification)。
+正文未编号候选、表格和状态转换现单独维护于[审计说明](mqtt311-audit.md)与[mqtt311-audit.json](../contracts/mqtt311-audit.json)。9段候选经人工区分上下文、跨段编号续文及服务端/客户端义务；8张规范相关表有限定测试映射，7个非规范例表/图单列Informative；QoS2发送端ACK矩阵有12项转换测试。完整语义/FSM审计仍未完成。日志门禁同时验证这些映射，拒绝缺失、重复或与ignored矛盾的结果；当前 `scripts/tests` 共61项脚本测试。报文审计历史执行见[验证结论摘要](validation/README.md#verification)。
 
 
 ## 逐义务发布审查

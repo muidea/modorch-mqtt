@@ -10,7 +10,7 @@
 | MQTT-LIFE-004 | Bundle默认Restart(3次/50ms)，with_failure_policy显式透传；FailFast组件故障停止App，连接级错误不升级；不新增自动副作用重放 | Facade bundle_tests、tests/supervision.rs、Core failfast_core_fault_stops_without_restart_and_drains_connections |
 | MQTT-LIFE-003 / STATE-004 | 旧 generation/connection ID 拒绝；Core 重建及一次激活失败补偿保留 Factory 内存 | restart_preserves_memory_sessions_retained_inflight_and_fences_old_generation |
 | MQTT-TOPIC-001 | Topic/Filter 空层、`+/#`、`$` 匹配；合法长 Topic 不受 Hub 1024 字节预算影响 | codec::tests::mqtt_topic_edges；long_topics_qos0_self_echo_and_reserved_namespaces |
-| MQTT-ROUTE-001 | 每 Session 订阅独立，重叠按最高匹配 QoS、受原发布 QoS 限制 | qos1_overlap_retained_delete_and_unsubscribe；rumqttc 集成测试 |
+| MQTT-ROUTE-001 | 每 Session 订阅独立，重叠按最高匹配 QoS、受原发布 QoS 限制 | qos1_overlap_retained_delete_and_unsubscribe；overlapping_subscriptions_deliver_one_copy_at_highest_matching_qos；overlapping_subscription_delivery_qos_is_min_of_publish_and_max_grant；rumqttc 集成测试 |
 | MQTT-QOS-001（子集） | QoS0/1、Packet ID/PUBACK、离线积压和重连 DUP | offline_qos1_and_inflight_reconnect_keep_packet_id_and_dup；saturation_rejects_entire_publish_without_retained_or_partial_delivery |
 | MQTT-QOS-002 | 双向 QoS2 FSM 和持久重连已实现；完整3.1.1矩阵待验收 | 见文末 F6 映射 |
 | MQTT-STATE-001（内存） | Clean Session、Session Present、Retained 回放/删除、Will、无进程重启持久化 | offline_qos1_and_inflight_reconnect_keep_packet_id_and_dup；qos1_overlap_retained_delete_and_unsubscribe；will_on_abrupt_close_and_takeover_but_not_disconnect |
@@ -136,13 +136,17 @@ MQTT-CONFIG-001（配置入口限定合同）：Facade `toml`默认关闭，文�
 `check.sh`逐项核验22项MUST的测试日志。`check-release.py`将128个适用规范编号、18个审计项、22个项目合同和10个发布域共178项纳入当前源码绑定的独立评审；UN-008为推导项。删项、陈旧输入/评审、篡改日志、自评或未完整执行的报告均不能批准。详见[发布流程](../docs/release.md)和[验证结论摘要](../docs/validation/README.md#protocol)。当前完整发布仍Partial；原有场景门禁继续限定证据语义。
 
 
+## 两版验收 Profile
+
+[acceptance-profile.json](acceptance-profile.json) 固化实现侧 F6/F7 的协议、角色、传输、存储、QoS、Feature、客户端、平台证据和排除边界；`scripts/check-acceptance-profile.py` 核对宿主 revision/Rust/edition、Cargo Feature、协议审查输入数/表行数及 `independent_review=NotRun`，`scripts/tests/test_acceptance_profile.py` 提供自评、计数漂移、未知 Feature 和范围漂移的反例。该契约不产生完整符合性或独立批准；F6 仍排除 MQTT5/WebSocket/Bridge，F7 保留 Enhanced Authentication 为条件不支持。
+
 ## F6服务端输出与慢消费者故障矩阵
 
 [mqtt311-outbound.json](mqtt311-outbound.json)维护独立线帧预期：16个控制响应、14个PUBLISH标志/字段向量、12个RL边界，加CONNACK新建/恢复/Clean及4种实际拒绝上下文。`tests::outbound::*`的5项测试在编码层及真实TCP比较完整字节，期望不经过生产Codec生成或解码。
 
 `connection::tests::partial_publish_write_timeout_preserves_qos1_and_qos2_for_dup_reconnect`用一字节duplex确定性模拟半个PUBLISH写超时，核对保留消息、原ID/DUP及重新握手完成；不是持久/TLS/内核故障全矩阵。`tests::qos2::qos2_slow_consumer_pubcomp_backlog_rejects_atomically_and_same_id_retry_can_commit`在真实TCP窗口1/积压2下验证原子拒绝、Retained不变、无接收去重幽灵记录及容量释放后的同ID重试。
 
-三组新场景使受控场景数成为40；编号覆盖仍128项TargetedEvidence/12项范围说明，限定审计增至17项。新增两个审计入口，发布评审总数178。完整FSM、长期RSS/生产慢消费者/SLO及独立发布审查仍未通过。
+三组新场景使受控场景数成为40（随后混合监听恢复场景增至41组）；编号覆盖仍128项TargetedEvidence/12项范围说明，限定审计增至17项。新增两个审计入口，发布评审总数178。完整FSM、长期RSS/生产慢消费者/SLO及独立发布审查仍未通过。
 
 ## 可选功能合同
 

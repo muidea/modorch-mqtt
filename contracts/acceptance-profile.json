@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "status": "fixed-implementer",
+  "overall_status": "Partial",
+  "independent_approvals": 0,
+  "claim": "Implementation-side acceptance scope for MQTT3.1.1 and MQTT5. It fixes the declared protocol, role, transport, storage, features, clients and platform evidence boundaries. Complete conformance, production release and independent approval remain unclaimed.",
+  "host": {
+    "framework": "modorch",
+    "version": "0.0.3",
+    "revision": "336ba20196044e1b81fb2ca297a18b5e258a5800",
+    "rust_version": "1.85",
+    "edition": "2024"
+  },
+  "profiles": [
+    {
+      "id": "mqtt311-tcp-tls-sqlite",
+      "protocol": "mqtt311",
+      "role": "server",
+      "transports": ["tcp", "tls"],
+      "storage": ["memory", "sqlite"],
+      "qos": [0, 1, 2],
+      "features": ["auth", "tls", "storage", "admin", "metrics", "toml", "audit", "http", "bootstrap"],
+      "clients": ["rumqttc", "paho-mqtt-3.1.1"],
+      "platforms": {
+        "linux-x86_64": "TargetedEvidence",
+        "macos": "NotRun",
+        "windows": "NotRun"
+      },
+      "review_inputs": 437,
+      "table_rows": 339,
+      "out_of_scope": ["mqtt5", "websocket", "bridge"],
+      "conditional_unsupported": [],
+      "not_claimed": ["complete-conformance", "independent-approval", "production-slo", "remote-ci", "cross-platform-runtime", "hardware-power-loss"],
+      "independent_review": "NotRun"
+    },
+    {
+      "id": "mqtt5-tcp-websocket-sqlite",
+      "protocol": "mqtt5",
+      "role": "server",
+      "transports": ["tcp", "tls", "websocket", "websocket-tls"],
+      "storage": ["memory", "sqlite"],
+      "qos": [0, 1, 2],
+      "features": ["mqtt5", "websocket", "auth", "tls", "storage", "admin", "metrics", "toml", "audit", "http", "bootstrap"],
+      "clients": ["paho-mqtt-5.0"],
+      "platforms": {
+        "linux-x86_64": "TargetedEvidence",
+        "macos": "NotRun",
+        "windows": "NotRun"
+      },
+      "review_inputs": 607,
+      "table_rows": 505,
+      "out_of_scope": ["bridge"],
+      "conditional_unsupported": ["enhanced-auth"],
+      "not_claimed": ["complete-conformance", "independent-approval", "production-slo", "remote-ci", "cross-platform-runtime", "hardware-power-loss"],
+      "independent_review": "NotRun"
+    }
+  ]
+}

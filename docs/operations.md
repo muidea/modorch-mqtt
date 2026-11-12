@@ -28,6 +28,8 @@ Storage 目录须预先存在，同一数据库只允许一个 Broker 独占。�
 
 宿主收到退出信号后必须等待 `shutdown_checked` 并检查结果。超时、Forced 和 StopIncomplete 均不表示正常排空。存储模式下停止阶段不新建关键 durable promise，已提交 armed Will 可能在下次启动时发布；需要持续运行的接收方应将此延迟计入设计。
 
+[开发样例退出策略](magicdatahub-integration.md)在启动前安装信号处理，并等待运行失败；StopIncomplete 使用同一应用继续排空。`scripts/verify-existing-host.py` 实测 SIGINT/SIGTERM、成功回执和端口释放，已接入 check.sh。正式服务由 magicDataHub 交付。
+
 ## 检查与发布状态
 
 ```bash

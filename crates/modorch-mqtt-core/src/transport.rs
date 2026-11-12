@@ -76,9 +76,10 @@ impl Transport {
         }
         let _ = (config, tasks);
         Ok(Self {
+            #[cfg(feature = "tls")]
+            acceptor: Default::default(),
             websocket: config.websocket.clone(),
             max_packet_bytes: config.max_packet_bytes,
-            ..Default::default()
         })
     }
     #[cfg(feature = "tls")]

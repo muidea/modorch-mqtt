@@ -7,25 +7,21 @@
 宿主拥有 Tokio、Application、EventHub 和退出机制。Bundle 只注册 Factory，宿主显式启用组件；Core 不创建第二个 Application/Hub，监听和每个连接均由宿主 TaskScheduler 监督。
 
 ```rust
-use modorch::{ApplicationBuilder, ComponentSelection, ShutdownOptions};
+use modorch::{ApplicationBuilder, ComponentSelection, FailurePolicy};
 use modorch_mqtt::{MqttBrokerBundle, MqttBrokerConfig};
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let mut builder = ApplicationBuilder::new("existing-host");
-    let mqtt = MqttBrokerBundle::new(MqttBrokerConfig::loopback_development())
-        .register(&mut builder)?;
-    let mut selection = ComponentSelection::new();
-    for id in mqtt.module_ids() {
-        selection.enable_module(id);
-    }
-    let app = builder.selection(selection).build()?.start().await?;
-    println!("{}", mqtt.handle().local_addr().unwrap());
-    tokio::signal::ctrl_c().await?;
-    app.shutdown_checked(ShutdownOptions::graceful()).await?;
-    Ok(())
+let mut builder = ApplicationBuilder::new("existing-host");
+let mqtt = MqttBrokerBundle::new(MqttBrokerConfig::loopback_development())
+    .with_failure_policy(FailurePolicy::FailFast)
+    .register(&mut builder)?;
+let mut selection = ComponentSelection::new();
+for id in mqtt.module_ids() {
+    selection.enable_module(id);
 }
+let application = builder.selection(selection).build()?;
 ```
+
+上例仅展示注册与选择；完整启动、运行失败、SIGINT/SIGTERM 和 StopIncomplete 保留策略见[可运行样例](examples/existing-modorch-server/src/main.rs)与[magicDataHub 集成指南](docs/magicdatahub-integration.md)。
 
 依赖 `modorch` 时须使用与本项目完全相同的 Git 来源和 revision：
 

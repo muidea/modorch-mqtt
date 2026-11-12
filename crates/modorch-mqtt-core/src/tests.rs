@@ -244,6 +244,86 @@ async fn registration_is_explicit_and_status_uses_the_hosts_hub() {
 }
 
 #[tokio::test]
+async fn overlapping_subscriptions_deliver_one_copy_at_highest_matching_qos() {
+    let (app, handle) = start(config()).await;
+    let addr = handle.local_addr().unwrap();
+    let (mut publisher, _) = Client::connect(addr, "overlap-publisher", true).await;
+    let (mut subscriber, _) = Client::connect(addr, "overlap-subscriber", true).await;
+    assert_eq!(
+        subscriber
+            .subscribe(&[("overlap/#", 0), ("overlap/+", 1), ("overlap/item", 2)])
+            .await,
+        [0, 1, 2]
+    );
+    publisher
+        .publish("overlap/item", b"max-qos", 2, false)
+        .await;
+    let (topic, payload, header, id) = subscriber.message().await;
+    assert_eq!(topic, "overlap/item");
+    assert_eq!(payload, b"max-qos");
+    assert_eq!(header, 0x34);
+    let id = id.unwrap();
+    subscriber.send(codec::frame(0x50, &id.to_be_bytes())).await;
+    assert_eq!(subscriber.recv().await, (0x62, id.to_be_bytes().to_vec()));
+    subscriber.send(codec::frame(0x70, &id.to_be_bytes())).await;
+    assert!(
+        tokio::time::timeout(Duration::from_millis(100), subscriber.recv())
+            .await
+            .is_err()
+    );
+    stop(&app).await;
+}
+
+#[tokio::test]
+async fn overlapping_subscription_delivery_qos_is_min_of_publish_and_max_grant() {
+    let (app, handle) = start(config()).await;
+    let addr = handle.local_addr().unwrap();
+    let (mut publisher, _) = Client::connect(addr, "min-publisher", true).await;
+
+    let (mut max2, _) = Client::connect(addr, "min-max2", true).await;
+    assert_eq!(
+        max2.subscribe(&[("min2/#", 0), ("min2/+", 1), ("min2/item", 2)])
+            .await,
+        [0, 1, 2]
+    );
+    for (qos, expected_header) in [(0, 0x30), (1, 0x32), (2, 0x34)] {
+        publisher.publish("min2/item", &[qos], qos, false).await;
+        let (_, payload, header, id) = max2.message().await;
+        assert_eq!(payload, vec![qos]);
+        assert_eq!(header, expected_header);
+        if qos == 1 {
+            max2.ack(id.unwrap()).await;
+        } else if qos == 2 {
+            let id = id.unwrap();
+            max2.send(codec::frame(0x50, &id.to_be_bytes())).await;
+            assert_eq!(max2.recv().await, (0x62, id.to_be_bytes().to_vec()));
+            max2.send(codec::frame(0x70, &id.to_be_bytes())).await;
+        }
+    }
+
+    let (mut max1, _) = Client::connect(addr, "min-max1", true).await;
+    assert_eq!(
+        max1.subscribe(&[("min1/#", 0), ("min1/+", 1)]).await,
+        [0, 1]
+    );
+    publisher.publish("min1/item", b"one", 2, false).await;
+    let (_, payload, header, id) = max1.message().await;
+    assert_eq!(payload, b"one");
+    assert_eq!(header, 0x32);
+    max1.ack(id.unwrap()).await;
+
+    let (mut max0, _) = Client::connect(addr, "min-max0", true).await;
+    assert_eq!(max0.subscribe(&[("min0/#", 0)]).await, [0]);
+    publisher.publish("min0/item", b"zero", 2, false).await;
+    let (_, payload, header, id) = max0.message().await;
+    assert_eq!(payload, b"zero");
+    assert_eq!(header, 0x30);
+    assert_eq!(id, None);
+
+    stop(&app).await;
+}
+
+#[tokio::test]
 async fn qos1_overlap_retained_delete_and_unsubscribe() {
     let (app, handle) = start(config()).await;
     let addr = handle.local_addr().unwrap();

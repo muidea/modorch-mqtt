@@ -1336,6 +1336,8 @@ impl State {
                 .max_inflight_per_client
                 .min(session.receive_maximum)
         {
+            // Only MQTT5 can skip an oversized publication and continue the loop.
+            #[cfg_attr(not(feature = "mqtt5"), allow(clippy::never_loop))]
             while let Some(index) = session
                 .pending
                 .iter()
@@ -1382,6 +1384,8 @@ impl State {
                 return Ok(Some(bytes));
             }
         }
+        // MQTT3.1.1 returns its first queued publication; MQTT5 may skip entries.
+        #[cfg_attr(not(feature = "mqtt5"), allow(clippy::never_loop))]
         while let Some(d) = session.qos0.pop_front() {
             #[cfg(feature = "mqtt5")]
             if session.protocol5

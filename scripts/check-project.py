@@ -7,10 +7,12 @@ from urllib.parse import unquote, urlsplit
 
 
 REQUIRED = (
+    "docs/magicdatahub-integration.md", "scripts/verify-existing-host.py",
     "scripts/load-soak.py", "docs/load-baseline.md", "docs/protocol-review.md",
     "contracts/protocol-review.json", "contracts/mqtt311-review-inputs.json",
     "contracts/mqtt5-review-inputs.json", "scripts/audit-protocol.py",
-    "scripts/check-protocol-review.py",
+    "scripts/check-protocol-review.py", "contracts/acceptance-profile.json",
+    "scripts/check-acceptance-profile.py", "scripts/check-matrix-inventory.py",
     "contracts/mqtt5-text.json", "scripts/audit-mqtt5.py", "docs/protocol-integrity.md",
     "contracts/optional-functional.json", "scripts/check-feature-evidence.py", "docs/optional-features.md",
     "contracts/mqtt311-outbound.json",

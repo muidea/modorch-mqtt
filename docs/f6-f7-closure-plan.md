@@ -1,8 +1,8 @@
 # F6/F7 待收口计划与跟踪清单
 
-更新日期：2026-11-09。F6 为 MQTT 3.1.1 完整协议验收，F7 为 MQTT 5.0 完整协议验收，当前均为 **Partial**。
+更新日期：2026-11-12。F6 为 MQTT 3.1.1 完整协议验收，F7 为 MQTT 5.0 完整协议验收，当前均为 **Partial**。
 
-本页将当前核对结果整理为后续执行任务。当前没有新增已确认的运行时代码缺陷；未完成语义审查、验证覆盖或独立验收，不直接等于功能未实现。本轮仅整理文档，没有重新执行功能测试或取得新的独立批准。
+本页将当前核对结果整理为后续执行任务。当前没有新增已确认的运行时代码缺陷；未完成语义审查、验证覆盖或独立验收，不直接等于功能未实现。最新宿主样例/通用恢复验证更新见文末；完整语义审查和新的独立批准仍未完成。
 
 ## 依据与当前基线
 
@@ -10,7 +10,7 @@
 - 当前状态：[剩余需求与验收边界](remaining-work.md)。历史执行结论汇总于最终记录，逐轮过程材料已按用户要求清理。
 - 执行清单：[协议审查契约](../contracts/protocol-review.json)，保留规范原文、角色、适用条件、实现位置及限定测试映射。
 - 评审格式与门禁：[完整协议评审材料](protocol-review.md)。本页跟踪任务，不替代机器可校验的契约和评审包。
-- 最近功能验证：[最终验证结论](validation/README.md#verification)。下列测试结果引用清理前的历史执行摘要，本轮没有重跑；摘要不能替代原始执行材料。
+- 最近功能验证：[最终验证结论](validation/README.md#verification)。下列基线引用清理前历史执行摘要；最新限定回归另列文末。摘要不能替代原始执行材料。
 
 | 基线项目 | F6 / MQTT 3.1.1 | F7 / MQTT 5.0 |
 |---|---|---|
@@ -47,14 +47,39 @@
 
 | 编号 | 待收口项 | 当前状态 | 交付物 | 完成标准 |
 |---|---|---|---|---|
-| F67-01 | 固定两版验收 Profile | 待固化 | 协议、角色、传输、存储、Feature、宿主/平台及排除条件清单 | 两版范围明确，条件能力与现有声明一致，范围变化可追溯 |
-| F67-02 | F6 完整语义审查 | 待完成 | 437 输入及其中 339 表格行的逐项核对记录 | 完整正文、关联上下文、角色、适用性及断言充分性均有结论；缺口逐条登记 |
+| F67-01 | 固定两版验收 Profile | 实现侧 v1 已固化到 [acceptance-profile.json](../contracts/acceptance-profile.json)；协议、角色、传输、存储、Feature、客户端、平台证据及排除边界已机器校验；独立审查仍 NotRun，工具宿主声明不能代替全部库验收 Profile | 协议、角色、传输、存储、Feature、宿主/平台及排除条件清单 | 两版范围明确，条件能力与现有声明一致，范围变化可追溯；工具宿主声明不能代替全部库验收 Profile |
+| F67-02 | F6 完整语义审查 | 待完成；已补重叠订阅最高匹配及最小(发布,授予) QoS 证据，不改变整体状态 | 437 输入及其中 339 表格行的逐项核对记录 | 完整正文、关联上下文、角色、适用性及断言充分性均有结论；缺口逐条登记 |
 | F67-03 | F7 完整语义审查 | 待完成 | 607 输入及其中 505 表格行的逐项核对记录 | 同 F67-02；属性、原因码发送角色及条件能力均结合完整上下文核对 |
-| F67-04 | 剩余状态/故障组合定界 | 待形成明确清单 | 现有 18 矩阵的覆盖对照、必需新增用例及排除理由 | 每个新增用例关联义务和缺失断言；已覆盖项不重复登记；无笼统“其他组合”待办 |
+| F67-04 | 剩余状态/故障组合定界 | 18 个既有矩阵已形成覆盖基线；必需新增用例和排除理由仍待 F67-02/03 语义审查后定界 | 现有 18 矩阵的覆盖对照、必需新增用例及排除理由 | 每个新增用例关联义务和缺失断言；已覆盖项不重复登记；无笼统“其他组合”待办 |
 | F67-05 | 按实际缺口修复与补测 | 待 F67-02～04 识别具体项 | 缺陷反例、代码修复、验证补齐及更新后的精确映射 | 已确认缺陷修复并回归；适用验证缺口有充分证据；没有未处理失败 |
 | F67-06 | 客户端与功能组合验收 | 已有限定证据，待完整核对 | 客户端版本、传输、协议、Feature、恢复方式的执行矩阵及原始材料 | Profile 内必需组合已执行或有充分的不适用依据；Paho/rumqttc 旧材料仅在适用范围内复用 |
 | F67-07 | 当前输入的真实独立实审 | 待执行，批准 0 | 绑定当前源码、规范、日志摘要的独立评审记录 | 所有要求的对象/checks 完整；两版 acceptance 分别审查；不存在自评或失效批准 |
 | F67-08 | 严格门禁与文档结项 | 待前置任务完成 | 严格报告、最终证据索引及同步后的状态文档 | 当前评审包严格通过，F6/F7 状态有真实依据，生产发布边界继续单独标明 |
+
+### F67-04 现有 18 矩阵覆盖对照（基线）
+
+下表只登记 `contracts/protocol-review.json` 中既有矩阵及其精确测试，用于 F67-04 的“已覆盖项不重复登记”基线；合计 **18 个矩阵 / 222 个组合**。`scripts/check-matrix-inventory.py` 校验行数、顺序、ID、维度、组合数和精确测试名，并有 4 项缺失/重复/乱序/陈旧反例；它只保护基线台账，不批准新增或排除项。必需新增用例、缺失断言和排除理由必须在 F67-02/F67-03 语义审查后逐项登记；在此之前不把“其他组合”写成笼统待办，也不以本表关闭 F67-04。
+
+| # | 矩阵 | 维度 | 组合 | 证据测试 |
+|---|---|---|---:|---|
+| 1 | `SENDER-ACK` | states=4 / acks=3 | 12 | `state::qos2::tests::sender_ack_transition_matrix_preserves_phase_and_identifier_ownership` |
+| 2 | `RECEIVER-OWNERSHIP` | states=2 / inputs=4 / memory_or_snapshot=2 | 16 | `state::qos2::tests::receiver_transition_matrix_keeps_dedup_retained_and_reuse_across_snapshot_recovery` |
+| 3 | `SQLITE-PHASE-FAILURE` | protocols=2 / commit_boundaries=4 | 8 | `tests::storage::qos2_failed_phase_commits_never_advance_the_wire_or_discard_committed_exchanges` |
+| 4 | `CONNECTION-QUOTA-RESET` | memory_or_sqlite=2 | 2 | `tests::mqtt5_protocol::mqtt5_reconnected_pubrel_does_not_consume_fresh_receive_quota_or_replenish_it_twice`, `tests::storage::mqtt5_sqlite_recovered_pubrel_has_fresh_connection_quota` |
+| 5 | `mqtt5-shared-offline-selection` | online=2 / expired=2 / qos=3 | 12 | `state::shared_regressions::shared_offline_selection_matrix_excludes_expired_sessions_and_qos0` |
+| 6 | `RECEIVER-WIRE-RESTART` | protocols=2 / reconnect_or_sqlite_restart=2 / duplicate_flag=2 | 8 | `tests::storage::qos2_receiver_duplicate_content_retained_and_id_reuse_survive_sqlite_restart` |
+| 7 | `RECEIVE-WINDOW-WRITE` | protocols=2 / acknowledgement_phases=3 / next_publish_qos=2 | 12 | `connection::receive_tests::partial_ack_write_enforces_mqtt5_receive_maximum_without_limiting_mqtt311`, `connection::receive_tests::receive_quota_requires_pubcomp_and_resets_on_reconnect_with_old_receiver_records`, `connection::receive_tests::queued_duplicate_pubcomp_cannot_release_reused_identifier_receive_quota` |
+| 8 | `PARTIAL-ACK-INTERRUPT-RESUME` | protocols=2 / acknowledgement_phases=3 / interruption_kinds=2 | 12 | `connection::receive_tests::interrupted_partial_ack_reconnect_preserves_receiver_ownership_and_reclaims_connection_budget` |
+| 9 | `SENDER-ACK-SQLITE-RESTART` | protocols=2 / sender_phases=2 / ack_faults=3 | 12 | `tests::storage::qos2_sender_wrong_ack_phase_matrix_preserves_ownership_across_sqlite_restart` |
+| 10 | `MQTT5-NEGATIVE-PUBREC-PHASE-RESTART` | sender_phases=2 / failure_reason_codes=7 | 14 | `tests::storage::mqtt5_negative_pubrec_reason_matrix_after_sqlite_restart_only_releases_publish_phase` |
+| 11 | `CLIENT-ACK-ROLE-REJECT-RESTART` | protocols=2 / sender_phases=3 / extra_field_forms=2 | 12 | `tests::storage::client_ack_server_only_reason_matrix_closes_without_mutating_sqlite_sender_ownership` |
+| 12 | `MQTT5-CLIENT-ACK-LEGAL-RESTART` | ack_kinds=2 / legal_client_reason_codes=8 / property_length_forms=2 | 32 | `tests::storage::mqtt5_client_ack_legal_reason_matrix_completes_once_across_sqlite_restarts` |
+| 13 | `QOS2-DUPLEX-SAME-ID-RESTART` | protocols=2 / sender_phases=2 / completion_orders=2 | 8 | `tests::storage::qos2_same_identifier_bidirectional_matrix_keeps_sqlite_ownership_independent` |
+| 14 | `MQTT5-ZERO-EXPIRY-RETAINED-QOS-RESTART` | qos_levels=3 / retain_flags=2 / payload_forms=2 | 12 | `tests::storage::mqtt5_zero_expiry_retained_qos_matrix_preserves_handshake_across_sqlite_restarts` |
+| 15 | `DUPLEX-SAME-ID-COMMIT-FAULT-RESTART` | protocols=2 / sender_phases=2 / mutation_directions=2 / commit_fault_modes=3 | 24 | `tests::storage::qos2_duplex_same_id_commit_fault_matrix_recovers_each_direction_independently` |
+| 16 | `DUPLEX-SAME-ID-PARTIAL-ACK-INTERRUPT` | protocols=2 / sender_phases=2 / partial_ack_kinds=2 / interruption_modes=2 | 16 | `connection::receive_tests::duplex_same_id_partial_ack_interrupt_matrix_preserves_outbound_and_receiver_state` |
+| 17 | `DUPLEX-SAME-ID-UNIX-SIGKILL` | protocols=2 / sender_phases=2 | 4 | `tests::storage::qos2_duplex_same_id_sigkill_matrix_restores_both_directions_and_completion` |
+| 18 | `MQTT5-POSITIVE-TTL-PHASE-RESTART` | delivery_phases=3 / expiry_restart_orders=2 | 6 | `tests::storage::mqtt5_positive_ttl_phase_restart_matrix_expires_only_unsent_messages_and_retained` |
 
 执行顺序为 F67-01 → F67-02/F67-03 → F67-04 → F67-05/F67-06 → F67-07 → F67-08。语义审查可分批推进，发现可复现缺陷即可修复；最终批准必须针对稳定后的当前输入。
 
@@ -68,7 +93,7 @@ F6 建议按连接与会话、报文编码与校验、QoS/Packet ID、订阅/Top
 
 ## 具体缺口登记模板
 
-当前尚未新增经过逐项审定的具体缺口记录。下表为空模板，后续发现后填入；每条记录使用稳定编号 `F67-G001` 起递增，不复用已关闭编号。
+当前库内尚未新增经过逐项审定的 F67 具体缺口记录。magicDataHub 工具已有验证缺口 `MQTT-GAP-001`，Retained v2 已在选定范围实现；其七个官方编号仍为待审草案，不是库运行时缺陷，也不关闭 F67-02/05/07。工具后续工作见宿主仓库的 `tools/mqtt-broker-validation/remaining-work.md`。下表保留库内空模板，后续发现后填入；每条记录使用稳定编号 `F67-G001` 起递增，不复用已关闭编号。
 
 | 字段 | 填写要求 |
 |---|---|
@@ -133,3 +158,15 @@ python3 scripts/check-protocol-review.py \
 |---|---|---|---|
 | 2026-11-09 | 整理当前核对结果，建立任务编号、缺口模板和结项标准 | F6/F7 保持 Partial；没有新增功能执行或独立批准 | 本页；最近功能结论见[最终记录](validation/README.md#verification) |
 | 2026-11-09 | 按用户要求归档仅保留最终记录，清理逐轮过程产物 | 历史摘要不作为原始证据或批准；后续验证使用忽略目录 | [最终记录与保留规则](validation/README.md#artifact-policy) |
+| 2026-11-10 | 开发样例退出、正式宿主指南及 magicDataHub 通用双向 QoS2 四分支/10 种错误校准 | 样例与 MQTT 指南收口；226 Rust/53 脚本测试、MSRV/最小 Feature/TOML 专项通过。F6/F7、工具完整 M0/M1 和独立批准仍 Partial | [集成指南](magicdatahub-integration.md)；工具归 magicDataHub/tools/mqtt-broker-validation，逐次产物不归档 |
+| 2026-11-10 | 默认 Feature Clippy 收口；宿主工具新增版本化 Profile/绑定 schema 与配置/证据核验 | lint 门禁关闭；两个宿主 Profile 声明可追溯，配置已核验与 live 未核验分开；其他 M0 数据契约、官方映射与独立批准仍待 | [剩余项](remaining-work.md)；magicDataHub 工具正式入口 |
+| 2026-11-10 | 同步工具执行契约、首批上游审计及 Retained v2 的限定收口；重新核对剩余项 | 工具十二份 schema/30种事件、七个官方ID待审草案；最近工具97项/宿主15项测试及56 PASS/1 BLOCKED黑盒基线，均不升级F6/F7或独立批准。本次为清单核对，未重跑功能e2e | magicDataHub 的 `tools/mqtt-broker-validation/remaining-work.md` 与 `docs/validation.md` |
+| 2026-11-10 | magicDataHub连接v2原文映射、完整交换及父进程证据重建 | MQTT-GAP-002在选定范围修复，四个连接编号新增为待审草案；105项工具测试通过，不关闭F67语义/充分性及独立批准 | 宿主工具的`normative-map.md`、`remaining-work.md`和`tests/test_connection.py` |
+| 2026-11-10 | magicDataHub QoS2 v2四分支原文映射与父进程原始证据重建 | MQTT-GAP-003在选定范围修复，112项工具测试通过；新增三个待审编号，完整发送方/接收方列表未导入，不升级F6/F7或独立批准 | 宿主工具的`qos2_evidence.py`、`normative-map.md`及`remaining-work.md` |
+| 2026-11-10 | magicDataHub Topic v2固定向量、健康/目标对照与父进程原始字节重建 | MQTT-GAP-004在选定范围修复，122项工具测试通过；新增四个待审编号，不等于完整匹配/非法输入或独立批准 | 宿主工具的`topic_vectors.py`、`topic_evidence.py`及`normative-map.md` |
+| 2026-11-10 | 宿主工具导入QoS2两个完整复合列表及12个MUST原子，v3补完成后ID复用/读取PUBREC前重复PUBLISH | 128项工具测试及参考专项通过；父编号inventory-only、原子证据Partial，完整语义/充分性与独立批准仍待 | magicDataHub的`tools/mqtt-broker-validation/qos2-obligations.md`及`compound_source.py` |
+| 2026-11-10 | 宿主工具FLOW v1补双消息在途、重复PUBREC/PUBREL及完成后ID复用，来源v6为11项原子增加补充绑定 | 140项工具/15项宿主及60组黑盒（59 PASS/1 BLOCKED/0 FAIL/0 ERROR/0 NOT_TESTED）通过；必需门禁退出0；串行发送合法，缺窗口前提BLOCKED；原子Partial/pending，独立批准0 | magicDataHub的`tools/mqtt-broker-validation/qos2-obligations.md`及`qos2_flow_evidence.py` |
+| 2026-11-10 | 宿主工具FANOUT v1补双订阅者的重复输入去重/独立交换/观察，来源v7追加五项接收方补充绑定 | 153项工具、15项宿主及63组黑盒（62 PASS/1 BLOCKED/0 FAIL/0 ERROR/0 NOT_TESTED）通过；门禁退出0；相同跨连接ID合法，不能借用ACK/交付；完整语义/充分性、独立批准及更大扇出仍待 | magicDataHub的`tools/mqtt-broker-validation/qos2_fanout_evidence.py`及`qos2-obligations.md` |
+| 2026-11-10 | 宿主DUPLEX v1补同连接双向同号的两个正常完成顺序、双向健康/输入ID复用及独立命名空间证据；来源v8追加三个原子绑定 | 167项工具、15项宿主及66组黑盒（65 PASS/1 BLOCKED/0 FAIL/0 ERROR/0 NOT_TESTED）通过，必需门禁退出0；库已有故障专项不重复登记为未实现，本轮未重跑该专项；完整语义/充分性及独立批准仍待 | magicDataHub的`tools/mqtt-broker-validation/qos2_duplex_evidence.py`和`qos2-obligations.md` |
+| 2026-11-11 | 宿主工具MIXED v1补九行输入×请求QoS、实际授予/逐级ACK/交付及十八连接原始帧重建；重叠订阅行转MQTT-T07诊断 | 181项工具、15项宿主及68 PASS/1 BLOCKED/0 FAIL/0 ERROR/0 NOT_TESTED通过，必需门禁退出0；内部范围增至9个、事件56种，完整语义/充分性及独立批准仍待 | magicDataHub的`tools/mqtt-broker-validation/mixed_qos_evidence.py`、`mixed-qos-obligations.md`和`docs/validation.md` |
+| 2026-11-12 | 固化两版实现侧验收 Profile；登记 F67-04 既有 18 矩阵覆盖基线；同步 MIXED/T07 当前事实和脚本计数 | F67-01 实现侧收口；F67-04 已覆盖项登记完成并加机器校验、新增/排除仍待语义审查；验收Profile与矩阵台账各4项脚本反例；新增重叠订阅最高匹配QoS及最小(发布,授予)QoS用例，Rust测试228项；工具新增非门禁重叠诊断及3项测试，工具测试184项；完整 `scripts/check.sh` 重跑 exit 0；独立审查仍 NotRun；F6/F7 整体仍 Partial | [acceptance-profile.json](../contracts/acceptance-profile.json)、`scripts/check-acceptance-profile.py`、本页矩阵基线 |

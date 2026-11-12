@@ -1,8 +1,8 @@
 # 最终验证与收口记录
 
-更新日期：2026-11-09。适用版本：`0.1.0-alpha.1`，Rust 最低 1.85，Modorch-RS 0.0.3，固定 rev `336ba20196044e1b81fb2ca297a18b5e258a5800`。
+更新日期：2026-11-12。适用版本：`0.1.0-alpha.1`，Rust 最低 1.85，Modorch-RS 0.0.3，固定 rev `336ba20196044e1b81fb2ca297a18b5e258a5800`。
 
-按用户要求，仓库归档仅保留本最终记录；各轮临时验证目录、原始日志、测试数据库、探针、摘要清单和未批准评审包已清理。以下为清理前已记录的执行结论摘要，不能代替原始材料或当前输入的独立批准。本次整理未重跑 Rust、互操作、负载或协议功能验证。
+按用户要求，仓库归档仅保留本最终记录；各轮临时验证目录、原始日志、测试数据库、探针、摘要清单和未批准评审包已清理。以下分别标明历史基线与最新限定回归，不能代替原始材料或当前输入的独立批准。逐次报告和临时日志仍不归档。
 
 当前完整 F6/F7 与生产发布仍为 **Partial**，真实独立批准均为 0。后续任务统一见[F6/F7 待收口计划](../f6-f7-closure-plan.md)及[剩余需求](../remaining-work.md)。
 
@@ -58,7 +58,11 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 
 ## 最近功能验证结论
 
-最近一轮为“同号双向 QoS2 故障交叉与正 TTL 收口”。清理前记录的结果为：
+2026-11-10 的开发样例收口已通过完整 `scripts/check.sh`：226 项 Rust、53 项脚本测试，以及 fmt/check/all-features Clippy/Rustdoc、契约、TLS/Auth/Storage 与 SIGKILL 恢复检查。新增 4 项受管任务测试和真实 SIGINT/SIGTERM、MQTT 心跳、退出回执、端口重绑检查；Rust1.85 all-targets/all-features、最小 Feature 编译和 8 项 TOML 配置测试通过。正式指南见 [magicDataHub 集成](../magicdatahub-integration.md)。随后默认 Feature lint 收口只调整 Core 的条件 lint 与 TLS 可选字段初始化，不改变协议行为；默认 Feature Clippy 已进入门禁。当前源码再次通过完整检查、MSRV/最小 Feature 与宿主回归，并在新的隔离镜像验证；常驻服务未替换。未重新执行全部独立客户端扩展互操作/生产负载，完整符合性与发布仍 Partial。
+
+2026-11-12 新增两版实现侧验收 Profile 契约及 4 项反例、F67-04 矩阵台账校验及 4 项反例，脚本测试由 53 增至 61；新增重叠订阅最高匹配 QoS 与最小(发布,授予) QoS 用例后 Rust 测试为 228 项。`cargo test --workspace --all-features --locked` 为 **228 passed / 0 failed / 0 ignored**，`check-conformance.py --results` 41/41 场景 TargetedEvidence 通过、规范仍 Partial，`check-protocol-review.py --results` 缺失证据 0。`scripts/check-acceptance-profile.py` 与 `scripts/check-matrix-inventory.py` 已通过；完整 `scripts/check.sh` 已重跑并 exit 0，包含 **228 Rust / 61 脚本测试**、fmt/check/all-features Clippy/Rustdoc、契约门禁、示例/TOML/Storage/SIGKILL 检查。该变化固定实现侧范围并防止自评/计数/Feature 漂移，F67-01 独立审查仍为 NotRun。
+
+此前一轮为“同号双向 QoS2 故障交叉与正 TTL 收口”。清理前记录的历史结果为：
 
 | 检查 | 历史结论 |
 |---|---|
