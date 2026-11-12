@@ -8,8 +8,8 @@
 
 | 项目 | 当前状态与剩余工作 | 跟踪入口 |
 |---|---|---|
-| F6 / MQTT 3.1.1 | 437 个规范输入、339 表格行、190 个限定映射；完整正文/跨段/逐义务/逐行语义、剩余必需组合和独立验收待完成 | F67-01、02、04–08 |
-| F7 / MQTT5 | 607 个规范输入、505 表格行、281 个限定映射；完整语义、剩余必需组合和独立验收待完成 | F67-01、03–08 |
+| F6 / MQTT 3.1.1 | 437 个规范输入、339 表格行、190 个限定映射；实现侧批次复核 28/437（其余 409 输入、339 表格行）；F67-04 新增组合草案待定；完整语义与独立验收待完成 | F67-01、02、04–08 |
+| F7 / MQTT5 | 607 个规范输入、505 表格行、281 个限定映射；实现侧批次复核 37/607（其余 570 输入、505 表格行）；完整语义、剩余必需组合和独立验收待完成 | F67-01、03–08 |
 | Enhanced Authentication / AUTH | 当前明确不支持，11 项 UnsupportedConditional；不是自动新增的必做功能，启用时另立开发任务 | F67-01、03、06 |
 | 生产 SLO | 按用户选择保留；长期 RSS、代表性连接/吞吐/P99、退出/恢复时限及宿主构建 Profile 需另测 | 独立容量验收 |
 | 外部发布验收 | magicCommon、远端 CI、跨平台/文件系统、硬件断电及独立安全/性能/接入/发布材料待真实执行 | [发布流程](release.md) |
@@ -25,6 +25,9 @@
 2026-11-10 补齐开发样例运行失败、SIGINT/SIGTERM、StopIncomplete 同应用重试与启动补偿；真实受管任务和信号/端口释放验证已接入门禁。[正式集成指南](magicdatahub-integration.md)已落库。该轮完整 check.sh 的 226 项 Rust、53 项脚本测试通过，Rust1.85 all-targets/all-features、最小 Feature 编译与 TOML 配置专项通过。此次不重新声明 Paho 全部扩展专项；下段是此前历史基线。
 
 2026-11-12 固化两版实现侧验收范围：[acceptance-profile.json](../contracts/acceptance-profile.json) 明确 F6 的 TCP/TLS/SQLite、F7 的 MQTT5 TCP/WebSocket/SQLite、共同宿主/Feature/客户端/平台证据边界及排除项；`scripts/check-acceptance-profile.py` 核对契约计数、Cargo Feature、宿主 revision 和 `independent_review=NotRun`，4 项脚本反例覆盖自评、计数漂移、未知 Feature 与范围漂移。同时新增重叠订阅请求 QoS 0/1/2、发布 QoS2 的最高匹配 QoS 用例，以及发布/授予组合取最小 QoS 的矩阵用例，并映射至 MQTT-3.3.5-1/3.6.1-1/3.8.4-6；Rust 测试现为233项。完整 `scripts/check.sh` 已重跑并通过（233 Rust/61 脚本，含 Clippy/Rustdoc/契约/示例/TOML/Storage/SIGKILL）。F67-01 实现侧收口，独立审查仍为 0。
+
+截至 2026-11-12，F67-02 已登记 28/437 输入、F67-03 已登记 37/607 输入的实现侧批次复核；均已核对精确测试映射，发现的映射缺口已修正。F67-04 已登记新增组合定界草案：已复核批次不新增 state/fault 矩阵，18 矩阵/222 组合不变；连接/会话等候选仍待。全部结论仍为实现侧复核，真实独立批准保持 0。
+
 
 magicDataHub 内的通用黑盒入口已补两个方向各 AwaitPubRec/AwaitPubComp 四分支、真实 ACK 截断和 11 种错误校准；仅代表性证据，不关闭 F67-01—08。工具两个正式宿主的独立 Profile 与 Profile/绑定 schema 已落库并绑定执行/证据；当前 56 种事件、worker 原始结果和汇总 schema 已接入门禁，并拒绝重复/计划外/旧 run 等不完整证据；代表性用例/义务/目录、RunManifest/Request schema 与计划/输入/路径/ownership 绑定也已接入门禁，worker 在副作用前重验；完整官方义务/证据模型、官方映射、语义/充分性和独立审查继续单列。
 
