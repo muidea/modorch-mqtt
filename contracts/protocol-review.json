@@ -8962,7 +8962,8 @@
             "mqtt5::validation::tests::mqtt5_all_property_types_follow_client_direction_cardinality_and_field_boundaries",
             "tests::mqtt5::mqtt5_alias_metadata_subscription_options_window_unsubscribe_and_mixed311",
             "tests::mqtt5::mqtt5_delayed_will_cancel_resume_session_expiry_and_message_expiry",
-            "tests::storage::mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and_real_properties"
+            "tests::storage::mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and_real_properties",
+            "tests::mqtt5_protocol::mqtt5_invalid_publish_topic_closes_only_offender"
           ],
           "independent_review": "NotRun"
         },
@@ -9165,7 +9166,8 @@
             "mqtt5::validation::tests::mqtt5_all_property_types_follow_client_direction_cardinality_and_field_boundaries",
             "tests::mqtt5::mqtt5_alias_metadata_subscription_options_window_unsubscribe_and_mixed311",
             "tests::mqtt5::mqtt5_delayed_will_cancel_resume_session_expiry_and_message_expiry",
-            "tests::storage::mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and_real_properties"
+            "tests::storage::mqtt5_alias_expansion_sqlite_restores_retained_both_qos2_directions_and_real_properties",
+            "tests::mqtt5_protocol::mqtt5_invalid_publish_topic_closes_only_offender"
           ],
           "independent_review": "NotRun"
         },

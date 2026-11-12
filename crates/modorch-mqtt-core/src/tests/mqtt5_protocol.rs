@@ -442,6 +442,37 @@ fn mqtt5_outbound_control_frames_match_independent_literal_layouts() {
 }
 
 #[tokio::test]
+async fn mqtt5_invalid_publish_topic_closes_only_offender() {
+    let (app, broker) = start(MqttBrokerConfig {
+        mqtt5: true,
+        ..config()
+    })
+    .await;
+    let addr = broker.local_addr().unwrap();
+    let (mut sink, _) = connect(addr, "topic-valid-sink", true, 0, &[], None).await;
+    for (index, topic) in [&b"a/#"[..], &b"a/+"[..], &b""[..], &[0xff][..]]
+        .iter()
+        .enumerate()
+    {
+        let (mut offender, _) =
+            connect(addr, &format!("bad-topic-{index}"), true, 0, &[], None).await;
+        let mut body = (topic.len() as u16).to_be_bytes().to_vec();
+        body.extend(*topic);
+        body.push(0);
+        body.extend(b"payload");
+        offender.send(codec::frame(0x30, &body)).await;
+        let first = offender.0.read(&mut [0]).await.unwrap();
+        assert!(
+            first == 0 || first == 0xe0,
+            "invalid PUBLISH topic {index} was accepted"
+        );
+        sink.send(vec![0xc0, 0]).await;
+        assert_eq!(sink.recv().await, (0xd0, vec![]));
+    }
+    stop(&app).await;
+}
+
+#[tokio::test]
 async fn mqtt5_invalid_subscribe_payload_and_options_close_only_offender() {
     let (app, broker) = start(MqttBrokerConfig {
         mqtt5: true,
