@@ -62,6 +62,18 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 
 2026-11-12 新增两版实现侧验收 Profile 契约及 4 项反例、F67-04 矩阵台账校验及 4 项反例，脚本测试由 53 增至 61；新增重叠订阅最高匹配 QoS 与最小(发布,授予) QoS 用例后 Rust 测试为 228 项。`cargo test --workspace --all-features --locked` 为 **228 passed / 0 failed / 0 ignored**，`check-conformance.py --results` 41/41 场景 TargetedEvidence 通过、规范仍 Partial，`check-protocol-review.py --results` 缺失证据 0。`scripts/check-acceptance-profile.py` 与 `scripts/check-matrix-inventory.py` 已通过；完整 `scripts/check.sh` 已重跑并 exit 0，包含 **228 Rust / 61 脚本测试**、fmt/check/all-features Clippy/Rustdoc、契约门禁、示例/TOML/Storage/SIGKILL 检查。该变化固定实现侧范围并防止自评/计数/Feature 漂移，F67-01 独立审查仍为 NotRun。
 
+### 2026-11-12 F67-02 批次复核（实现侧，非独立批准）
+
+**范围**：MQTT3.1.1 `MQTT-3.3.5-1`（重叠订阅按最高匹配 QoS 投递）与 `MQTT-3.8.4-6`（下行 QoS 取发布 QoS 与最高授予的最小值）。
+
+**实现核对**：`crates/modorch-mqtt-core/src/state.rs:638` 对每个匹配订阅先取 `sub.qos.min(message.qos)`，再以 `max` 合并，对应最高匹配 QoS；随后按该 QoS 生成单一交付。代码路径与两条规范文本方向一致。
+
+**证据**：`overlapping_subscriptions_deliver_one_copy_at_highest_matching_qos` 覆盖最高授予 2、发布 QoS2；`overlapping_subscription_delivery_qos_is_min_of_publish_and_max_grant` 覆盖最高授予 2/1/0 与发布 QoS0/1/2 的最小值组合；已有 `qos1_overlap_retained_delete_and_unsubscribe` 覆盖保留消息/取消订阅路径。
+
+**本轮发现并修正**：`MQTT-3.8.4-6` 原先未映射新增的最小 QoS 用例，`MQTT-ROUTE-001` 也漏映射两个新增重叠用例；已补齐精确测试映射，`check-protocol-review.py --results` 仍通过。
+
+**结论**：在上述限定范围内证据充分，未发现运行时缺陷；但这只是实现侧批次复核，**不关闭 F67-02 整体**，也不构成独立批准。F67-02 仍待其余 435 个输入及 339 个表格行的逐项审查。
+
 此前一轮为“同号双向 QoS2 故障交叉与正 TTL 收口”。清理前记录的历史结果为：
 
 | 检查 | 历史结论 |

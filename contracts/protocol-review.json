@@ -2029,7 +2029,8 @@
             "tests::conformance::malformed_packets_and_second_connect_close_only_the_offending_connection",
             "tests::conformance::replacement_subscription_replays_retained_and_unsubscribe_is_exact",
             "tests::protocol::publish_qos_matrix_keeps_payload_and_sets_outgoing_dup_independently",
-            "tests::protocol::qos1_packet_id_reuse_after_puback_is_new_even_with_dup_and_reconnect"
+            "tests::protocol::qos1_packet_id_reuse_after_puback_is_new_even_with_dup_and_reconnect",
+            "tests::overlapping_subscription_delivery_qos_is_min_of_publish_and_max_grant"
           ],
           "independent_review": "NotRun"
         },

@@ -78,7 +78,9 @@
       "scope": "Client Session 订阅按客户端维护，不复用组件级去重",
       "tests": [
         "tests::protocol::mixed_subscribe_codes_follow_filter_order_and_duplicate_filters_replace_in_sequence",
-        "tests::qos1_overlap_retained_delete_and_unsubscribe"
+        "tests::qos1_overlap_retained_delete_and_unsubscribe",
+        "tests::overlapping_subscriptions_deliver_one_copy_at_highest_matching_qos",
+        "tests::overlapping_subscription_delivery_qos_is_min_of_publish_and_max_grant"
       ],
       "sources": [
         "crates/modorch-mqtt-core/src/state.rs",
