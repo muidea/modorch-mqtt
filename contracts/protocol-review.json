@@ -9221,7 +9221,8 @@
             "crates/modorch-mqtt-core/src/state/snapshot.rs"
           ],
           "tests": [
-            "tests::mqtt5_protocol::mqtt5_publish_all_qos_preserves_binary_metadata_user_order_and_outgoing_flags"
+            "tests::mqtt5_protocol::mqtt5_publish_all_qos_preserves_binary_metadata_user_order_and_outgoing_flags",
+            "tests::mqtt5_protocol::mqtt5_payload_format_indicator_one_is_forwarded"
           ],
           "independent_review": "NotRun"
         },

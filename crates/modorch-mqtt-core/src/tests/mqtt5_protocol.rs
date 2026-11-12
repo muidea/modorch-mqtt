@@ -793,6 +793,26 @@ async fn mqtt5_publish_all_qos_preserves_binary_metadata_user_order_and_outgoing
     stop(&app).await;
 }
 
+#[tokio::test]
+async fn mqtt5_payload_format_indicator_one_is_forwarded() {
+    let (app, broker) = start(MqttBrokerConfig {
+        mqtt5: true,
+        ..config()
+    })
+    .await;
+    let addr = broker.local_addr().unwrap();
+    let (mut sink, _) = connect(addr, "pf-sink", true, 0, &[], None).await;
+    sub(&mut sink, &[("pf", 1)], None).await;
+    let (mut source, _) = connect(addr, "pf-source", true, 0, &[], None).await;
+    publish(&mut source, "pf", b"valid", 1, &[1, 1], false).await;
+    let (h, b) = sink.recv().await;
+    let p = decoded(h, &b);
+    assert_eq!(p.payload, b"valid"[..]);
+    assert_eq!(p.properties.unwrap().payload_format_indicator, Some(1));
+    sink.send(codec::frame(0x40, &p.pkid.to_be_bytes())).await;
+    stop(&app).await;
+}
+
 #[test]
 fn mqtt5_payload_format_indicator_enforces_utf8_for_publish_and_will() {
     for (payload, valid) in [
