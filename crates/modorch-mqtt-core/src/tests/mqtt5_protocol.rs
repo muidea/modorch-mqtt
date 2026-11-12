@@ -442,6 +442,57 @@ fn mqtt5_outbound_control_frames_match_independent_literal_layouts() {
 }
 
 #[tokio::test]
+async fn mqtt5_overlapping_subscriptions_use_max_qos_and_report_matching_identifiers() {
+    let (app, broker) = start(MqttBrokerConfig {
+        mqtt5: true,
+        ..config()
+    })
+    .await;
+    let addr = broker.local_addr().unwrap();
+    let (mut max2, _) = connect(addr, "ov-max2", true, 0, &[], None).await;
+    sub(&mut max2, &[("ov2/#", 0)], Some(7)).await;
+    sub(&mut max2, &[("ov2/item", 2)], Some(9)).await;
+    let (mut max1, _) = connect(addr, "ov-max1", true, 0, &[], None).await;
+    sub(&mut max1, &[("ov1/#", 0)], Some(10)).await;
+    sub(&mut max1, &[("ov1/+", 1)], Some(11)).await;
+    let (mut max0, _) = connect(addr, "ov-max0", true, 0, &[], None).await;
+    sub(&mut max0, &[("ov0/#", 0)], Some(12)).await;
+    let (mut source, _) = connect(addr, "ov-source", true, 0, &[], None).await;
+
+    publish(&mut source, "ov2/item", b"two", 2, &[], false).await;
+    let (h, b) = max2.recv().await;
+    let p = decoded(h, &b);
+    assert_eq!(p.qos, rumqttc::v5::mqttbytes::QoS::ExactlyOnce);
+    assert_eq!(p.payload, b"two"[..]);
+    let mut ids = p.properties.unwrap().subscription_identifiers;
+    ids.sort();
+    assert_eq!(ids, vec![7, 9]);
+    let id = p.pkid.to_be_bytes();
+    max2.send(codec::frame(0x50, &id)).await;
+    assert_eq!(max2.recv().await, (0x62, id.to_vec()));
+    max2.send(codec::frame(0x70, &id)).await;
+
+    publish(&mut source, "ov1/item", b"one", 2, &[], false).await;
+    let (h, b) = max1.recv().await;
+    let p = decoded(h, &b);
+    assert_eq!(p.qos, rumqttc::v5::mqttbytes::QoS::AtLeastOnce);
+    assert_eq!(p.payload, b"one"[..]);
+    let mut ids = p.properties.unwrap().subscription_identifiers;
+    ids.sort();
+    assert_eq!(ids, vec![10, 11]);
+    max1.send(codec::frame(0x40, &p.pkid.to_be_bytes())).await;
+
+    publish(&mut source, "ov0/item", b"zero", 2, &[], false).await;
+    let (h, b) = max0.recv().await;
+    let p = decoded(h, &b);
+    assert_eq!(p.qos, rumqttc::v5::mqttbytes::QoS::AtMostOnce);
+    assert_eq!(p.payload, b"zero"[..]);
+    assert_eq!(p.properties.unwrap().subscription_identifiers, vec![12]);
+
+    stop(&app).await;
+}
+
+#[tokio::test]
 async fn mqtt5_retained_handling_replacement_overlap_identifiers_and_shared_suppression() {
     let (app, broker) = start(MqttBrokerConfig {
         mqtt5: true,
