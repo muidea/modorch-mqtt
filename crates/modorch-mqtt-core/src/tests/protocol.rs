@@ -601,3 +601,108 @@ async fn malformed_filter_packets_do_not_partially_install_or_remove_prior_filte
     }
     stop(&app).await;
 }
+
+#[tokio::test]
+async fn keepalive_resets_on_control_packet_and_zero_stays_open() {
+    let mut cfg = config();
+    cfg.handshake_timeout = Duration::from_millis(100);
+    let (app, broker) = start(cfg).await;
+    let addr = broker.local_addr().unwrap();
+    let (mut observer, _) = Client::connect(addr, "keepalive-zero", true).await;
+    observer.subscribe(&[("ka/will", 1)]).await;
+    // KeepAlive=0 stays open past handshake_timeout (100ms).
+    tokio::time::sleep(Duration::from_millis(250)).await;
+    qos2::ping(&mut observer).await;
+
+    // KeepAlive=1s (1.5s server deadline) survives beyond 1.5s while receiving
+    // control packets, then closes and publishes its Will once idle.
+    let (mut active, _) = Client::connect_will(
+        addr,
+        "keepalive-active",
+        true,
+        Some(("ka/will", b"expired", false)),
+        1,
+    )
+    .await;
+    for _ in 0..2 {
+        tokio::time::sleep(Duration::from_millis(850)).await;
+        qos2::ping(&mut active).await;
+    }
+    closed(&mut active).await;
+    let (topic, payload, _, id) = observer.message().await;
+    assert_eq!(
+        (topic.as_str(), payload.as_slice()),
+        ("ka/will", b"expired".as_slice())
+    );
+    observer.ack(id.unwrap()).await;
+    stop(&app).await;
+}
+
+#[tokio::test]
+async fn ordered_topic_preserves_qos0_qos1_qos2_and_reconnect_resend_order() {
+    let (app, broker) = start(config()).await;
+    let addr = broker.local_addr().unwrap();
+    let (mut sub, _) = Client::connect(addr, "ordered-sub", false).await;
+    assert_eq!(
+        sub.subscribe(&[("order/q0", 0), ("order/q1", 1), ("order/q2", 2)])
+            .await,
+        [0, 1, 2]
+    );
+    let (mut pub_client, _) = Client::connect(addr, "ordered-pub", true).await;
+    for msg in [b"q0-1", b"q0-2", b"q0-3"] {
+        pub_client.publish("order/q0", msg, 0, false).await;
+    }
+    for expected in [b"q0-1", b"q0-2", b"q0-3"] {
+        let (topic, payload, header, id) = sub.message().await;
+        assert_eq!(
+            (topic.as_str(), payload.as_slice(), header, id),
+            ("order/q0", expected.as_slice(), 0x30, None)
+        );
+    }
+    let mut q1_ids = Vec::new();
+    for msg in [b"q1-1", b"q1-2", b"q1-3"] {
+        pub_client.publish("order/q1", msg, 1, false).await;
+    }
+    for expected in [b"q1-1", b"q1-2", b"q1-3"] {
+        let (topic, payload, header, id) = sub.message().await;
+        assert_eq!(
+            (topic.as_str(), payload.as_slice(), header),
+            ("order/q1", expected.as_slice(), 0x32)
+        );
+        q1_ids.push(id.unwrap());
+    }
+    // Reconnect CleanSession=0 without PUBACK: server MUST re-send QoS 1 in original order and IDs.
+    drop(sub);
+    let (mut sub, present) = Client::connect(addr, "ordered-sub", false).await;
+    assert!(present);
+    for (idx, expected) in [b"q1-1", b"q1-2", b"q1-3"].into_iter().enumerate() {
+        let (topic, payload, header, id) = sub.message().await;
+        assert_eq!(
+            (topic.as_str(), payload.as_slice(), header, id),
+            ("order/q1", expected.as_slice(), 0x3a, Some(q1_ids[idx]))
+        );
+    }
+    for id in q1_ids {
+        sub.ack(id).await;
+    }
+    for msg in [b"q2-1", b"q2-2", b"q2-3"] {
+        pub_client.publish("order/q2", msg, 2, false).await;
+    }
+    let mut q2_ids = Vec::new();
+    for expected in [b"q2-1", b"q2-2", b"q2-3"] {
+        let (topic, payload, header, id) = sub.message().await;
+        assert_eq!(
+            (topic.as_str(), payload.as_slice(), header),
+            ("order/q2", expected.as_slice(), 0x34)
+        );
+        q2_ids.push(id.unwrap());
+    }
+    for id in &q2_ids {
+        qos2::received(&mut sub, *id).await;
+    }
+    for id in q2_ids {
+        qos2::complete(&mut sub, id).await;
+    }
+    assert_eq!(broker.status().pending_messages, 0);
+    stop(&app).await;
+}

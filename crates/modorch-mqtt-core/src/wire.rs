@@ -117,4 +117,22 @@ impl Protocol {
         }
         None
     }
+    pub fn unsupported_protocol_connack(&self, input: &[u8]) -> Vec<u8> {
+        #[cfg(feature = "mqtt5")]
+        if self.enabled {
+            let mut at = 1;
+            while input.get(at).is_some_and(|b| b & 128 != 0) {
+                at += 1;
+            }
+            at += 1;
+            if input.first() == Some(&0x10)
+                && input.get(at..at + 6) == Some(&[0, 4, b'M', b'Q', b'T', b'T'])
+                && input.get(at + 6).copied().is_some_and(|v| v > 5)
+            {
+                return vec![0x20, 3, 0, 0x84, 0];
+            }
+        }
+        let _ = input;
+        vec![0x20, 2, 0, 1]
+    }
 }

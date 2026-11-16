@@ -27,6 +27,7 @@ async fn send_command(ctx: &HandlerContext) -> FrameworkResult<MqttPublishResult
         payload: b"start".as_slice().into(),
         qos: Qos::AtLeastOnce,
         retain: false,
+        properties: Default::default(),
     };
     let cost = 256 + request.request_id.len() + request.topic.len() + request.payload.len();
     let result = ctx.event_hub.request::<_, MqttPublishResult>(

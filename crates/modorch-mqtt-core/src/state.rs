@@ -84,6 +84,7 @@ impl RetainedOrigin {
 struct Connection {
     id: u64,
     cancel: CancellationToken,
+    taken_over: Arc<std::sync::atomic::AtomicBool>,
 }
 pub(crate) struct Session {
     protocol5: bool,
@@ -522,6 +523,8 @@ impl State {
             });
         }
         if let Some(old) = self.sessions.get_mut(&client).and_then(|s| s.online.take()) {
+            old.taken_over
+                .store(true, std::sync::atomic::Ordering::Release);
             old.cancel.cancel();
             self.trigger_will(old.id);
         }
@@ -557,6 +560,7 @@ impl State {
         session.online = Some(Connection {
             id: connection,
             cancel,
+            taken_over: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         });
         session.qos0.clear();
         for delivery in &mut session.pending {
@@ -568,6 +572,18 @@ impl State {
             self.wills.insert(connection, will);
         }
         Ok((client, connection, present, notify))
+    }
+
+    pub fn takeover_flag(
+        &self,
+        client: &str,
+        connection: u64,
+    ) -> Option<Arc<std::sync::atomic::AtomicBool>> {
+        self.sessions
+            .get(client)
+            .and_then(|s| s.online.as_ref())
+            .filter(|c| c.id == connection)
+            .map(|c| c.taken_over.clone())
     }
 
     pub fn detach(&mut self, client: &str, connection: u64, graceful: bool) {
@@ -1698,6 +1714,7 @@ mod shared_regressions {
                         session.online = Some(Connection {
                             id: 999,
                             cancel: CancellationToken::new(),
+                            taken_over: Arc::new(std::sync::atomic::AtomicBool::new(false)),
                         });
                     }
                     let message = MqttMessage {

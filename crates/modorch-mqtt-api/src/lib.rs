@@ -52,6 +52,11 @@ pub struct MqttProperties {
     pub expires_at_ms: Option<u64>,
     /// Whether the payload is UTF-8 character data.
     pub utf8_payload: bool,
+    /// Whether the publisher explicitly sent Payload Format Indicator 0.
+    /// MQTT5 3.3.2.3.2 forwards the indicator unaltered, so an explicit 0 is
+    /// kept distinct from an absent indicator. Ignored when `utf8_payload`.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub explicit_binary_payload: bool,
     /// Optional media type, without implicit conversion.
     pub content_type: Option<String>,
     /// MQTT response Topic Name.

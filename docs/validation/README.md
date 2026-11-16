@@ -147,6 +147,104 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 
 **结论**：9 个输入在限定范围内证据充分；Reason String/User Property 两项属于“无发送路径”的适用性结论，不是代码缺陷。不关闭 F67-03 整体，也不构成独立批准。F67-03 累计 37/607 输入完成实现侧复核，其余 570 输入及 505 表格行仍待。
 
+### 2026-11-13 F67-02 批次 05：连接、CONNACK、KeepAlive 与 Session（实现侧，非独立批准）
+
+**范围**：MQTT3.1.1 `MQTT-3.1.0-1/2`、`MQTT-3.1.2-1`—`6`、`MQTT-3.1.2-8`—`24`（含 `3.1.2-23` ClientOnly）、`MQTT-3.1.3-1`—`11`、`MQTT-3.1.4-1`—`5`、`MQTT-3.2.0-1`、`MQTT-3.2.2-1`—`6`、`MQTT-3.12.4-1`、`MQTT-4.1.0-1/2`，共 51 个输入。
+
+**实现核对**：
+- `connection.rs` 首包仅接受有效 CONNECT；协议名非 `MQTT` 或保留位/Flags/Will/User/Password 结构违规直接关闭且不发 CONNACK；协议级别非 4 发送 `[0x20, 2, 0, 1]` 并关闭；重复 CONNECT 作为协议违规断连。
+- `state.rs::attach` 校验 ClientID 长度（配置不少于 23 字节）与 UTF-8；空 ClientID 在 `CleanSession=0` 返回 CONNACK `0x02` 并关闭，`CleanSession=1` 分配唯一不冲突 ClientID；`CleanSession=1` 丢弃旧会话且断开后删除，`CleanSession=0` 按是否已有持久会话设置 `Session Present` 0/1；在线同 ClientID 接管取消旧连接并触发其 Will；拒绝的 CONNECT 不处理后续流水线报文，未分类内部错误不伪造 CONNACK。
+- `connection.rs` 以 `1.5 * keep_alive` 更新网络超时并在收到任意完整控制包时刷新（`keep_alive=0` 禁用）；超时按异常断连关闭并触发 Will；`PINGREQ` 直接返回 `[0xd0, 0]`，不被无关连接的 Store 提交阻塞。
+
+**证据**：`malformed_connect_closes_without_connack`、`malformed_packets_and_second_connect_close_only_the_offending_connection`、`rejected_connect_does_not_process_pipelined_publication`、`all_256_connect_flags_validate_payload_presence_and_wire_rejection`、`connack_reserved_flags_are_zero_for_new_resumed_clean_and_rejected_sessions`、`outgoing_connack_new_resumed_clean_and_rejected_frames_preserve_existing_session`、`connect_failure_codes_distinguish_rejected_id_capacity_and_authorization`、`clean_session_discards_both_qos2_directions_and_subscriptions_but_keeps_retained`、`persistent_offline_session_queues_both_reliable_qos_levels_until_reconnect`、`assigned_client_id_never_takes_over_an_existing_session`、`required_client_identifiers_and_opaque_unicode_topics_are_preserved`、`client_id_budget_cannot_exclude_mandatory_23_byte_identifiers`、`handshake_timeout_keepalive_will_and_fragmented_packets`、`ping_on_idle_connection_does_not_wait_for_another_connections_store_commit`、`connect_failures_use_table31_reasons_and_unknown_failures_have_no_connack`，及新增 `keepalive_resets_on_control_packet_and_zero_stays_open`（验证 `keep_alive=0` 越过 `handshake_timeout` 且非零 KeepAlive 在收到控制包后重置计时并在静默后触发 Will）。
+
+**本轮发现并修正**：`MQTT-3.1.2-24`、`MQTT-3.12.4-1` 与 `MQTT-3.2.0-1` 补充了 KeepAlive 重置与离线重连先收 CONNACK 的精确测试映射；未发现运行时代码缺陷。
+
+**结论**：51 个输入在限定范围内证据充分（其中 `MQTT-3.1.2-23` 为 ClientOnly）；不关闭 F67-02 整体，也不构成独立批准。F67-02 累计 79/437 输入完成实现侧复核，其余 358 个输入及 339 个表格行仍待。
+
+### 2026-11-13 F67-03 批次 03：MQTT5 CONNACK、KeepAlive、Assigned ClientID 与 Session（实现侧，非独立批准）
+
+**范围**：MQTT5 `MQTT-3.1.2-20`—`23`（含 `3.1.2-20/21` ClientOnly）、`MQTT-3.1.3-6/7/8`、`MQTT-3.2.0-1/2`、`MQTT-3.2.2-1`—`7`、`MQTT-3.2.2-9`—`22`（含 `3.2.2-4/5` ClientOnly）、`MQTT-3.12.4-1`、`MQTT-4.1.0-1/2`，共 33 个输入。
+
+**实现核对**：
+- `mqtt5.rs::Codec::response` 构造 CONNACK：保留位 7–1 固定为 0，仅在成功时附带 `Receive Maximum (0x21)`、`Topic Alias Maximum=32 (0x22)`、`Maximum Packet Size (0x27)` 及空 ClientID 时的 `Assigned Client Identifier (0x12)`；无 `Server Keep Alive`、`Reason String`、`User Property` 发送路径，KeepAlive 沿用客户端 CONNECT 值；失败原因码映射 `0x84/0x85/0x86/0x87/0x88` 保持 `Session Present=0` 且随后关闭连接；`wire.max_packet()` 防止发出超过客户端 `Maximum Packet Size` 的 CONNACK。
+- `state.rs` 在 `Clean Start=1` 时丢弃旧会话并置 `Session Present=0`；`Clean Start=0` 时依据持久会话或在线零过期会话接管规则设置 `Session Present`；零过期会话在断开后立即清理，`Session Expiry > 0` 按到期间隔保留并由 `process_wills` 到期清理。
+
+**证据**：`mqtt5_connack_omits_optional_diagnostics_and_defaults_allow_qos2_retained_with_exact_packet_limit`、`mqtt5_outbound_control_frames_match_independent_literal_layouts`、`mqtt5_keepalive_uses_connect_value_and_publishes_will_on_timeout`、`mqtt5_online_zero_expiry_takeover_preserves_subscriptions_and_both_qos2_directions`、`mqtt5_delayed_will_cancel_resume_session_expiry_and_message_expiry`、`mqtt5_negotiated_packet_limit_discards_oversized_delivery_without_blocking_session`、`mqtt5_sqlite_restart_preserves_options_metadata_and_qos2_ownership`，及新增 `mqtt5_zero_length_client_id_assigns_unique_identifier_and_resumes_persistent_session`（验证空 ClientID 返回唯一 `0x12` 属性、不接管现有 `m2` 会话、持久分配后可重连恢复）和 `mqtt5_topic_alias_above_connack_maximum_is_rejected`（验证超过 CONNACK 通告 `Topic Alias Maximum=32` 的别名 33 被拒绝）。
+
+**本轮发现并修正**：原 `MQTT-3.1.3-6/7` 与 `MQTT-3.2.2-16` 映射的测试未覆盖空 ClientID 分配路径，且 `MQTT-3.2.2-17` 缺少超过 `Topic Alias Maximum` 上限的显式负例；已补齐两个测试用例与精确映射，未发现运行时代码缺陷。
+
+**结论**：33 个输入在限定范围内证据充分（含 4 项 ClientOnly）；Reason String / User Property / Server Keep Alive 属于无发送路径的适用性结论。不关闭 F67-03 整体，也不构成独立批准。F67-03 累计 70/607 输入完成实现侧复核，其余 537 个输入及 505 个表格行仍待。
+
+### 2026-11-13 F67-02 批次 06—07：QoS 0/1/2 流、Packet ID、有序主题、UTF-8、Topic 匹配与其余 3.1.1 编号条款（实现侧，非独立批准）
+
+**批次 06 范围（30 项去重输入）**：MQTT3.1.1 `MQTT-2.3.1-1`—`7`（含 `2.3.1-2` ClientOnly）、`MQTT-3.3.1-1`—`3`、`MQTT-3.3.2-1`—`3`、`MQTT-3.3.4-1`、`MQTT-3.3.5-2`、`MQTT-3.6.1-1`、`MQTT-4.3.1-1`、`MQTT-4.3.2-1/2`、`MQTT-4.3.3-1/2`、`MQTT-4.4.0-1`、`MQTT-4.5.0-1/2`（含 `4.5.0-2` ClientOnly）、`MQTT-4.6.0-1`—`6`。
+
+**批次 07 范围（32 项去重输入）**：MQTT3.1.1 其余全部编号条款——`MQTT-1.5.3-1`—`3`、`MQTT-2.2.2-1/2`、`MQTT-3.8.1-1`、`MQTT-3.8.3-1`—`3`、`MQTT-3-8.3-4`、`MQTT-3.9.3-1/2`、`MQTT-3.14.4-1/2`（ClientOnly）、`MQTT-4.7.1-1`—`3`、`MQTT-4.7.2-1`、`MQTT-4.7.3-1`—`4`、`MQTT-4.8.0-1/2`、`MQTT-6.0.0-1`—`4`（`OptionalWebSocket`，另有真实 WebSocket 分片用例覆盖二进制帧与子协议协商）、`MQTT-7.0.0-1`（`ConditionalBridge`）、`MQTT-7.0.0-2`、`MQTT-7.1.1-1`、`MQTT-7.1.2-1`（ClientOnly）。
+
+**实现核对**：
+- `state.rs` / `state/qos2.rs` / `connection.rs`：PUBLISH/PUBREL 严格按 QoS 0/1/2 状态机推进，Packet ID 在 1..=65535 跳过未完成 QoS1/2 项；QoS 1 `ack` 与 QoS 2 Method B 去重保护确保不重复投递；ACL/暂态/容量拒绝回滚并关闭违例连接（符合 `3.3.5-2` 与 `4.8.0-1/2`）；`session.pending` 与 `session.qos0` 双端队列及 `VecDeque` ACK FIFO 保持有序主题与重连重发顺序。
+- `codec.rs`：非零保留位（`PUBREL=0x62` 等）、非零 Packet ID、UTF-8 与非规范化精确字节匹配、Topic 长度与空字符拒绝均在解码/校验层拦截并关闭违规连接。
+
+**证据与本轮修正**：
+- 修正 `contracts/protocol-review.json` 中 `MQTT-3.6.1-1` 原经 `mqtt311.json` 场景捆绑带入 3 项不相关重叠订阅测试的误映射，改为直接映射 `qos2_control_flags_identifiers_and_complete_lengths_are_validated` 与 `all_256_fixed_headers_preserve_healthy_connections_and_expected_wire_responses`。
+- 在 `crates/modorch-mqtt-core/src/tests/protocol.rs` 新增 `ordered_topic_preserves_qos0_qos1_qos2_and_reconnect_resend_order`，显式验证同主题同发送者在 QoS 0、QoS 1（含 `CleanSession=0` 重连 `DUP=1` 同原 Packet ID 顺序重发）与 QoS 2 下的顺序投递，并更新 `contracts/protocol-review.json` 与 `contracts/mqtt311.json` 中 `MQTT-4.6.0-1` 与 `MQTT-4.6.0-6` 映射。
+
+**结论与计数校准**：批次 01–04 实际去重包含 27 项输入（此前按 `2+6+9+11=28` 计入时将 `MQTT-3.8.4-6` 跨批次重计 1 次），加上批次 05（51 项）、批次 06（30 项）与批次 07（32 项），F67-02 累计 **140/437** 去重输入完成实现侧复核——MQTT 3.1.1 全部 **140/140** `Numbered` 规范条款已完成实现侧逐项核对；其余 **297** 输入（`Table` 56、`Section` 219、`Unnumbered` 22）及 **339** 表格行仍待，真实独立批准仍为 0，**不关闭 F67-02 整体**。
+
+### 2026-11-13 F67-03 批次 04—05：MQTT5 QoS/PUBREL/PUBCOMP/Ordered Topic 与 SUBACK/UNSUBSCRIBE/DISCONNECT/Topic/Shared/Error/WebSocket（实现侧，非独立批准）
+
+**批次 04 范围（42 项去重输入）**：MQTT5 `MQTT-2.2.1-2`—`6`（含 `2.2.1-3` ClientOnly）、`MQTT-2.2.2-1`、`MQTT-3.6.1-1`、`MQTT-3.6.2-1`—`3`、`MQTT-3.7.2-1`—`3`、`MQTT-4.3.1-1`、`MQTT-4.3.2-1`—`5`、`MQTT-4.3.3-1`—`13`、`MQTT-4.4.0-1/2`、`MQTT-4.5.0-1/2`（含 `4.5.0-2` ClientOnly）、`MQTT-4.6.0-1`—`6`（其中 `4.6.0-1`—`4` 在 MQTT5 原文中为明确限定 Client 的 `ClientOnly` 条款）。
+
+**批次 05 范围（66 项去重输入）**：MQTT5 `MQTT-1.5.4-1`—`3`、`MQTT-1.5.5-1`、`MQTT-1.5.7-1`、`MQTT-2.1.3-1`、`MQTT-3.8.1-1`、`MQTT-3.9.2-1/2`、`MQTT-3.9.3-1/2`、`MQTT-3.10.1-1`、`MQTT-3.10.3-1/2`、`MQTT-3.10.4-1`—`6`、`MQTT-3.11.2-1/2`、`MQTT-3.11.3-1/2`、`MQTT-3.14.0-1`、`MQTT-3.14.1-1`、`MQTT-3.14.2-1`—`4`、`MQTT-3.14.4-1`—`3`（含 `3.14.4-1/2` ClientOnly）、`MQTT-3.15.1-1`、`MQTT-3.15.2-1`—`3`（`UnsupportedConditional`）、`MQTT-4.7.0-1`、`MQTT-4.7.1-1/2`、`MQTT-4.7.2-1`、`MQTT-4.7.3-1`—`4`、`MQTT-4.8.2-1`—`6`、`MQTT-4.12.0-1`—`7`（含 `4.12.0-2`—`5` `UnsupportedConditional`）、`MQTT-4.12.1-1/2`（`UnsupportedConditional`）、`MQTT-4.13.1-1`、`MQTT-4.13.2-1`、`MQTT-6.0.0-1`—`4`。
+
+**实现核对**：
+- `mqtt5.rs` 与 `mqtt5/validation.rs`：PUBREL/PUBCOMP/SUBACK/UNSUBACK/DISCONNECT 不附加可选 Reason String 或 User Property，确保不因诊断属性超过对端 `Maximum Packet Size`；服务端不发送 Enhanced Auth `AUTH`（`4.12.0-6/7`）并直接关闭包含未支持 `Authentication Method` 或非法保留位/格式错的连接（符合 `4.13.1-1` 允许不回 DISCONNECT 直接关闭网络连接）；`Shared Subscriptions`（`$share/<ShareName>/<filter>`）语法校验、同组成员 QoS2 所有权跨重连与负响应丢弃（`4.8.2-1`—`6`）均由现有矩阵和协议路径保证。
+- `validation.rs` 对 SUBSCRIBE/UNSUBSCRIBE 均检查 Packet ID 非零、属性有效性、过滤器 UTF-8/格式及载荷非空；`connection.rs` 对已开始的 QoS1/2 在 UNSUBSCRIBE 后继续完成但不新增匹配路由。
+
+**证据与本轮发现并修正**：
+- 扩展 `crates/modorch-mqtt-core/src/tests/mqtt5_protocol.rs` 中 `mqtt5_invalid_subscribe_payload_and_options_close_only_offender` 加入 `0xA2` 空载荷、零 Packet ID、非法 UTF-8 及非法 `#` 位置 UNSUBSCRIBE 负例。
+- 新增 `mqtt5_preserves_utf8_bom_non_normalized_topics_and_ordered_qos_delivery`，真实 TCP 验证 Topic 与 User Property 中 `U+FEFF`（`0xEF 0xBB 0xBF`）不剥离、NFC `"é"` 与 NFD `"e\u{301}"` 不规范化、以及 Ordered Topic 在 QoS 0/1（含 `CleanStart=0` 重连重发顺序与原 Packet ID）/QoS 2 下的顺序投递。
+- 补齐 `contracts/protocol-review.json` 中 `MQTT-1.5.4-3`、`3.9.3-1/2`、`3.10.3-1/2`、`3.10.4-1`—`6`、`3.11.3-1/2`、`4.6.0-5/6`、`4.7.3-4` 的直接测试映射。
+
+**结论**：批次 04—05 共 108 项去重输入在限定范围内证据充分，未发现运行时缺陷；增强认证 9 项编号条目维持 `UnsupportedConditional`，`3.6.2/3.7.2/3.9.2/3.11.2/3.14.2` 诊断属性尺寸限制属于无发送路径的适用性结论。F67-03 累计 **178/607** 去重输入完成实现侧复核（占 250 项 `Numbered` 中的 178 项），其余 **429** 输入（`MQTT-3.1.*`/`3.3.*` 剩余 72 项 `Numbered`、`Table` 58、`Section` 292、`Unnumbered` 7）及 **505** 表格行仍待，真实独立批准仍为 0。
+
+### 2026-11-16 F67-03 批次 06—07 与 F67-02 批次 08：F6/F7 全部受控规范输入（Numbered / Table / Unnumbered / Section）实现侧复核收口（非独立批准）
+
+**F67-03 批次 06 范围（72 项去重 `Numbered` 输入）**：MQTT5 `MQTT-3.1.0-1/2`（含 `3.1.0-1` ClientOnly）、`MQTT-3.1.2-1`—`19`、`24`—`30`（含 `3.1.2-30` ClientOnly）、`MQTT-3.1.3-1`—`5`、`9`—`12`、`MQTT-3.1.4-1`—`6`、`MQTT-3.3.1-1`—`13`、`MQTT-3.3.2-3`、`9`—`14`、`19`（含 `3.3.2-9/10` ClientOnly）、`MQTT-3.3.4-1`、`5`—`10`、`MQTT-4.2-1`。
+
+**F67-02 批次 08 与 F67-03 批次 07 范围（全部非编号、表格与节条目）**：
+- F6（MQTT 3.1.1）：`Unnumbered` 22 项（`UN-001`—`UN-022`：RFC2119 Definition、QoS1/2 分步骤、Retained/CONNACK 标志、`4.6` ClientContext、`7.1.1/7.1.2` Aggregate）、`Table` 56 项（42 `TargetedEvidence` + 14 `Informative`，覆盖 **339** 个表格行检查）、`Section` 219 项（`SECTION-029` 独立双向 Packet ID 矩阵 + 218 `Context` 节且无遗漏 `[MQTT-...]` 编号）。
+- F7（MQTT 5.0）：`Unnumbered` 7 项（`UN-001`—`UN-007`：RFC2119 Definition、62 字符 1–23 字节 ClientID、Will/PUBLISH UTF-8 PFI=1、Connect Reason Code、`7.1.1/7.1.2` Aggregate）、`Table` 58 项（46 `TargetedEvidence` + 10 `Informative` + 2 `UnsupportedConditional`，覆盖 **505** 个表格行检查）、`Section` 292 项（`SECTION-028/106/114/252` 4 项 `TargetedEvidence` + 288 `Context` 节且无遗漏 `[MQTT-...]` 编号）。
+
+**本轮发现的真实缺陷（`F67-G001`）与修正**：
+- **MQTT5 会话接管未发送 `DISCONNECT 0x8E`（`MQTT-3.1.4-3`）**：原 `state.rs::attach` 取消旧连接 `cancel` 时，`connection.rs::run` 对所有 `local_cancel` 直接 `socket.close()`，导致被顶替的 MQTT 5.0 在线客户端只收到 TCP EOF 而未收到规范要求的 `DISCONNECT (Reason Code 0x8E: Session taken over)`。已在 `state.rs` 新增 `Connection::taken_over` 与 `State::takeover_flag`，并在 `connection.rs` 中仅针对被顶替的 MQTT 5.0 连接在 `250ms` 有界窗口内先写出 `[0xE0, 1, 0x8E]` 再关闭连接（不改变 MQTT 3.1.1、管理断连或关闭停机的行为，也不在半帧未写完时注入脏帧）。
+- **MQTT5 不支持协议版本响应码（`MQTT-3.1.2-2`）**：在 `wire.rs` 新增 `Protocol::unsupported_protocol_connack`，当启用 MQTT5 的监听器收到协议级别 `> 5`（如版本 `6`）时返回有效 MQTT5 `CONNACK 0x84`（Unsupported Protocol Version）并关闭，保留版本 `<= 4` / 非 MQTT5 监听器的原有 `0x01` 兼容行为。
+- **验证与精确映射补齐**：在 `crates/modorch-mqtt-core/src/tests/mqtt5_protocol.rs` 新增 `mqtt5_takeover_sends_disconnect_0x8e_and_enforces_connect_and_response_topic_rules`，实测验证 MQTT5 接管发出 `(0xE0, [0x8E])`、触发原连接 Will、版本 `6` 返回 `(0x20, [0, 0x84, 0])`、被拒 CONNECT 后续流水线 PUBLISH 不处理、`Response Topic` 通配符 `+`/`#` 拒绝及 62 个 ASCII 字符 1–23 字节 ClientID 全支持；并在 `contracts/protocol-review.json` 补齐 `MQTT-3.1.2-2`、`3.1.3-5`、`3.1.4-3/6`、`3.3.1-9`—`13`、`3.3.2-12/14`、`UN-002/003/005` 映射。
+
+**结论**：F67-02（**437/437** 输入及 **339** 表格行）与 F67-03（**607/607** 输入及 **505** 表格行，11 项 Enhanced Auth `UnsupportedConditional` 维持排除边界）已全部完成实现侧复核；`F67-G001` 已修复并通过回归，**F67-04/05** 亦同步完成实现侧定界与修复补测（18 个 state/fault 矩阵 / 222 组合覆盖全部边界，无需新增矩阵）。
+
+### 2026-11-16 F67-06：客户端互操作、wss 传输与 Feature / MSRV 组合核对（实现侧，非独立批准）
+
+- **客户端与真实传输组合**：在当前源码上实测运行 Paho MQTT 2.1.0 全部三项专项——`verify-paho.py`（MQTT 3.1.1 TCP QoS 0/1/2 + Retained + SIGINT 检查式退出）、`verify-paho5.py`（MQTT 5.0 TCP 与 WebSocket QoS 0/1/2 + 属性 + Topic Alias + SubID + 非零 DISCONNECT Will + 连续 UNSUBSCRIBE）与 `verify-paho-tls.py`（MQTTS TLS 1.2+ + Argon2id Auth + 通配符 ACL 拒绝 + 错误密码隔离）；同时在 `crates/modorch-mqtt-core/src/tests/websocket.rs` 新增 `websocket_over_tls_mqtt5_qos2_and_plaintext_isolation`，补齐声明的 `websocket-tls`（`wss://`）+ MQTT 5.0 QoS 2 与明文拒绝运行证据。
+- **Feature 子集与 MSRV 1.85.0**：验证 `modorch-mqtt-core` 全部 8 种 Feature 组合（`""`、`mqtt5`、`tls`、`websocket`、`mqtt5,tls`、`mqtt5,websocket`、`tls,websocket`、`mqtt5,tls,websocket`）与 `modorch-mqtt` 两版 Profile 精确 Feature 子集（F6 无 `mqtt5`/`websocket`/`bridge`，F7 无 `bridge`）编译通过；运行 `modorch-mqtt-core --no-default-features --lib`（117 项通过）与 F6 Profile 精确 Feature 集 `modorch-mqtt` 测试（16 项通过，0 失败）；运行 Rust `1.85.0` 全 Workspace `--all-targets --all-features` MSRV 编译检查通过。
+- **平台与排除边界**：以上运行证据均为本机 `linux-x86_64`；`macos`/`windows` 继续按 `acceptance-profile.json` 保持 `NotRun` 显式边界。**真实独立批准仍为 0**，待 `F67-07`/`F67-08`。
+
+### 2026-11-16 F67-07 第 1 轮独立评审与缺口收口（批准对当前输入失效）
+
+- **第 1 轮评审**：由项目负责人认可的 AI 评审者在新会话中执行（未参与实现），针对旧输入 `source_digest 8c42ef1f…` 审毕全部 1,064 个对象和 5,250 个 check：Approved 1,028（mqtt311 437/437、mqtt5 572/607、矩阵 18/18、`mqtt311:acceptance`），Rejected 36（mqtt5），NotRun 0；严格门禁退出 1。评审材料保存在 Git 忽略目录 `validation/2026-11-16-f67-review/`。
+- **缺口收口（实现方）**：登记为 `F67-G002`—`G012`，详见[待收口计划](../f6-f7-closure-plan.md)。`F67-G006` 是代码缺陷（入站显式 Payload Format Indicator=0 在转发时被删除，违反 MQTT-3.3.2-4“unaltered”），已修复：`MqttProperties` 新增向后兼容字段 `explicit_binary_payload`。其余 10 项为验证缺口，评审探针显示实现行为本来正确，本轮在 `tests/mqtt5_protocol.rs` 新增 11 个测试并补强 2 个现有测试，`contracts/protocol-review.json` 补充映射了 25 个 TargetedEvidence 对象，并在 11 个 UnsupportedConditional 对象的 `scope` 中写明拒绝证据测试名。`scripts/verify-paho5.py` 写明需要启用 `mqtt5`/`websocket` Feature 构建的二进制（评审观察 O-6）。
+- **批准状态**：以上修改改变了受控输入，第 1 轮的全部批准对当前输入失效。当前输入的**真实独立批准为 0**，需要按新生成的未批准交接包进行第 2 轮复审。
+
+### 2026-11-16 F67-07 第 2 轮独立复审：严格门禁通过
+
+- **评审者与范围**：与第 1 轮是同一评审身份 `claude-opus-5.5-fresh-session-2026-11-16`（AI 评审，新会话，未参与实现；采用 AI 评审由项目负责人认可）。评审对象为未批准交接包 `validation/2026-11-16-f67-gap-closure/protocol-bundle.json`，绑定 `source_digest 46ae2010b6087737882367b0f893df27ca91a39760d6bffd2b0b862d49736a16` 和日志 `workspace.log`（sha256 `d53f665e…67f6`）。受控输入基于 HEAD `ea95ad6` 加上未提交的工作树改动。
+- **结果**：1,064 / 1,064 个对象全部 Approved：mqtt311 437/437、mqtt5 607/607、矩阵 18/18，`mqtt311:acceptance` 与 `mqtt5:acceptance` 均为 Passed，Failed 0，NotRun 0。第 1 轮的 `F67-G002`—`G012` 经复核全部闭环，无新增缺口。
+- **严格门禁**：`check-protocol-review.py --bundle validation/2026-11-16-f67-review-r2/protocol-bundle.reviewed.json --require-complete` 退出码 0，`validation_status = Passed`、`overall_status = Passed`。实现方收到评审结果后自行重跑了该命令，结果相同。评审材料保存在 Git 忽略目录 `validation/2026-11-16-f67-review-r2/`（`protocol-bundle.reviewed.json` sha256 前缀 `7d892c93…`）。
+- **批准边界**：批准只覆盖 `contracts/acceptance-profile.json` 声明的范围：Server 角色；TCP/TLS/WebSocket/WebSocket-TLS；内存/SQLite 存储；`linux-x86_64`；不含 Bridge；Enhanced Authentication 只证实了拒绝行为，不代表已认证支持。不覆盖 macOS/Windows、硬件掉电、生产 SLO，也不覆盖 178 项发布义务（`check-release.py` 另行评审，当前批准仍为 0）。离线门禁不认证评审者身份，独立性由负责人对评审方式的认可来保证。
+- **有效性条件**：本批准绑定上述 `source_digest`。今后任何受控输入（`crates/`、`contracts/`、`docs/`（`docs/validation/` 除外）、`scripts/`、`examples/`、`Cargo.*`、`README.md` 等）发生变化，批准即失效，需要重新生成交接包并复审。本节写在 `docs/validation/` 下，不属于受控输入，所以不会使批准失效。
+- **评审观察（不阻塞）**：O-6，`check.sh` 默认构建的 `standalone-broker` 未启用 MQTT5/WebSocket，运行 `verify-paho5.py` 前需要按脚本说明带 Feature 构建。
+
 此前一轮为“同号双向 QoS2 故障交叉与正 TTL 收口”。清理前记录的历史结果为：
 
 | 检查 | 历史结论 |
@@ -194,7 +292,7 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 
 ## 仍待收口
 
-- F6/F7：完整正文、跨段、逐义务及表格行语义审查；明确剩余必需状态/故障/客户端/条件功能组合并补齐实际缺口；真实独立实审和两版 acceptance。
+- F6/F7：F67-07 已在 `source_digest 46ae2010…` 上通过严格协议门禁（见上文第 2 轮记录）；受控输入一旦变化就需要重新复审。F67-08 中受控文档（`docs/f6-f7-closure-plan.md`、`docs/remaining-work.md`）的状态同步会改变受控输入，需要与重新复审一并安排。
 - F7：11 项 Enhanced Authentication 条件输入保持不支持的适用性边界；新增支持需要另列开发任务。
 - 生产 SLO、长期 RSS、代表性负载和退出/恢复时限按用户选择保留待验收。
 - 外部宿主 Profile、magicCommon、远端 CI、跨平台/文件系统、硬件断电及独立安全/性能/接入/发布仍待真实执行。

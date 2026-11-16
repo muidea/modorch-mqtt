@@ -12,9 +12,10 @@
     },
     {
       "id": "OPT-WS",
-      "scope": "独立字节二进制QoS2、分片/合并、升级拒绝和退出",
+      "scope": "独立字节二进制QoS2、分片/合并、升级拒绝、wss(TLS+WebSocket)与退出",
       "tests": [
-        "tests::websocket::websocket_binary_fragmented_mqtt_qos2_upgrade_isolation_and_shutdown"
+        "tests::websocket::websocket_binary_fragmented_mqtt_qos2_upgrade_isolation_and_shutdown",
+        "tests::websocket::websocket_over_tls_mqtt5_qos2_and_plaintext_isolation"
       ]
     },
     {

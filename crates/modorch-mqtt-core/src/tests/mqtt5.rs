@@ -539,11 +539,13 @@ async fn mqtt5_expired_delay_will_survives_backpressure_resume_clean_start_and_t
             connect(address, name, clean, 60, &[], repeat.then_some((30, 60))).await;
         assert_eq!(present, !clean, "{name}");
         if let Some(mut old) = old {
+            assert_eq!(old.recv().await, (0xe0, vec![0x8e]));
             assert_eq!(old.0.read(&mut [0]).await.unwrap(), 0);
         }
         if repeat {
             let (next, present) = connect(address, name, false, 60, &[], None).await;
             assert!(present);
+            assert_eq!(resumed.recv().await, (0xe0, vec![0x8e]));
             assert_eq!(resumed.0.read(&mut [0]).await.unwrap(), 0);
             resumed = next;
         }

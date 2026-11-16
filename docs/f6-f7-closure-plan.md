@@ -1,6 +1,6 @@
 # F6/F7 待收口计划与跟踪清单
 
-更新日期：2026-11-12。F6 为 MQTT 3.1.1 完整协议验收，F7 为 MQTT 5.0 完整协议验收，当前均为 **Partial**。
+更新日期：2026-11-16。F6 为 MQTT 3.1.1 完整协议验收，F7 为 MQTT 5.0 完整协议验收，当前均为 **Partial**。
 
 本页将当前核对结果整理为后续执行任务。当前没有新增已确认的运行时代码缺陷；未完成语义审查、验证覆盖或独立验收，不直接等于功能未实现。最新宿主样例/通用恢复验证更新见文末；完整语义审查和新的独立批准仍未完成。
 
@@ -48,12 +48,12 @@
 | 编号 | 待收口项 | 当前状态 | 交付物 | 完成标准 |
 |---|---|---|---|---|
 | F67-01 | 固定两版验收 Profile | 实现侧 v1 已固化到 [acceptance-profile.json](../contracts/acceptance-profile.json)；协议、角色、传输、存储、Feature、客户端、平台证据及排除边界已机器校验；独立审查仍 NotRun，工具宿主声明不能代替全部库验收 Profile | 协议、角色、传输、存储、Feature、宿主/平台及排除条件清单 | 两版范围明确，条件能力与现有声明一致，范围变化可追溯；工具宿主声明不能代替全部库验收 Profile |
-| F67-02 | F6 完整语义审查 | 待完成；批次 01—04 已完成 `MQTT-3.3.1-4`—`-12`、`MQTT-3.3.5-1`、`MQTT-3.8.4-1`—`-6`、`MQTT-3.10.1/3.10.3/3.10.4`、`MQTT-3.14.1/3.14.4` 共 28/437 输入实现侧复核；其余 409 输入及 339 表格行仍待；独立批准 NotRun | 437 输入及其中 339 表格行的逐项核对记录 | 完整正文、关联上下文、角色、适用性及断言充分性均有结论；缺口逐条登记 |
-| F67-03 | F7 完整语义审查 | 待完成；批次 01/02 已复核 `MQTT-3.3.2-1/2/4/5/6/7/8/15/16/17/18/20`、`MQTT-3.3.4-2/3/4`、`MQTT-3.4.2-1/2/3`、`MQTT-3.5.2-1/2/3`、`MQTT-3.8.3-1`—`-5`、`MQTT-3.8.4-1`—`-8`、`MQTT-4.9.0-1/2/3` 共 37/607 输入；其余 570 输入及 505 表格行仍待；独立批准 NotRun | 607 输入及其中 505 表格行的逐项核对记录 | 同 F67-02；属性、原因码发送角色及条件能力均结合完整上下文核对 |
-| F67-04 | 剩余状态/故障组合定界 | 18 个既有矩阵已形成覆盖基线；2026-11-12 已登记新增组合定界草案（已复核批次不新增矩阵，连接/会话等待审查）；最终新增/排除仍待 F67-02/03 完成 | 现有 18 矩阵的覆盖对照、必需新增用例及排除理由 | 每个新增用例关联义务和缺失断言；已覆盖项不重复登记；无笼统“其他组合”待办 |
-| F67-05 | 按实际缺口修复与补测 | 待 F67-02～04 识别具体项 | 缺陷反例、代码修复、验证补齐及更新后的精确映射 | 已确认缺陷修复并回归；适用验证缺口有充分证据；没有未处理失败 |
-| F67-06 | 客户端与功能组合验收 | 已有限定证据，待完整核对 | 客户端版本、传输、协议、Feature、恢复方式的执行矩阵及原始材料 | Profile 内必需组合已执行或有充分的不适用依据；Paho/rumqttc 旧材料仅在适用范围内复用 |
-| F67-07 | 当前输入的真实独立实审 | 待执行，批准 0 | 绑定当前源码、规范、日志摘要的独立评审记录 | 所有要求的对象/checks 完整；两版 acceptance 分别审查；不存在自评或失效批准 |
+| F67-02 | F6 完整语义审查 | 实现侧全部 **437/437** 输入及 **339** 表格行已完成核对（140 `Numbered` + 56 `Table` + 22 `Unnumbered` + 219 `Section`）；独立批准 NotRun | 437 输入及其中 339 表格行的逐项核对记录 | 完整正文、关联上下文、角色、适用性及断言充分性均有结论；缺口逐条登记 |
+| F67-03 | F7 完整语义审查 | 实现侧全部 **607/607** 输入及 **505** 表格行已完成核对（250 `Numbered` + 58 `Table` + 7 `Unnumbered` + 292 `Section`，含 11 项 `UnsupportedConditional`）；发现并修复 `F67-G001`；独立批准 NotRun | 607 输入及其中 505 表格行的逐项核对记录 | 同 F67-02；属性、原因码发送角色及条件能力均结合完整上下文核对 |
+| F67-04 | 剩余状态/故障组合定界 | 实现侧定界完成：全量 F6/F7 核对后，现有 **18 个矩阵 / 222 组合**已覆盖全部状态与故障交叉域，新增矩阵为 0；待真实独立实审 | 现有 18 矩阵的覆盖对照、必需新增用例及排除理由 | 每个新增用例关联义务和缺失断言；已覆盖项不重复登记；无笼统“其他组合”待办 |
+| F67-05 | 按实际缺口修复与补测 | 实现侧已收口：`F67-G001` 已修复并回归，全部已识别验证缺口/映射误绑已补齐；待 F67-07 独立实审 | 缺陷反例、代码修复、验证补齐及更新后的精确映射 | 已确认缺陷修复并回归；适用验证缺口有充分证据；没有未处理失败 |
+| F67-06 | 客户端与功能组合验收 | 实现侧已收口（`linux-x86_64`）：当前源码通过 `rumqttc` 与 `paho-mqtt 2.1.0`（3.1.1 TCP、5.0 TCP/WS、TLS/Auth/ACL），补齐 `wss`（`websocket-tls`）QoS2 用例，验证 Core 8 种 Feature 组合、F6/F7 Profile Feature 子集、F6 精确 Feature 16 测、`--no-default-features` 117 测与 Rust 1.85.0 MSRV；`macos`/`windows` 保持 NotRun 边界；待 F67-07 独立实审 | 客户端版本、传输、协议、Feature、恢复方式的执行矩阵及原始材料 | Profile 内必需组合已执行或有充分的不适用依据；Paho/rumqttc 旧材料仅在适用范围内复用 |
+| F67-07 | 当前输入的真实独立实审 | 第 1 轮已完成（2026-11-16，AI 评审、新会话、未参与实现，由项目负责人认可）：针对旧输入 `source_digest 8c42ef1f…` 审毕 1,064 个对象，Approved 1,028 / Rejected 36 / NotRun 0，严格门禁退出 1；36 个 Rejected 对应 `F67-G002`—`G012`，已由实现方修复/补测。修复改变了受控输入，旧批准对当前输入**全部失效**，当前输入批准为 0，待第 2 轮复审 | 绑定当前源码、规范、日志摘要的独立评审记录 | 所有要求的对象/checks 完整；两版 acceptance 分别审查；不存在自评或失效批准 |
 | F67-08 | 严格门禁与文档结项 | 待前置任务完成 | 严格报告、最终证据索引及同步后的状态文档 | 当前评审包严格通过，F6/F7 状态有真实依据，生产发布边界继续单独标明 |
 
 ### F67-04 现有 18 矩阵覆盖对照（基线）
@@ -81,7 +81,7 @@
 | 17 | `DUPLEX-SAME-ID-UNIX-SIGKILL` | protocols=2 / sender_phases=2 | 4 | `tests::storage::qos2_duplex_same_id_sigkill_matrix_restores_both_directions_and_completion` |
 | 18 | `MQTT5-POSITIVE-TTL-PHASE-RESTART` | delivery_phases=3 / expiry_restart_orders=2 | 6 | `tests::storage::mqtt5_positive_ttl_phase_restart_matrix_expires_only_unsent_messages_and_retained` |
 
-### F67-04 新增组合定界草案（2026-11-12）
+### F67-04 新增组合定界草案（2026-11-13）
 
 以下只记录已完成批次的初步决定，**不是 F67-04 最终清单**，也不改变 18 矩阵/222 组合基线。完整新增/排除项仍须在 F67-02/F67-03 全部输入审查后审定。
 
@@ -91,11 +91,14 @@
 | SUBSCRIBE/UNSUBSCRIBE 非法输入与替换 | 非法载荷/选项、重复替换、多过滤器 UNSUBACK 用例 | 属于输入/响应场景，不新增矩阵 | 独立审查 |
 | Retained / Will | Retained QoS/删除/回放、Will 丢弃/触发、SQLite 恢复用例 | 由现有 retained/TTL/存储矩阵覆盖，不重复新增 | 检查与 MQTT5 交叉 |
 | ACK 原因码与 Receive Maximum | 3.4.2/3.5.2/4.9 批次及 7 个现有 ACK/配额矩阵 | 现有矩阵已覆盖，不新增 | 独立审查 |
-| Message Expiry / Topic Alias | 正 TTL 矩阵、Alias 负例与 SQLite 恢复 | 现有矩阵+场景已覆盖，不新增 | 检查组合边界 |
-| 连接/会话、KeepAlive、CONNECT/CONNACK | 尚未形成本计划批次 | 暂列为候选，未决定新增/排除 | F67-02/F67-03 下一批 |
+| Message Expiry / Topic Alias | 正 TTL 矩阵、Alias 负例（含超上限 33）与 SQLite 恢复 | 现有矩阵+场景已覆盖，不新增 | 检查组合边界 |
+| 连接/会话、KeepAlive、CONNECT/CONNACK | F67-02 批次 05 / F67-03 批次 03/06 及重连/接管/配额/SQLite 矩阵 | 现有矩阵+场景（含 KeepAlive 重置、空 ClientID 分配、`0x8E` 接管与 `0x84`）已覆盖，不新增 | F67-07 独立实审 |
+| Packet ID、QoS 0/1/2 流、PUBREL/PUBCOMP、Ordered Topic | F67-02 批次 06 / F67-03 批次 04 与 18 矩阵（双向同号/部分 ACK/错 ACK/乱序 PUBREC）及顺序投递用例 | 现有 QoS 状态/故障矩阵与有序投递场景已覆盖，不新增 | F67-07 独立实审 |
+| UTF-8/BOM、Topic 匹配、UNSUBSCRIBE、DISCONNECT、Shared/Error | F67-02 批次 07 / F67-03 批次 05 与 shared QoS2/断连 Will/非法载荷用例 | 现有 shared/TTL/断开场景与边界用例已覆盖，不新增 | F67-07 独立实审 |
+| 报文格式/表检查（339 / 505 行）、Unnumbered 与 Section | F67-02 批次 08 / F67-03 批次 07、`packet_tables`、`mqtt5_protocol` 及 `SECTION-028/029/106/114/252` | 现有 256 帧表/256 Connect Flag/全属性/全原因码测试与对应矩阵已覆盖，不新增 | F67-07 独立实审 |
 | TLS/持久化故障、WebSocket、Bridge、Admin HTTP | 当前验收 Profile 外或仅条件能力 | 排除出当前 F6/F7 矩阵范围 | 保持独立专项 |
 
-**当前结论**：已复核批次未发现必须新增的 state/fault 矩阵；18 矩阵/222 组合不变。连接/会话等候选仍待审查，不能把本草案当作 F67-04 完成或完整符合性证据。
+**当前结论**：F67-02（437/437）与 F67-03（607/607）全部受控输入已于实现侧核对完毕，F67-04 实现侧定界维持 **18 个矩阵 / 222 组合**不变（新增矩阵为 0）。最终生效仍须完成 `F67-07` 真实独立实审，不以本结论代替独立批准。
 
 执行顺序为 F67-01 → F67-02/F67-03 → F67-04 → F67-05/F67-06 → F67-07 → F67-08。语义审查可分批推进，发现可复现缺陷即可修复；最终批准必须针对稳定后的当前输入。
 
@@ -107,9 +110,44 @@ F6 建议按连接与会话、报文编码与校验、QoS/Packet ID、订阅/Top
 
 优先处理可能导致消息丢失、重复路由、所有权错误、恢复错误及违规输入被接纳的问题。代码缺陷先取得失败反例，再修复并回归；验证缺口增加能区分正确与错误行为的断言。必要时分别核对内存状态、真实线帧、SQLite、重启及后续健康消息，按义务选择，不机械复制全部维度。
 
-## 具体缺口登记模板
+## 具体缺口记录（F67-G001）
 
-当前库内尚未新增经过逐项审定的 F67 具体缺口记录。magicDataHub 工具已有验证缺口 `MQTT-GAP-001`，Retained v2 已在选定范围实现；其七个官方编号仍为待审草案，不是库运行时缺陷，也不关闭 F67-02/05/07。工具后续工作见宿主仓库的 `tools/mqtt-broker-validation/remaining-work.md`。下表保留库内空模板，后续发现后填入；每条记录使用稳定编号 `F67-G001` 起递增，不复用已关闭编号。
+magicDataHub 工具已有验证缺口 `MQTT-GAP-001` 继续在宿主仓库 `tools/mqtt-broker-validation/remaining-work.md` 跟踪。库内已核对登记并修复的 F67 具体缺口如下（不复用已关闭编号）：
+
+| 字段 | 记录 |
+|---|---|
+| 缺口编号 / 关联任务 | `F67-G001` / F67-03 批次 06、F67-05 |
+| 协议 / 规范 ID / 表或矩阵 | MQTT 5.0 / `MQTT-3.1.4-3`（联动 `MQTT-3.1.2-2`） |
+| 适用 Profile / 前置条件 | `mqtt5-tcp-websocket-sqlite`，Role=Server，同 ClientID 在线会话接管（及协议级别 `> 5`） |
+| 预期行为与依据 | 新客户端使用相同 ClientID 连接并接管在线 MQTT 5.0 会话时，服务端须向旧连接发送 Reason Code=`0x8E`（Session taken over）的 DISCONNECT 后关闭其网络连接并触发旧连接 Will；收到非 5（且大于 5）协议级别时应关闭连接且不误用 3.1.1 `0x01` 码 |
+| 发现前实现与证据 | 原 `state.rs::attach` 仅取消 `old.cancel`，`connection.rs::run` 对全部 `local_cancel` 直接 `socket.close()`，旧 MQTT5 连接仅看到 TCP EOF，缺少 `DISCONNECT 0x8E`；`connection.rs` 对超版本统一返回 `[0x20, 2, 0, 1]` |
+| 分类与影响 | 代码缺陷（高优先级合规缺口，违反 `MQTT-3.1.4-3` MUST） |
+| 处理方案 / 新增断言 | `state.rs` 新增 `Connection::taken_over` 与 `State::takeover_flag`；`connection.rs` 在 `local_cancel` 上区分接管并在有界 `250ms` 窗口内先写出 `[0xE0, 1, 0x8E]`；`wire.rs` 新增 `unsupported_protocol_connack` 对 `level > 5` 返回 `[0x20, 3, 0, 0x84, 0]`；新增 `mqtt5_takeover_sends_disconnect_0x8e_and_enforces_connect_and_response_topic_rules` |
+| 实现状态 / 验证状态 / 评审状态 | 已修复 / 已验证（`./scripts/check.sh`） / `NotRun`（待 `F67-07` 独立实审） |
+| 更新日期 / 轮次 | 2026-11-16 / F67-03 批次 06–07 |
+| 关闭依据 | `crates/modorch-mqtt-core/src/{state.rs,wire.rs,connection.rs}`、`crates/modorch-mqtt-core/src/tests/mqtt5_protocol.rs`、`contracts/protocol-review.json` |
+
+### F67-07 第 1 轮独立评审登记的缺口（F67-G002—G012）
+
+由 F67-07 第 1 轮独立评审登记（评审材料位于 Git 忽略目录 `validation/2026-11-16-f67-review/`）。除 `F67-G006` 外，评审方的线帧探针均显示实现行为正确，属于**验证缺口**。实现状态和验证状态由实现方填写；评审状态一律为“待第 2 轮复审”，修复者不能自己关闭评审状态。新增测试均位于 `crates/modorch-mqtt-core/src/tests/mqtt5_protocol.rs`，并已加入 `contracts/protocol-review.json` 的对应映射。
+
+| 缺口 | 规范 ID / 表 | 分类 | 处理（新增断言） | 实现 / 验证 / 评审 |
+|---|---|---|---|---|
+| `F67-G002` | MQTT5 `3.1.2-9`、`3.1.2-17`、`3.1.2-19` | 验证缺口 | `mqtt5_connect_flag_set_without_its_payload_field_is_rejected`：Will/User Name/Password 标志为 1 但字段缺失时 v5 解码拒绝，带字段齐全的正向对照 | 无需改码 / 已验证 / 待复审 |
+| `F67-G003` | `3.1.3-4`、`3.1.3-11`、`3.1.3-12`、`3.3.2-13`、`3.3.2-19` | 验证缺口 | `mqtt5_connect_and_publish_strings_reject_ill_formed_utf8_and_nul`：ClientID、Will Topic、User Name，以及 PUBLISH 和 Will 中的 Response Topic、Content Type，分别注入非法字节、代理项、过长编码和 U+0000，均被拒绝 | 无需改码 / 已验证 / 待复审 |
+| `F67-G004` | `3.1.2-14`、`3.1.2-15` | 验证缺口 | `mqtt5_will_retain_flag_controls_retained_will_publication`：Will Retain=0/1 时，RAP=1 在线订阅者看到的 RETAIN 位不同；迟到订阅者只在 Retain=1 时收到保留 Will（无保留时用 PINGRESP 屏障证明） | 无需改码 / 已验证 / 待复审 |
+| `F67-G005` | `3.3.1-12`、`TABLE-038`、`SECTION-106` | 验证缺口 | `mqtt5_retain_as_published_zero_clears_retain_on_live_forwarding`：入站 RETAIN=1 时，RAP=0 订阅者收到 RETAIN=0，RAP=1 订阅者收到 RETAIN=1；订阅时的保留重放不受 RAP 影响 | 无需改码 / 已验证 / 待复审 |
+| `F67-G006` | `3.3.2-4`、`TABLE-009` | **代码缺陷** + 验证缺口 | 原实现把入站显式 PFI=0 在转发时删除。按负责人裁定修复：`MqttProperties` 新增 `explicit_binary_payload`（`#[serde(default, skip_serializing_if)]`，旧快照和 SQLite 数据兼容，现有快照 JSON 不变），`mqtt5.rs` 转发时原样带出 0。新增 `mqtt5_payload_format_indicator_is_forwarded_unaltered_including_explicit_zero`（缺省/0/1 在实时投递和保留重放中均保持原值）、`mqtt5_explicit_binary_payload_flag_round_trips_and_keeps_legacy_snapshots`；`mqtt5_publish_all_qos_preserves_binary_metadata_user_order_and_outgoing_flags` 补充 PFI=0 断言 | 已修复 / 已验证 / 待复审 |
+| `F67-G007` | `3.3.2-12` | 验证缺口 | `mqtt5_topic_alias_accepts_every_value_up_to_connack_maximum`：别名 1..=32 全部绑定后使用，并重绑上界 32 | 无需改码 / 已验证 / 待复审 |
+| `F67-G008` | `1.5.7-1`、`TABLE-009` | 验证缺口 | 同 `F67-G003` 的测试：User Property（0x26）的 key 或 value 含非法 UTF-8 或 NUL 时，在 PUBLISH、Will 和 CONNECT 中均被拒绝 | 无需改码 / 已验证 / 待复审 |
+| `F67-G009` | `4.12.0-7`、`TABLE-006`、`TABLE-011` | 验证缺口 | `mqtt5_all_256_fixed_headers…` 对 `0xF0` 实际调用 `decode()` 并断言拒绝；另增 `mqtt5_enhanced_authentication_connect_properties_and_auth_packets_are_rejected`（AUTH 原因码 0x00/0x18/0x19，带或不带属性） | 无需改码 / 已验证 / 待复审 |
+| `F67-G010` | `4.8.2-1`、`4.8.2-2`、`SECTION-252` | 验证缺口 | `mqtt5_invalid_shared_subscription_filters_close_only_offender`：10 种非法 `$share/` 过滤器只关闭违规连接，合法共享订阅作对照 | 无需改码 / 已验证 / 待复审 |
+| `F67-G011` | `4.8.2-3`、`SECTION-252` | 验证缺口 | `mqtt5_shared_subscription_delivery_uses_each_members_granted_qos`：发布 QoS 0/1/2 分别对授予 0/1/2 的成员按 min 投递；同组两个不同授予的成员各按自己的授予接收 | 无需改码 / 已验证 / 待复审 |
+| `F67-G012` | `3.15.2-1..3`、`4.12.0-2..5`、`4.12.1-1..2`、`TABLE-053`、`TABLE-054`（及 `4.12.0-1`） | 验证缺口（不支持能力缺拒绝证据） | `mqtt5_enhanced_authentication_connect_properties_and_auth_packets_are_rejected`（CONNECT 携带 0x15/0x16 时解码拒绝）与 `mqtt5_enhanced_authentication_closes_only_the_offending_connection`（真实连接：CONNECT+0x15/0x16 及 AUTH 只关闭违规连接）。`UnsupportedConditional` 行按工具规则不能映射测试，因此在其 `scope` 中写明拒绝证据测试名 | 无需改码 / 已验证 / 待复审 |
+
+评审观察 O-6（`verify-paho5.py` 需要启用 `mqtt5`/`websocket` Feature 构建的二进制）已在脚本说明中写明前提，二进制启动失败时会给出明确提示；CI 中的构建步骤原本就带这些 Feature。O-5（部分对象按分组套用测试映射）未在本轮整体重构，第 1 轮评审已在相应评审中补充绑定日志内的精确测试。
+
+以下保留新建缺口模板，后续如再发现缺口按 `F67-G013` 起递增填入：
 
 | 字段 | 填写要求 |
 |---|---|
@@ -193,3 +231,8 @@ python3 scripts/check-protocol-review.py \
 | 2026-11-12 | F67-04 新增组合定界草案：汇总已复核批次，列出候选域与暂定新增/排除决定 | 已复核批次未发现必须新增的 state/fault 矩阵，18/222 基线不变；连接/会话等待审查；F67-04 整体仍未关闭 | 本页“F67-04 新增组合定界草案” |
 | 2026-11-12 | F67-03 批次 01：复核 `MQTT-3.3.2-1/2/4/5/6/7/8/15/16/17/18/20` 等，新增 Topic/属性转发、重叠 QoS、多过滤器 SUBACK 与非法 SUBSCRIBE 用例 | 28/607 输入完成实现侧复核；补上 Message Expiry 递减/Topic Alias 负例及 PUBLISH 属性证据；发现 `MQTT-3.3.2-7/8` 漏映射并修正；显式 PFI=0 归一化按等价语义保留；独立审查仍 NotRun | [验证记录](validation/README.md#verification)、`crates/modorch-mqtt-core/src/tests/mqtt5_protocol.rs` |
 | 2026-11-12 | F67-03 批次 02：复核 `MQTT-3.4.2-1/2/3`、`MQTT-3.5.2-1/2/3`、`MQTT-4.9.0-1/2/3` 的 ACK 原因码/属性大小与流控配额 | 9/607 输入完成实现侧复核，累计 37/607；Reason String/User Property 无发送路径按适用性结论处理；未发现运行时缺陷；独立审查仍 NotRun | [验证记录](validation/README.md#verification)、`crates/modorch-mqtt-core/src/tests/mqtt5_protocol.rs`、`crates/modorch-mqtt-core/src/tests/storage.rs` |
+| 2026-11-13 | F67-02 批次 05 与 F67-03 批次 03：复核 F6/F7 连接、CONNACK、KeepAlive、Assigned ClientID 与 Session，并同步 F67-04 草案及 `eventhub.md` 示例字段 | F67-02 累计 79/437，F67-03 累计 70/607；新增 KeepAlive 重置、MQTT5 空 ClientID 分配与 Alias 超上限负例共 3 项测试并补齐映射；连接/会话候选域暂不新增矩阵；独立审查仍 NotRun | [验证记录](validation/README.md#verification)、`crates/modorch-mqtt-core/src/tests/protocol.rs`、`crates/modorch-mqtt-core/src/tests/mqtt5_protocol.rs` |
+| 2026-11-13 | F67-02 批次 06—07 与 F67-03 批次 04—05：完成 F6 全部 `Numbered` 条款与 F7 QoS/Ordered Topic/UTF-8/SUBACK/UNSUBSCRIBE/DISCONNECT/Shared/Error/WebSocket 复核，并同步 F67-04 草案 | F67-02 去重累计 140/437（140/140 `Numbered` 收口，校准原 28/27 重复计数 1 次），F67-03 累计 178/607（178/250 `Numbered`）；修正 `MQTT-3.6.1-1` 误映射，新增 F6/F7 Ordered Topic 与 UTF-8 BOM/非规范化测试并扩展 `0xA2` 非法 UNSUBSCRIBE 负例；F67-04 候选域维持 18/222 不变；独立审查仍 NotRun | [验证记录](validation/README.md#verification)、`contracts/protocol-review.json`、`contracts/mqtt311.json`、`crates/modorch-mqtt-core/src/tests/protocol.rs`、`crates/modorch-mqtt-core/src/tests/mqtt5_protocol.rs` |
+| 2026-11-16 | F67-03 批次 06—07 与 F67-02 批次 08：核对 F7 剩余 `3.1/3.3` 编号条款与 F6/F7 全部 `Table`/`Unnumbered`/`Section`；发现并修复 `F67-G001`（MQTT5 会话接管发送 `DISCONNECT 0x8E`）与超版本 `0x84`，收口 F6/F7/F67-04/F67-05 实现侧核对 | F67-02 实现侧 **437/437**（含 339 表格行）、F67-03 实现侧 **607/607**（含 505 表格行）全部完成核对；F67-04 实现侧定界维持 **18/222** 不变；`F67-G001` 修复并补测回归，补齐 14 项 `protocol-review.json` 映射；真实独立批准仍为 0，待 F67-06/07/08 | [验证记录](validation/README.md#verification)、`crates/modorch-mqtt-core/src/{state.rs,wire.rs,connection.rs}`、`crates/modorch-mqtt-core/src/tests/mqtt5_protocol.rs`、`contracts/protocol-review.json` |
+| 2026-11-16 | F67-06 客户端互操作、`wss` 传输与 Feature/MSRV 组合验证：当前源码重跑 Paho 2.1.0 三项专项，新增 `websocket-tls`（`wss`）QoS2 测试，验证 Core 8 种 Feature 组合、F6/F7 Profile 精确 Feature 子集测试与 Rust 1.85.0 MSRV | F67-01 至 **F67-06** 实现侧全部收口；新增 `websocket_over_tls_mqtt5_qos2_and_plaintext_isolation` 并同步 `OPT-WS` / `MQTT-6.0.0-1..4` 映射；真实独立批准仍为 0，待 F67-07/08 | [验证记录](validation/README.md#verification)、`crates/modorch-mqtt-core/src/tests/websocket.rs`、`contracts/optional-functional.json`、`contracts/protocol-review.json` |
+| 2026-11-16 | F67-07 第 1 轮独立评审（AI 评审、新会话、负责人认可）及缺口收口：评审旧输入 1,064 个对象，Approved 1,028 / Rejected 36 / NotRun 0；实现方修复 `F67-G006`（显式 PFI=0 转发），为 `F67-G002`—`G012` 新增 11 个测试、补强 2 个测试并补齐映射，`verify-paho5.py` 写明 Feature 前提 | 旧批准随受控输入变化全部失效，当前输入批准 0；生成新的未批准交接包，待第 2 轮复审 | 本页“F67-07 第 1 轮独立评审登记的缺口”、[验证记录](validation/README.md#verification)、`crates/modorch-mqtt-api/src/lib.rs`、`crates/modorch-mqtt-core/src/{mqtt5.rs,tests/mqtt5_protocol.rs}`、`contracts/protocol-review.json` |

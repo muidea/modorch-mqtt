@@ -249,7 +249,8 @@
       ],
       "tests": [
         "tests::storage::reversed_pubrec_order_survives_sqlite_restart",
-        "state::qos2::tests::queued_pubrec_responses_and_snapshot_keep_release_order_without_reordering_publish"
+        "state::qos2::tests::queued_pubrec_responses_and_snapshot_keep_release_order_without_reordering_publish",
+        "tests::protocol::ordered_topic_preserves_qos0_qos1_qos2_and_reconnect_resend_order"
       ]
     },
     {
@@ -291,7 +292,8 @@
         "tests::qos2::qos2_outgoing_reconnect_resumes_publish_or_pubrel_and_wrong_acks_cannot_free_id",
         "tests::qos2::qos2_reliable_window_preserves_publish_order_and_releases_capacity_only_on_pubcomp",
         "tests::storage::qos2_sender_wrong_ack_phase_matrix_preserves_ownership_across_sqlite_restart",
-        "tests::storage::client_ack_server_only_reason_matrix_closes_without_mutating_sqlite_sender_ownership"
+        "tests::storage::client_ack_server_only_reason_matrix_closes_without_mutating_sqlite_sender_ownership",
+        "tests::protocol::ordered_topic_preserves_qos0_qos1_qos2_and_reconnect_resend_order"
       ]
     },
     {
@@ -314,6 +316,7 @@
       ],
       "tests": [
         "tests::handshake_timeout_keepalive_will_and_fragmented_packets",
+        "tests::protocol::keepalive_resets_on_control_packet_and_zero_stays_open",
         "tests::storage::ping_on_idle_connection_does_not_wait_for_another_connections_store_commit"
       ]
     },

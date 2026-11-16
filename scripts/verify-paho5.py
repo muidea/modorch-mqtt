@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Independent Paho MQTT5 TCP/WebSocket verification; uses an existing isolated venv."""
+"""Independent Paho MQTT5 TCP/WebSocket verification; uses an existing isolated venv.
+
+Precondition: the standalone-broker binary must be built with MQTT5 and WebSocket,
+e.g. `cargo build --locked -p standalone-broker --features
+modorch-mqtt/mqtt5,modorch-mqtt/websocket` (as in .github/workflows/check.yml).
+The default `./scripts/check.sh` build does not enable these features.
+"""
 import os
 import queue
 import re
@@ -38,6 +44,12 @@ def run(websocket):
                 selector.register(process.stdout, selectors.EVENT_READ)
                 assert selector.select(timeout=5), "startup deadline"
             line = process.stdout.readline()
+            if not line and process.poll() is not None:
+                raise SystemExit(
+                    "standalone-broker exited before listening; build it with "
+                    "--features modorch-mqtt/mqtt5,modorch-mqtt/websocket\n"
+                    + process.stderr.read()
+                )
             match = re.search(r"127\.0\.0\.1:(\d+)", line)
             assert match, line
             port = int(match.group(1))

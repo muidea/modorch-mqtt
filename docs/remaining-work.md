@@ -1,6 +1,6 @@
 # 剩余需求与验收边界
 
-更新日期：2026-11-12。当前各主要功能路径已有实验实现，完整协议与生产发布仍为 **Partial**。本页只保留当前结论；历轮验证过程材料已按用户要求清理，汇总结论见[最终验证与收口记录](validation/README.md)。
+更新日期：2026-11-16。当前各主要功能路径已有实验实现，完整协议与生产发布仍为 **Partial**。本页只保留当前结论；历轮验证过程材料已按用户要求清理，汇总结论见[最终验证与收口记录](validation/README.md)。
 
 需求依据为[完整设计](modorch_mqtt_broker_full_design_0.0.3.md) §11–§15、§30–§59；当前能力见[可选功能](optional-features.md)及[契约](../contracts/README.md)。F6/F7 后续执行按[待收口计划与跟踪清单](f6-f7-closure-plan.md)推进，任务编号、交付物、具体缺口模板及完成标准在该计划维护。
 
@@ -8,9 +8,9 @@
 
 | 项目 | 当前状态与剩余工作 | 跟踪入口 |
 |---|---|---|
-| F6 / MQTT 3.1.1 | 437 个规范输入、339 表格行、190 个限定映射；实现侧批次复核 28/437（其余 409 输入、339 表格行）；F67-04 新增组合草案待定；完整语义与独立验收待完成 | F67-01、02、04–08 |
-| F7 / MQTT5 | 607 个规范输入、505 表格行、281 个限定映射；实现侧批次复核 37/607（其余 570 输入、505 表格行）；完整语义、剩余必需组合和独立验收待完成 | F67-01、03–08 |
-| Enhanced Authentication / AUTH | 当前明确不支持，11 项 UnsupportedConditional；不是自动新增的必做功能，启用时另立开发任务 | F67-01、03、06 |
+| F6 / MQTT 3.1.1 | 437 个规范输入、339 表格行、190 个限定映射；实现侧 **F67-01—06** 已完成。F67-07 第 1 轮独立评审（旧输入）中 mqtt311 437/437 及 `mqtt311:acceptance` 为 Approved；因 F7 缺口修复改变了受控输入，旧批准已失效，当前输入批准为 0，待第 2 轮复审与 F67-08 | F67-01—08 |
+| F7 / MQTT5 | 607 个规范输入、505 表格行、281 个限定映射；实现侧 **F67-01—06** 已完成。F67-07 第 1 轮评审 Rejected 36 个对象（`F67-G002`—`G012`）：其中 `F67-G006`（显式 PFI=0 转发时被删除）已修复代码，其余为验证缺口，均已补测并加入映射；当前输入批准为 0，待第 2 轮复审与 F67-08 | F67-01、03–08 |
+| Enhanced Authentication / AUTH | 当前明确不支持，11 项 UnsupportedConditional；CONNECT 携带 0x15/0x16 以及 AUTH 报文的拒绝行为现已有日志内测试（`F67-G012`）。这不是自动新增的必做功能，启用时另立开发任务 | F67-01、03、06、07 |
 | 生产 SLO | 按用户选择保留；长期 RSS、代表性连接/吞吐/P99、退出/恢复时限及宿主构建 Profile 需另测 | 独立容量验收 |
 | 外部发布验收 | magicCommon、远端 CI、跨平台/文件系统、硬件断电及独立安全/性能/接入/发布材料待真实执行 | [发布流程](release.md) |
 | magicDataHub 工具 M0/M1 | 23用例/9内部范围、十二份schema/56种事件，连接/Retained/Topic、恢复v3、FLOW、双订阅者FANOUT、双向同号DUPLEX和混合QoS MIXED的选定证据已具备；完整映射/证据模型、Oracle充分性、资产闭包与干净CI仍待 | magicDataHub 的 `tools/mqtt-broker-validation/remaining-work.md` |
@@ -26,7 +26,7 @@
 
 2026-11-12 固化两版实现侧验收范围：[acceptance-profile.json](../contracts/acceptance-profile.json) 明确 F6 的 TCP/TLS/SQLite、F7 的 MQTT5 TCP/WebSocket/SQLite、共同宿主/Feature/客户端/平台证据边界及排除项；`scripts/check-acceptance-profile.py` 核对契约计数、Cargo Feature、宿主 revision 和 `independent_review=NotRun`，4 项脚本反例覆盖自评、计数漂移、未知 Feature 与范围漂移。同时新增重叠订阅请求 QoS 0/1/2、发布 QoS2 的最高匹配 QoS 用例，以及发布/授予组合取最小 QoS 的矩阵用例，并映射至 MQTT-3.3.5-1/3.6.1-1/3.8.4-6；Rust 测试现为233项。完整 `scripts/check.sh` 已重跑并通过（233 Rust/61 脚本，含 Clippy/Rustdoc/契约/示例/TOML/Storage/SIGKILL）。F67-01 实现侧收口，独立审查仍为 0。
 
-截至 2026-11-12，F67-02 已登记 28/437 输入、F67-03 已登记 37/607 输入的实现侧批次复核；均已核对精确测试映射，发现的映射缺口已修正。F67-04 已登记新增组合定界草案：已复核批次不新增 state/fault 矩阵，18 矩阵/222 组合不变；连接/会话等候选仍待。全部结论仍为实现侧复核，真实独立批准保持 0。
+截至 2026-11-16，**F67-01 至 F67-06** 实现侧工作已全部收口：F67-02（**437/437** 输入及 **339** 表格行）与 F67-03（**607/607** 输入及 **505** 表格行）完成全量核对，发现并修复 `F67-G001`（MQTT 5.0 会话接管发送 `DISCONNECT 0x8E`）及 `0x84`，F67-04/05 维持 **18 矩阵 / 222 组合**不变；F67-06 在当前源码上完成 Paho 2.1.0 三项互操作专项、`wss`（`websocket-tls`）QoS2、Core 8 种 Feature 组合、`--no-default-features`（117 测）、F6 精确 Feature（16 测）与 Rust 1.85.0 MSRV 验证。**真实独立批准仍为 0**；后续仍待：F67-07（真实独立实审）、F67-08（严格门禁结项）、`生产 SLO`、`外部发布验收`、`V-01 历史归因` 及宿主 `magicDataHub` 的 `MQTT-T01`—`T07`。
 
 
 magicDataHub 内的通用黑盒入口已补两个方向各 AwaitPubRec/AwaitPubComp 四分支、真实 ACK 截断和 11 种错误校准；仅代表性证据，不关闭 F67-01—08。工具两个正式宿主的独立 Profile 与 Profile/绑定 schema 已落库并绑定执行/证据；当前 56 种事件、worker 原始结果和汇总 schema 已接入门禁，并拒绝重复/计划外/旧 run 等不完整证据；代表性用例/义务/目录、RunManifest/Request schema 与计划/输入/路径/ownership 绑定也已接入门禁，worker 在副作用前重验；完整官方义务/证据模型、官方映射、语义/充分性和独立审查继续单列。

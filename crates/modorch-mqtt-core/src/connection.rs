@@ -126,6 +126,7 @@ async fn run(
     let trace = life.diagnostics.clone();
     let socket = crate::transport::Interruptible::new(stream);
     let local_cancel = cancel.child_token();
+    let takeover_state: TakeoverState = Arc::new(Mutex::new(None));
     let (deadlines, mut updates) = watch::channel(Deadlines {
         network: Some(handshake_deadline),
         identity: None,
@@ -139,6 +140,7 @@ async fn run(
         peer_ip,
         handshake_deadline,
         deadlines,
+        takeover_state.clone(),
     );
     tokio::pin!(protocol);
     loop {
@@ -146,6 +148,22 @@ async fn run(
         let deadline = limits.earliest();
         tokio::select! { biased;
             _ = local_cancel.cancelled() => {
+                let v5_takeover = !cancel.is_cancelled()
+                    && takeover_state.lock().unwrap().as_ref().is_some_and(|(flag, v5)| {
+                        *v5 && flag.load(std::sync::atomic::Ordering::Acquire)
+                    });
+                if v5_takeover {
+                    let result = tokio::time::timeout(
+                        Duration::from_millis(250),
+                        &mut protocol,
+                    )
+                    .await;
+                    socket.close();
+                    return match result {
+                        Ok(outcome) => outcome,
+                        Err(_) => protocol.await,
+                    };
+                }
                 socket.close();
                 // Keep lifetime, permit and memory in this managed task until
                 // any durable promise has a known outcome.
@@ -180,6 +198,37 @@ async fn run(
     }
 }
 
+type TakeoverState = Arc<Mutex<Option<(Arc<std::sync::atomic::AtomicBool>, bool)>>>;
+
+async fn finish_takeover<W: tokio::io::AsyncWrite + Unpin>(
+    life: &ConnectionLifetime,
+    wire: &crate::wire::Protocol,
+    writer: &mut W,
+    current: &Option<(receive::Frame, usize)>,
+    takeover_state: &TakeoverState,
+    write_timeout: Duration,
+) {
+    let v5_takeover = wire.is_v5()
+        && takeover_state
+            .lock()
+            .unwrap()
+            .as_ref()
+            .is_some_and(|(f, _)| f.load(std::sync::atomic::Ordering::Acquire));
+    if v5_takeover && current.as_ref().is_none_or(|(_, off)| *off == 0) && wire.max_packet() >= 3 {
+        let frame = [0xe0, 1, 0x8e];
+        if let Ok(Ok(())) = tokio::time::timeout(
+            Duration::from_millis(200).min(write_timeout),
+            writer.write_all(&frame),
+        )
+        .await
+        {
+            life.state.lock().unwrap().record_io(0, frame.len());
+            let _ = writer.shutdown().await;
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 async fn run_protocol(
     stream: crate::transport::Stream,
     life: &mut ConnectionLifetime,
@@ -188,6 +237,7 @@ async fn run_protocol(
     peer_ip: std::net::IpAddr,
     handshake_deadline: Instant,
     deadlines: watch::Sender<Deadlines>,
+    takeover_state: TakeoverState,
 ) -> Result<(), MqttError> {
     diagnostics::phase(&life.diagnostics, Stage::Connect);
     let (mut reader, mut writer) = tokio::io::split(stream);
@@ -224,8 +274,12 @@ async fn run_protocol(
         // cancellation. Bound control replies before consuming another packet.
         if !close_after_write && control.len() < config.per_client_outbound_queue {
             if let Some(len) = wire.frame_len(&input, config.max_packet_bytes)? {
+                let raw_connect = (life.attached.is_none()).then(|| &input[..len]);
                 let decoded =
                     wire.decode(&input[..len], config.max_subscriptions_per_client.min(1000));
+                let unsupported_connack =
+                    matches!(decoded, Err(MqttError::Unsupported("MQTT protocol level")))
+                        .then(|| wire.unsupported_protocol_connack(raw_connect.unwrap_or(&[])));
                 input.drain(..len);
                 let last_packet = Instant::now();
                 if life.attached.is_some() {
@@ -253,6 +307,10 @@ async fn run_protocol(
                                         d.identity = crate::auth::deadline(&identity);
                                     });
                                     principal = Some(identity);
+                                    let flag =
+                                        life.state.lock().unwrap().takeover_flag(&client, id);
+                                    *takeover_state.lock().unwrap() =
+                                        flag.map(|f| (f, wire.is_v5()));
                                     life.attached = Some((client, id));
                                     notify = session_notify;
                                     control.push_back(vec![0x20, 2, u8::from(present), 0].into());
@@ -268,7 +326,11 @@ async fn run_protocol(
                             }
                         }
                         Err(MqttError::Unsupported("MQTT protocol level")) => {
-                            control.push_back(vec![0x20, 2, 0, 1].into());
+                            control.push_back(
+                                unsupported_connack
+                                    .unwrap_or_else(|| vec![0x20, 2, 0, 1])
+                                    .into(),
+                            );
                             close_after_write = true;
                         }
                         _ => {
@@ -372,7 +434,10 @@ async fn run_protocol(
                             let mut observation = None;
                             diagnostics::phase(&life.diagnostics, Stage::PacketGate);
                             let transaction = tokio::select! { biased;
-                                _ = cancel.cancelled() => return Ok(()),
+                                _ = cancel.cancelled() => {
+                                    finish_takeover(life, &wire, &mut writer, &current, &takeover_state, config.write_timeout).await;
+                                    return Ok(());
+                                }
                                 result = life.persistence.begin(&life.state) => result?,
                             };
                             let mut disconnected = false;
@@ -552,7 +617,10 @@ async fn run_protocol(
                     if ready {
                         diagnostics::phase(&life.diagnostics, Stage::OutboundGate);
                         let transaction = tokio::select! { biased;
-                            _ = cancel.cancelled() => return Ok(()),
+                            _ = cancel.cancelled() => {
+                                finish_takeover(life, &wire, &mut writer, &current, &takeover_state, config.write_timeout).await;
+                                return Ok(());
+                            }
                             result = life.persistence.begin(&life.state) => result?,
                         };
                         let next =
@@ -599,7 +667,10 @@ async fn run_protocol(
         let capacity = (config.max_packet_bytes - input.len()).min(read.len());
         tokio::select! {
             biased;
-            _ = cancel.cancelled() => return Ok(()),
+            _ = cancel.cancelled() => {
+                finish_takeover(life, &wire, &mut writer, &current, &takeover_state, config.write_timeout).await;
+                return Ok(());
+            }
             result = async {
                 let (bytes, offset) = current.as_ref().unwrap();
                 writer.write(&bytes.bytes[*offset..]).await

@@ -38,6 +38,7 @@ fn properties(p: Option<v::PublishProperties>) -> Result<MqttProperties, MqttErr
             .message_expiry_interval
             .map(|s| unix_time_ms().saturating_add(u64::from(s) * 1000)),
         utf8_payload: p.payload_format_indicator == Some(1),
+        explicit_binary_payload: p.payload_format_indicator == Some(0),
         content_type: p.content_type,
         response_topic: p.response_topic,
         correlation_data: p.correlation_data,
@@ -369,7 +370,12 @@ fn publish_packet(
 ) -> v::Publish {
     let p = &message.properties;
     let props = v::PublishProperties {
-        payload_format_indicator: p.utf8_payload.then_some(1),
+        // MQTT-3.3.2-4: forward the indicator unaltered, including explicit 0.
+        payload_format_indicator: if p.utf8_payload {
+            Some(1)
+        } else {
+            p.explicit_binary_payload.then_some(0)
+        },
         message_expiry_interval: p.expires_at_ms.map(|t| {
             t.saturating_sub(unix_time_ms())
                 .div_ceil(1000)
