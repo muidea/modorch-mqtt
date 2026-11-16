@@ -245,6 +245,12 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 - **有效性条件**：本批准绑定上述 `source_digest`。今后任何受控输入（`crates/`、`contracts/`、`docs/`（`docs/validation/` 除外）、`scripts/`、`examples/`、`Cargo.*`、`README.md` 等）发生变化，批准即失效，需要重新生成交接包并复审。本节写在 `docs/validation/` 下，不属于受控输入，所以不会使批准失效。
 - **评审观察（不阻塞）**：O-6，`check.sh` 默认构建的 `standalone-broker` 未启用 MQTT5/WebSocket，运行 `verify-paho5.py` 前需要按脚本说明带 Feature 构建。
 
+### 2026-11-16 F67-07 文档复签与 F67-08 结项
+
+- **复签**：提交 `f9474a9` 只把第 2 轮结果同步进 `docs/f6-f7-closure-plan.md` 和 `docs/remaining-work.md`，与 `c367fa4` 相比没有代码、契约或测试改动，义务摘要变化数为 0。评审者（同上）在新交接包 `validation/2026-11-16-f67-docs-resign/protocol-bundle.json`（`source_digest 6bee901a…`）下重新签署了 1,064 个对象，核实文档没有夸大结论，未登记新缺口。
+- **严格门禁**：`check-protocol-review.py --bundle validation/2026-11-16-f67-review-r3/protocol-bundle.reviewed.json --require-complete` 退出码 0，`validation_status = Passed`、`overall_status = Passed`；mqtt311 437/437、mqtt5 607/607、矩阵 18/18，两版 acceptance 均为 Passed。实现方收到结果后自行重跑，结果相同。
+- **结论**：F6（MQTT 3.1.1）/ F7（MQTT 5.0）协议验收在提交 `f9474a9` 的受控输入上通过，**F67-07、F67-08 结项**。批准边界与上文第 2 轮记录相同：限于 `acceptance-profile.json` 的 Server 范围和 `linux-x86_64`，Enhanced Authentication 只证实了拒绝行为。生产发布（178 项发布义务、SLO、跨平台、硬件掉电、远端 CI）仍为 Partial，另行评审。受控输入以后再变化时，需要重新生成交接包并复审。
+
 此前一轮为“同号双向 QoS2 故障交叉与正 TTL 收口”。清理前记录的历史结果为：
 
 | 检查 | 历史结论 |
@@ -292,7 +298,7 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 
 ## 仍待收口
 
-- F6/F7：F67-07 已在 `source_digest 46ae2010…` 上通过严格协议门禁（见上文第 2 轮记录）；受控输入一旦变化就需要重新复审。F67-08 中受控文档（`docs/f6-f7-closure-plan.md`、`docs/remaining-work.md`）的状态同步会改变受控输入，需要与重新复审一并安排。
+- F6/F7：协议验收已在提交 `f9474a9`（`source_digest 6bee901a…`）上通过，F67-07/08 结项。受控输入一旦变化就需要重新复审。
 - F7：11 项 Enhanced Authentication 条件输入保持不支持的适用性边界；新增支持需要另列开发任务。
 - 生产 SLO、长期 RSS、代表性负载和退出/恢复时限按用户选择保留待验收。
 - 外部宿主 Profile、magicCommon、远端 CI、跨平台/文件系统、硬件断电及独立安全/性能/接入/发布仍待真实执行。
