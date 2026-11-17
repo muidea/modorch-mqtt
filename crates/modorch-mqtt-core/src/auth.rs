@@ -59,8 +59,9 @@ pub(crate) async fn attach(
     mut connect: Connect,
     cancel: &CancellationToken,
     deadline: Instant,
-    peer_ip: std::net::IpAddr,
+    peer_addr: std::net::SocketAddr,
 ) -> Result<(String, u64, bool, Arc<Notify>, Principal), MqttError> {
+    let peer_ip = peer_addr.ip();
     let config = life.state.lock().unwrap().config.clone();
     if connect.client_id.len() > config.max_client_id_bytes
         || (connect.client_id.is_empty() && !connect.clean && connect.v5.is_none())
@@ -161,13 +162,14 @@ pub(crate) async fn attach(
         _ = tokio::time::sleep_until(deadline) => return Err(MqttError::NotAuthorized),
         result = life.persistence.begin(&life.state) => result?,
     };
-    let attached = life.state.lock().unwrap().attach(
+    let attached = life.state.lock().unwrap().attach_with_peer(
         life.generation,
         &connect,
         cancel.clone(),
         &principal,
         expected_version,
         will_grant,
+        Some(peer_addr),
     );
     diagnostics::phase(&life.diagnostics, Stage::AttachCommit);
     transaction

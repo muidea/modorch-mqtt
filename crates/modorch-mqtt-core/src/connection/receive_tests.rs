@@ -61,7 +61,7 @@ async fn partial_ack_write_enforces_mqtt5_receive_maximum_without_limiting_mqtt3
                     &mut life,
                     CancellationToken::new(),
                     &hub,
-                    "127.0.0.1".parse().unwrap(),
+                    "127.0.0.1:0".parse().unwrap(),
                     Instant::now() + Duration::from_secs(5),
                 );
                 let traffic = async {
@@ -203,7 +203,7 @@ async fn receive_quota_requires_pubcomp_and_resets_on_reconnect_with_old_receive
             &mut life,
             CancellationToken::new(),
             &hub,
-            "127.0.0.1".parse().unwrap(),
+            "127.0.0.1:0".parse().unwrap(),
             Instant::now() + Duration::from_secs(5),
         );
         let traffic = async {
@@ -294,7 +294,7 @@ async fn queued_duplicate_pubcomp_cannot_release_reused_identifier_receive_quota
         &mut life,
         CancellationToken::new(),
         &hub,
-        "127.0.0.1".parse().unwrap(),
+        "127.0.0.1:0".parse().unwrap(),
         Instant::now() + Duration::from_secs(5),
     );
     let traffic = async {
@@ -372,7 +372,7 @@ async fn interrupted_partial_ack_reconnect_preserves_receiver_ownership_and_recl
                         &mut life,
                         cancel.clone(),
                         &hub,
-                        "127.0.0.1".parse().unwrap(),
+                        "127.0.0.1:0".parse().unwrap(),
                         Instant::now() + Duration::from_secs(5),
                     );
                     let traffic = async {
@@ -504,7 +504,7 @@ async fn duplex_same_id_partial_ack_interrupt_matrix_preserves_outbound_and_rece
                             &mut life,
                             cancel.clone(),
                             &hub,
-                            "127.0.0.1".parse().unwrap(),
+                            "127.0.0.1:0".parse().unwrap(),
                             Instant::now() + Duration::from_secs(5),
                         );
                         let traffic = async {

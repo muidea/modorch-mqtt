@@ -83,17 +83,24 @@ pub(crate) fn spawn(
     tasks.spawn(move |cancel| async move {
         // A malformed client, IO failure or quota rejection closes only this
         // connection. It must never restart/fail the whole component.
+        let mut peer_addr_seen = None;
         let result = async {
             diagnostics::phase(&lifetime.diagnostics, Stage::Transport);
             stream.set_nodelay(true)?;
-            let peer_ip = stream.peer_addr()?.ip();
+            let peer_addr = stream.peer_addr()?;
+            peer_addr_seen = Some(peer_addr);
             let stream = transport.accept(stream, &cancel, deadline).await?;
-            run(stream, &mut lifetime, cancel, &hub, peer_ip, deadline).await
+            run(stream, &mut lifetime, cancel, &hub, peer_addr, deadline).await
         }
         .await;
         if let Err(error) = result {
             diagnostics::failure(&lifetime.diagnostics, &error);
-            lifetime.state.lock().unwrap().record_client_error(&error);
+            let client_id = lifetime.attached.as_ref().map(|(c, _)| c.clone());
+            lifetime.state.lock().unwrap().record_connection_failure(
+                peer_addr_seen,
+                client_id,
+                &error,
+            );
         }
         Ok(())
     })?;
@@ -120,7 +127,7 @@ async fn run(
     life: &mut ConnectionLifetime,
     cancel: CancellationToken,
     hub: &ExternalEventHub,
-    peer_ip: std::net::IpAddr,
+    peer_addr: std::net::SocketAddr,
     handshake_deadline: Instant,
 ) -> Result<(), MqttError> {
     let trace = life.diagnostics.clone();
@@ -137,7 +144,7 @@ async fn run(
         life,
         local_cancel.clone(),
         hub,
-        peer_ip,
+        peer_addr,
         handshake_deadline,
         deadlines,
         takeover_state.clone(),
@@ -234,7 +241,7 @@ async fn run_protocol(
     life: &mut ConnectionLifetime,
     cancel: CancellationToken,
     hub: &ExternalEventHub,
-    peer_ip: std::net::IpAddr,
+    peer_addr: std::net::SocketAddr,
     handshake_deadline: Instant,
     deadlines: watch::Sender<Deadlines>,
     takeover_state: TakeoverState,
@@ -291,13 +298,15 @@ async fn run_protocol(
                             keep_alive = (connect.keep_alive != 0).then(|| {
                                 Duration::from_millis(u64::from(connect.keep_alive) * 1500)
                             });
+                            let connect_client =
+                                (!connect.client_id.is_empty()).then(|| connect.client_id.clone());
                             let attached = crate::auth::attach(
                                 life,
                                 hub,
                                 connect,
                                 &cancel,
                                 handshake_deadline,
-                                peer_ip,
+                                peer_addr,
                             )
                             .await;
                             match attached {
@@ -319,7 +328,11 @@ async fn run_protocol(
                                     let Some(frame) = connack_failure(&error) else {
                                         return Err(error);
                                     };
-                                    life.state.lock().unwrap().record_client_error(&error);
+                                    life.state.lock().unwrap().record_connection_failure(
+                                        Some(peer_addr),
+                                        connect_client,
+                                        &error,
+                                    );
                                     control.push_back(frame.into());
                                     close_after_write = true;
                                 }
@@ -821,7 +834,7 @@ mod tests {
             &mut life,
             CancellationToken::new(),
             &hub,
-            "127.0.0.1".parse().unwrap(),
+            "127.0.0.1:0".parse().unwrap(),
             Instant::now() + Duration::from_secs(2),
         );
         let traffic = async {
@@ -892,7 +905,7 @@ mod tests {
                 &mut life,
                 CancellationToken::new(),
                 &hub,
-                "127.0.0.1".parse().unwrap(),
+                "127.0.0.1:0".parse().unwrap(),
                 Instant::now() + Duration::from_secs(3),
             );
             let traffic = async {
@@ -949,7 +962,7 @@ mod tests {
                 &mut life,
                 CancellationToken::new(),
                 &hub,
-                "127.0.0.1".parse().unwrap(),
+                "127.0.0.1:0".parse().unwrap(),
                 Instant::now() + Duration::from_secs(3),
             );
             let traffic = async {

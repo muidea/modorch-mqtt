@@ -217,6 +217,14 @@ impl SerialHandler for Admin {
             AdminRequest::ListClients { .. } => "clients",
             AdminRequest::DisconnectClient { .. } => "disconnect",
             AdminRequest::ListSubscriptions { .. } => "subscriptions",
+            AdminRequest::ListEvents { .. } => "events",
+            AdminRequest::ListTopicFilters { .. } => "topic_filters",
+            AdminRequest::MatchTopic { .. } => "topic_match",
+            AdminRequest::ListRetained { .. } => "retained_list",
+            AdminRequest::GetRetained { .. } => "retained_get",
+            AdminRequest::DeleteRetained { .. } => "retained_delete",
+            AdminRequest::ListActiveTopics { .. } => "active_topics",
+            AdminRequest::AdminPublish { .. } => "admin_publish",
         };
         let bytes = match request.as_ref() {
             AdminRequest::GetSession { client_id }
@@ -225,7 +233,20 @@ impl SerialHandler for Admin {
             AdminRequest::ListSubscriptions {
                 client_id, after, ..
             } => 256 + client_id.len() + after.as_ref().map_or(0, String::len),
-            AdminRequest::BrokerStats => 256,
+            AdminRequest::ListTopicFilters { after, .. } => {
+                256 + after.as_ref().map_or(0, String::len)
+            }
+            AdminRequest::MatchTopic { topic }
+            | AdminRequest::GetRetained { topic }
+            | AdminRequest::DeleteRetained { topic } => 256 + topic.len(),
+            AdminRequest::ListRetained { prefix, after, .. } => {
+                256 + prefix.as_ref().map_or(0, String::len) + after.as_ref().map_or(0, String::len)
+            }
+            AdminRequest::ListActiveTopics { search, .. } => {
+                256 + search.as_ref().map_or(0, String::len)
+            }
+            AdminRequest::AdminPublish { topic, payload, .. } => 256 + topic.len() + payload.len(),
+            AdminRequest::BrokerStats | AdminRequest::ListEvents { .. } => 256,
         };
         #[cfg(feature = "audit")]
         if let Some(log) = &self.audit_log {

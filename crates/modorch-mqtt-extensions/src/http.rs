@@ -301,6 +301,9 @@ fn action(method: &str, uri: &str) -> Option<AdminRequest> {
             client_id: client?,
             expected_connection_id: connection?.parse().ok()?,
         }),
+        ("GET", "/v1/events") if client.is_none() && connection.is_none() && after.is_none() => {
+            Some(AdminRequest::ListEvents { limit })
+        }
         _ => None,
     }
 }
@@ -416,6 +419,10 @@ async fn serve(
         struct Disconnected {
             disconnected: bool,
         }
+        #[derive(serde::Serialize)]
+        struct Events<'a> {
+            items: &'a [ConnectionEvent],
+        }
         let mut output = LimitedJson(Vec::with_capacity(4096));
         let encoded = match result.as_ref() {
             Ok(AdminReply::Clients { items, next }) => {
@@ -434,6 +441,25 @@ async fn serve(
                 },
             ),
             Ok(AdminReply::Stats(value)) => serde_json::to_writer(&mut output, value),
+            Ok(AdminReply::Events(items)) => serde_json::to_writer(&mut output, &Events { items }),
+            Ok(AdminReply::TopicFilters { items, next }) => {
+                serde_json::to_writer(&mut output, &Page { items, next })
+            }
+            Ok(AdminReply::TopicMatch(value)) => serde_json::to_writer(&mut output, value),
+            Ok(AdminReply::RetainedList { items, next }) => {
+                serde_json::to_writer(&mut output, &Page { items, next })
+            }
+            Ok(AdminReply::RetainedDetail(value)) => serde_json::to_writer(&mut output, value),
+            Ok(AdminReply::RetainedDeleted(deleted)) => {
+                serde_json::to_writer(&mut output, &serde_json::json!({ "deleted": deleted }))
+            }
+            Ok(AdminReply::ActiveTopics(items)) => {
+                serde_json::to_writer(&mut output, &serde_json::json!({ "items": items }))
+            }
+            Ok(AdminReply::Published { matched_sessions }) => serde_json::to_writer(
+                &mut output,
+                &serde_json::json!({ "matched_sessions": matched_sessions }),
+            ),
             Err(AdminError::NotAuthorized) => break (403, "application/json", b"{}".to_vec()),
             Err(AdminError::InvalidRequest) => break (400, "application/json", b"{}".to_vec()),
             Err(AdminError::Unavailable) => break (503, "application/json", b"{}".to_vec()),

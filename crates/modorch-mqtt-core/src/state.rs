@@ -81,8 +81,22 @@ impl RetainedOrigin {
             }
     }
 }
+const MAX_EVENT_HISTORY: usize = 256;
+const MAX_ACTIVE_TOPICS: usize = 512;
+
+struct ActiveTopicRecord {
+    publish_count: u64,
+    last_qos: Qos,
+    last_publisher: Option<String>,
+    last_published_ms: u64,
+    seq: u64,
+}
+
 struct Connection {
     id: u64,
+    peer_addr: Option<String>,
+    keep_alive: u16,
+    connected_at_ms: u64,
     cancel: CancellationToken,
     taken_over: Arc<std::sync::atomic::AtomicBool>,
 }
@@ -160,6 +174,10 @@ pub(crate) struct State {
     pub deferred: VecDeque<crate::connection::DeferredDetach>,
     pub storage_poisoned: bool,
     counters: BrokerStatus,
+    events: VecDeque<ConnectionEvent>,
+    next_event_seq: u64,
+    active_topics: BTreeMap<String, ActiveTopicRecord>,
+    next_topic_seq: u64,
     pub rejected_connections: u64,
     rejected_publications: u64,
     dropped_qos0: u64,
@@ -202,6 +220,10 @@ impl State {
             deferred: VecDeque::new(),
             storage_poisoned: false,
             counters: BrokerStatus::default(),
+            events: VecDeque::with_capacity(MAX_EVENT_HISTORY),
+            next_event_seq: 0,
+            active_topics: BTreeMap::new(),
+            next_topic_seq: 0,
             rejected_connections: 0,
             rejected_publications: 0,
             dropped_qos0: 0,
@@ -353,6 +375,7 @@ impl State {
         ))
     }
 
+    #[cfg(test)]
     pub fn attach(
         &mut self,
         generation: u64,
@@ -361,6 +384,28 @@ impl State {
         principal: &Principal,
         expected_version: Option<u64>,
         will_grant: Option<PublishGrant>,
+    ) -> Result<(String, u64, bool, Arc<Notify>)> {
+        self.attach_with_peer(
+            generation,
+            connect,
+            cancel,
+            principal,
+            expected_version,
+            will_grant,
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn attach_with_peer(
+        &mut self,
+        generation: u64,
+        connect: &Connect,
+        cancel: CancellationToken,
+        principal: &Principal,
+        expected_version: Option<u64>,
+        will_grant: Option<PublishGrant>,
+        peer_addr: Option<std::net::SocketAddr>,
     ) -> Result<(String, u64, bool, Arc<Notify>)> {
         if !self.active || self.generation != generation || cancel.is_cancelled() {
             return Err(MqttError::Closed);
@@ -522,11 +567,20 @@ impl State {
                     || w.due.is_some_and(|due| due <= now)
             });
         }
+        let peer_text = peer_addr.map(|addr| addr.to_string());
         if let Some(old) = self.sessions.get_mut(&client).and_then(|s| s.online.take()) {
             old.taken_over
                 .store(true, std::sync::atomic::Ordering::Release);
             old.cancel.cancel();
             self.trigger_will(old.id);
+            let replacement = peer_text.as_deref().unwrap_or("unknown");
+            self.push_event(
+                "taken_over",
+                Some(client.clone()),
+                old.peer_addr.clone(),
+                Some(old.id),
+                format!("replaced by new connection from {replacement}"),
+            );
         }
         if !present {
             for w in self
@@ -541,12 +595,14 @@ impl State {
             self.sessions.insert(client.clone(), session);
         }
         let session = self.sessions.get_mut(&client).unwrap();
-        session.protocol5 = connect.v5.is_some();
+        let protocol5 = connect.v5.is_some();
+        session.protocol5 = protocol5;
         session.expiry_interval = connect.v5.as_ref().map(|o| o.session_expiry);
         session.clean = connect
             .v5
             .as_ref()
             .map_or(connect.clean, |o| o.session_expiry == 0);
+        let clean = session.clean;
         session.expires_at_ms = None;
         session.receive_maximum = connect
             .v5
@@ -557,8 +613,12 @@ impl State {
             .as_ref()
             .map_or(usize::MAX, |o| o.maximum_packet_size as usize);
         session.revision = connection;
+        let now_ms = unix_time_ms();
         session.online = Some(Connection {
             id: connection,
+            peer_addr: peer_text.clone(),
+            keep_alive: connect.keep_alive,
+            connected_at_ms: now_ms,
             cancel,
             taken_over: Arc::new(std::sync::atomic::AtomicBool::new(false)),
         });
@@ -571,6 +631,19 @@ impl State {
         if let Some(will) = will {
             self.wills.insert(connection, will);
         }
+        self.push_event(
+            "connected",
+            Some(client.clone()),
+            peer_text,
+            Some(connection),
+            format!(
+                "protocol={} clean={} keep_alive={}s present={}",
+                if protocol5 { "5.0" } else { "3.1.1" },
+                clean,
+                connect.keep_alive,
+                present
+            ),
+        );
         Ok((client, connection, present, notify))
     }
 
@@ -593,6 +666,21 @@ impl State {
             self.trigger_will(connection);
         }
         if self.check_connection(client, connection).is_ok() {
+            let peer_addr = self.sessions[client]
+                .online
+                .as_ref()
+                .and_then(|c| c.peer_addr.clone());
+            self.push_event(
+                "disconnected",
+                Some(client.to_owned()),
+                peer_addr,
+                Some(connection),
+                if graceful {
+                    "client DISCONNECT".into()
+                } else {
+                    "connection closed without DISCONNECT".into()
+                },
+            );
             if self.sessions[client].clean {
                 self.sessions.remove(client);
             } else {
@@ -1072,6 +1160,7 @@ impl State {
             session.notify.notify_one();
         }
         self.counters.accepted_publications += 1;
+        self.record_active_topic(message, origin);
         Ok(())
     }
 
@@ -1472,9 +1561,109 @@ impl State {
         self.counters.bytes_sent = self.counters.bytes_sent.saturating_add(written as u64);
     }
 
-    pub fn record_client_error(&mut self, error: &MqttError) {
-        match error {
-            MqttError::NotAuthorized => self.counters.auth_rejections += 1,
+    fn record_active_topic(&mut self, message: &MqttMessage, origin: Option<&str>) {
+        self.next_topic_seq = self.next_topic_seq.saturating_add(1);
+        let seq = self.next_topic_seq;
+        let now_ms = unix_time_ms();
+        let publisher = origin.filter(|o| !o.is_empty()).map(str::to_owned);
+        if let Some(entry) = self.active_topics.get_mut(&message.topic) {
+            entry.publish_count = entry.publish_count.saturating_add(1);
+            entry.last_qos = message.qos;
+            entry.last_publisher = publisher;
+            entry.last_published_ms = now_ms;
+            entry.seq = seq;
+            return;
+        }
+        if self.active_topics.len() >= MAX_ACTIVE_TOPICS
+            && let Some(oldest_key) = self
+                .active_topics
+                .iter()
+                .min_by_key(|(_, rec)| rec.seq)
+                .map(|(k, _)| k.clone())
+        {
+            self.active_topics.remove(&oldest_key);
+        }
+        self.active_topics.insert(
+            message.topic.clone(),
+            ActiveTopicRecord {
+                publish_count: 1,
+                last_qos: message.qos,
+                last_publisher: publisher,
+                last_published_ms: now_ms,
+                seq,
+            },
+        );
+    }
+
+    fn retained_info(&self, topic: &str, r: &Retained, preview_limit: usize) -> RetainedInfo {
+        let origin = match &r.origin {
+            RetainedOrigin::Client(c) => format!("client:{c}"),
+            RetainedOrigin::Internal => "internal".into(),
+            RetainedOrigin::LegacyUnknown => "legacy".into(),
+        };
+        let payload = r.message.payload.as_ref();
+        let (payload_preview, payload_truncated) = if preview_limit == 0 {
+            (None, false)
+        } else {
+            let truncated = payload.len() > preview_limit;
+            let slice = if truncated {
+                &payload[..preview_limit]
+            } else {
+                payload
+            };
+            let text = match std::str::from_utf8(slice) {
+                Ok(s) => s.to_owned(),
+                Err(_) => {
+                    let hex: String = slice.iter().take(64).map(|b| format!("{b:02x}")).collect();
+                    format!("<binary {} bytes: {}>", payload.len(), hex)
+                }
+            };
+            (Some(text), truncated)
+        };
+        RetainedInfo {
+            topic: topic.to_owned(),
+            qos: r.message.qos,
+            payload_bytes: payload.len(),
+            origin,
+            payload_preview,
+            payload_truncated,
+        }
+    }
+
+    fn push_event(
+        &mut self,
+        kind: &str,
+        client_id: Option<String>,
+        peer_addr: Option<String>,
+        connection_id: Option<u64>,
+        detail: String,
+    ) {
+        self.next_event_seq = self.next_event_seq.saturating_add(1);
+        if self.events.len() >= MAX_EVENT_HISTORY {
+            self.events.pop_front();
+        }
+        self.events.push_back(ConnectionEvent {
+            seq: self.next_event_seq,
+            timestamp_ms: unix_time_ms(),
+            kind: kind.to_owned(),
+            client_id,
+            peer_addr,
+            connection_id,
+            detail,
+        });
+    }
+
+    pub fn record_connection_failure(
+        &mut self,
+        peer_addr: Option<std::net::SocketAddr>,
+        client_id: Option<String>,
+        error: &MqttError,
+    ) {
+        let kind = match error {
+            MqttError::NotAuthorized => {
+                self.counters.auth_rejections += 1;
+                "rejected"
+            }
             MqttError::Protocol(
                 "handshake/keepalive timeout" | "slow writer timeout" | "TLS handshake deadline",
             ) => {
@@ -1482,9 +1671,18 @@ impl State {
                 if matches!(error, MqttError::Protocol("slow writer timeout")) {
                     self.counters.slow_writers += 1;
                 }
+                "timeout"
             }
-            _ => (),
-        }
+            MqttError::Closed => return,
+            _ => "error",
+        };
+        self.push_event(
+            kind,
+            client_id,
+            peer_addr.map(|a| a.to_string()),
+            None,
+            error.to_string(),
+        );
     }
 
     fn session_info(&self, client: &str, session: &Session) -> SessionInfo {
@@ -1495,6 +1693,10 @@ impl State {
             online: session.online.is_some(),
             session_epoch: session.epoch,
             connection_id: session.online.as_ref().map(|c| c.id),
+            peer_addr: session.online.as_ref().and_then(|c| c.peer_addr.clone()),
+            protocol_level: if session.protocol5 { 5 } else { 4 },
+            keep_alive: session.online.as_ref().map_or(0, |c| c.keep_alive),
+            connected_at_ms: session.online.as_ref().map(|c| c.connected_at_ms),
             subscriptions: session.subscriptions.len(),
             pending_messages: session.pending.len(),
             pending_bytes: session.pending.iter().map(Delivery::bytes).sum(),
@@ -1532,9 +1734,17 @@ impl State {
                     .sessions
                     .get(client_id)
                     .and_then(|s| s.online.as_ref())
-                    .filter(|c| c.id == *expected_connection_id);
-                if let Some(connection) = connection {
-                    connection.cancel.cancel();
+                    .filter(|c| c.id == *expected_connection_id)
+                    .map(|c| (c.id, c.peer_addr.clone(), c.cancel.clone()));
+                if let Some((conn_id, peer_addr, cancel)) = &connection {
+                    cancel.cancel();
+                    self.push_event(
+                        "kicked",
+                        Some(client_id.clone()),
+                        peer_addr.clone(),
+                        Some(*conn_id),
+                        "administrative disconnect".into(),
+                    );
                 }
                 Ok(AdminReply::Disconnected(connection.is_some()))
             }
@@ -1587,6 +1797,218 @@ impl State {
                     .next()
                     .and_then(|_| items.last().map(|s| s.filter.clone()));
                 Ok(AdminReply::Subscriptions { items, next })
+            }
+            AdminRequest::ListEvents { limit } => {
+                if !(1..=256).contains(limit) {
+                    return Err(AdminError::InvalidRequest);
+                }
+                let items = self.events.iter().rev().take(*limit).cloned().collect();
+                Ok(AdminReply::Events(items))
+            }
+            AdminRequest::ListTopicFilters { after, limit } => {
+                if !(1..=256).contains(limit)
+                    || after
+                        .as_ref()
+                        .is_some_and(|a| codec::validate_filter(a).is_err())
+                {
+                    return Err(AdminError::InvalidRequest);
+                }
+                let mut grouped: BTreeMap<String, Vec<TopicSubscriberInfo>> = BTreeMap::new();
+                for (client_id, session) in &self.sessions {
+                    let online = session.online.is_some();
+                    for (filter, sub) in &session.subscriptions {
+                        grouped
+                            .entry(filter.clone())
+                            .or_default()
+                            .push(TopicSubscriberInfo {
+                                client_id: client_id.clone(),
+                                online,
+                                qos: sub.qos,
+                            });
+                    }
+                }
+                let mut iter = grouped
+                    .into_iter()
+                    .filter(|(filter, _)| after.as_ref().is_none_or(|a| filter > a));
+                let items: Vec<_> = iter
+                    .by_ref()
+                    .take(*limit)
+                    .map(|(filter, subscribers)| {
+                        let subscriber_count = subscribers.len();
+                        let online_count = subscribers.iter().filter(|s| s.online).count();
+                        let max_qos = subscribers
+                            .iter()
+                            .map(|s| s.qos)
+                            .max()
+                            .unwrap_or(Qos::AtMostOnce);
+                        TopicFilterSummary {
+                            filter,
+                            subscriber_count,
+                            online_count,
+                            max_qos,
+                            subscribers,
+                        }
+                    })
+                    .collect();
+                let next = iter
+                    .next()
+                    .and_then(|_| items.last().map(|s| s.filter.clone()));
+                Ok(AdminReply::TopicFilters { items, next })
+            }
+            AdminRequest::MatchTopic { topic } => {
+                if allowed_topic(topic).is_err() {
+                    return Err(AdminError::InvalidRequest);
+                }
+                let mut matches = Vec::new();
+                for (client_id, session) in &self.sessions {
+                    let mut matched_filters = Vec::new();
+                    let mut max_qos: Option<Qos> = None;
+                    for (filter, sub) in &session.subscriptions {
+                        let actual = shared_filter_name(filter).unwrap_or(filter);
+                        if codec::matches(actual, topic) {
+                            matched_filters.push(filter.clone());
+                            max_qos = Some(max_qos.map_or(sub.qos, |q| q.max(sub.qos)));
+                        }
+                    }
+                    if let Some(granted_max_qos) = max_qos {
+                        matches.push(TopicMatchEntry {
+                            client_id: client_id.clone(),
+                            online: session.online.is_some(),
+                            matched_filters,
+                            granted_max_qos,
+                        });
+                    }
+                }
+                Ok(AdminReply::TopicMatch(TopicMatchResult {
+                    topic: topic.clone(),
+                    matches,
+                }))
+            }
+            AdminRequest::ListRetained {
+                prefix,
+                after,
+                limit,
+            } => {
+                if !(1..=256).contains(limit)
+                    || after.as_ref().is_some_and(|a| allowed_topic(a).is_err())
+                {
+                    return Err(AdminError::InvalidRequest);
+                }
+                let mut iter = self
+                    .retained
+                    .iter()
+                    .filter(|(_, r)| !r.message.properties.expired())
+                    .filter(|(t, _)| prefix.as_deref().is_none_or(|p| t.starts_with(p)))
+                    .filter(|(t, _)| after.as_ref().is_none_or(|a| *t > a));
+                let items: Vec<_> = iter
+                    .by_ref()
+                    .take(*limit)
+                    .map(|(t, r)| self.retained_info(t, r, 256))
+                    .collect();
+                let next = iter
+                    .next()
+                    .and_then(|_| items.last().map(|r| r.topic.clone()));
+                Ok(AdminReply::RetainedList { items, next })
+            }
+            AdminRequest::GetRetained { topic } => {
+                if allowed_topic(topic).is_err() {
+                    return Err(AdminError::InvalidRequest);
+                }
+                let item = self
+                    .retained
+                    .get(topic)
+                    .filter(|r| !r.message.properties.expired())
+                    .map(|r| self.retained_info(topic, r, 4096));
+                Ok(AdminReply::RetainedDetail(item))
+            }
+            AdminRequest::DeleteRetained { topic } => {
+                if allowed_topic(topic).is_err() {
+                    return Err(AdminError::InvalidRequest);
+                }
+                let removed = self.retained.remove(topic).is_some();
+                if removed {
+                    self.push_event(
+                        "retained_deleted",
+                        None,
+                        None,
+                        None,
+                        format!("topic={topic}"),
+                    );
+                }
+                Ok(AdminReply::RetainedDeleted(removed))
+            }
+            AdminRequest::ListActiveTopics { search, limit } => {
+                if !(1..=256).contains(limit) {
+                    return Err(AdminError::InvalidRequest);
+                }
+                let search_lower = search
+                    .as_deref()
+                    .map(str::trim)
+                    .unwrap_or("")
+                    .to_lowercase();
+                let mut rows: Vec<_> = self
+                    .active_topics
+                    .iter()
+                    .filter(|(t, _)| {
+                        search_lower.is_empty() || t.to_lowercase().contains(&search_lower)
+                    })
+                    .collect();
+                rows.sort_by(|a, b| b.1.seq.cmp(&a.1.seq));
+                let items = rows
+                    .into_iter()
+                    .take(*limit)
+                    .map(|(topic, rec)| {
+                        let matching_subscriptions = self
+                            .sessions
+                            .values()
+                            .flat_map(|s| s.subscriptions.keys())
+                            .filter(|f| {
+                                let actual = shared_filter_name(f).unwrap_or(f);
+                                codec::matches(actual, topic)
+                            })
+                            .count();
+                        ActiveTopicInfo {
+                            topic: topic.clone(),
+                            publish_count: rec.publish_count,
+                            last_qos: rec.last_qos,
+                            last_publisher: rec.last_publisher.clone(),
+                            last_published_ms: rec.last_published_ms,
+                            matching_subscriptions,
+                        }
+                    })
+                    .collect();
+                Ok(AdminReply::ActiveTopics(items))
+            }
+            AdminRequest::AdminPublish {
+                topic,
+                payload,
+                qos,
+                retain,
+            } => {
+                if allowed_topic(topic).is_err() || payload.len() > self.config.max_packet_bytes {
+                    return Err(AdminError::InvalidRequest);
+                }
+                let message = MqttMessage {
+                    topic: topic.clone(),
+                    payload: bytes::Bytes::copy_from_slice(payload),
+                    qos: *qos,
+                    retain: *retain,
+                    properties: Default::default(),
+                };
+                let matched_sessions = self.targets_from(&message, None).len();
+                self.route_from(&message, None)
+                    .map_err(|_| AdminError::Unavailable)?;
+                self.push_event(
+                    "admin_publish",
+                    None,
+                    None,
+                    None,
+                    format!(
+                        "topic={topic} qos={} retain={retain} matched={matched_sessions}",
+                        *qos as u8
+                    ),
+                );
+                Ok(AdminReply::Published { matched_sessions })
             }
         }
     }
@@ -1713,6 +2135,9 @@ mod shared_regressions {
                         let session = s.sessions.get_mut("online").unwrap();
                         session.online = Some(Connection {
                             id: 999,
+                            peer_addr: None,
+                            keep_alive: 0,
+                            connected_at_ms: 0,
                             cancel: CancellationToken::new(),
                             taken_over: Arc::new(std::sync::atomic::AtomicBool::new(false)),
                         });
@@ -1773,5 +2198,269 @@ mod shared_regressions {
         s.route(&message).unwrap();
         assert_eq!(s.sessions["offline"].pending.len(), 1);
         assert_eq!(s.retained["jobs"].message.payload.as_ref(), b"work");
+    }
+
+    #[test]
+    fn session_diagnostics_and_connection_events_track_peer_takeover_and_kick() {
+        let mut s = State::new(Arc::new(MqttBrokerConfig::loopback_development()));
+        s.begin_generation().unwrap();
+        s.active = true;
+        let connect = Connect {
+            client_id: "dup-client".into(),
+            v5: None,
+            clean: false,
+            keep_alive: 45,
+            will: None,
+            username: None,
+            password: None,
+        };
+        let principal = Principal {
+            key: PrincipalKey {
+                domain: "test".into(),
+                subject: "anon".into(),
+            },
+            policy_version: 0,
+            expires_at_ms: u64::MAX,
+        };
+        let addr1: std::net::SocketAddr = "192.168.11.10:50001".parse().unwrap();
+        let addr2: std::net::SocketAddr = "192.168.11.11:50002".parse().unwrap();
+        let (_, conn1, _, _) = s
+            .attach_with_peer(
+                s.generation,
+                &connect,
+                CancellationToken::new(),
+                &principal,
+                None,
+                None,
+                Some(addr1),
+            )
+            .unwrap();
+        let AdminReply::Session(Some(info1)) = s
+            .admin(
+                s.generation,
+                &AdminRequest::GetSession {
+                    client_id: "dup-client".into(),
+                },
+            )
+            .unwrap()
+        else {
+            panic!("expected session");
+        };
+        assert_eq!(info1.peer_addr.as_deref(), Some("192.168.11.10:50001"));
+        assert_eq!(info1.protocol_level, 4);
+        assert_eq!(info1.keep_alive, 45);
+        assert!(info1.connected_at_ms.is_some());
+
+        // Second connection with same ClientID takes over the first.
+        let (_, conn2, _, _) = s
+            .attach_with_peer(
+                s.generation,
+                &connect,
+                CancellationToken::new(),
+                &principal,
+                Some(conn1),
+                None,
+                Some(addr2),
+            )
+            .unwrap();
+        s.admin(
+            s.generation,
+            &AdminRequest::DisconnectClient {
+                client_id: "dup-client".into(),
+                expected_connection_id: conn2,
+            },
+        )
+        .unwrap();
+        s.detach("dup-client", conn2, false);
+
+        let AdminReply::Events(events) = s
+            .admin(s.generation, &AdminRequest::ListEvents { limit: 10 })
+            .unwrap()
+        else {
+            panic!("expected events");
+        };
+        let kinds: Vec<&str> = events.iter().map(|e| e.kind.as_str()).collect();
+        assert_eq!(
+            kinds,
+            vec![
+                "disconnected",
+                "kicked",
+                "connected",
+                "taken_over",
+                "connected"
+            ]
+        );
+        assert_eq!(events[3].peer_addr.as_deref(), Some("192.168.11.10:50001"));
+        assert!(events[3].detail.contains("192.168.11.11:50002"));
+    }
+
+    #[test]
+    fn topic_filters_match_retained_active_and_admin_publish_work() {
+        let mut s = State::new(Arc::new(MqttBrokerConfig::loopback_development()));
+        s.begin_generation().unwrap();
+        s.active = true;
+        let principal = Principal {
+            key: PrincipalKey {
+                domain: "test".into(),
+                subject: "anon".into(),
+            },
+            policy_version: 0,
+            expires_at_ms: u64::MAX,
+        };
+        let c1 = Connect {
+            client_id: "sub-slash".into(),
+            v5: None,
+            clean: true,
+            keep_alive: 30,
+            will: None,
+            username: None,
+            password: None,
+        };
+        let c2 = Connect {
+            client_id: "sub-all".into(),
+            v5: None,
+            clean: true,
+            keep_alive: 30,
+            will: None,
+            username: None,
+            password: None,
+        };
+        let conn1 = s
+            .attach(
+                s.generation,
+                &c1,
+                CancellationToken::new(),
+                &principal,
+                None,
+                None,
+            )
+            .unwrap()
+            .1;
+        let conn2 = s
+            .attach(
+                s.generation,
+                &c2,
+                CancellationToken::new(),
+                &principal,
+                None,
+                None,
+            )
+            .unwrap()
+            .1;
+        s.subscribe(
+            s.generation,
+            "sub-slash",
+            conn1,
+            vec![("/#".into(), Some(Qos::AtMostOnce))],
+        )
+        .unwrap();
+        s.subscribe(
+            s.generation,
+            "sub-all",
+            conn2,
+            vec![("sensors/+".into(), Some(Qos::ExactlyOnce))],
+        )
+        .unwrap();
+
+        let AdminReply::TopicFilters { items, .. } = s
+            .admin(
+                s.generation,
+                &AdminRequest::ListTopicFilters {
+                    after: None,
+                    limit: 50,
+                },
+            )
+            .unwrap()
+        else {
+            panic!("expected topic filters");
+        };
+        assert_eq!(items.len(), 2);
+
+        let AdminReply::TopicMatch(matched) = s
+            .admin(
+                s.generation,
+                &AdminRequest::MatchTopic {
+                    topic: "sensors/temp".into(),
+                },
+            )
+            .unwrap()
+        else {
+            panic!("expected match");
+        };
+        assert_eq!(matched.matches.len(), 1);
+        assert_eq!(matched.matches[0].client_id, "sub-all");
+        assert_eq!(matched.matches[0].granted_max_qos, Qos::ExactlyOnce);
+
+        let AdminReply::Published { matched_sessions } = s
+            .admin(
+                s.generation,
+                &AdminRequest::AdminPublish {
+                    topic: "sensors/temp".into(),
+                    payload: b"23.5".to_vec(),
+                    qos: Qos::ExactlyOnce,
+                    retain: true,
+                },
+            )
+            .unwrap()
+        else {
+            panic!("expected published");
+        };
+        assert_eq!(matched_sessions, 1);
+
+        let AdminReply::RetainedList { items, .. } = s
+            .admin(
+                s.generation,
+                &AdminRequest::ListRetained {
+                    prefix: Some("sensors/".into()),
+                    after: None,
+                    limit: 50,
+                },
+            )
+            .unwrap()
+        else {
+            panic!("expected retained list");
+        };
+        assert_eq!(items.len(), 1);
+        assert_eq!(items[0].payload_preview.as_deref(), Some("23.5"));
+
+        let AdminReply::ActiveTopics(active) = s
+            .admin(
+                s.generation,
+                &AdminRequest::ListActiveTopics {
+                    search: None,
+                    limit: 50,
+                },
+            )
+            .unwrap()
+        else {
+            panic!("expected active topics");
+        };
+        assert_eq!(active.len(), 1);
+        assert_eq!(active[0].topic, "sensors/temp");
+        assert_eq!(active[0].publish_count, 1);
+        assert_eq!(active[0].matching_subscriptions, 1);
+
+        assert!(matches!(
+            s.admin(
+                s.generation,
+                &AdminRequest::DeleteRetained {
+                    topic: "sensors/temp".into(),
+                },
+            )
+            .unwrap(),
+            AdminReply::RetainedDeleted(true)
+        ));
+        let AdminReply::RetainedDetail(none) = s
+            .admin(
+                s.generation,
+                &AdminRequest::GetRetained {
+                    topic: "sensors/temp".into(),
+                },
+            )
+            .unwrap()
+        else {
+            panic!("expected detail");
+        };
+        assert!(none.is_none());
     }
 }
