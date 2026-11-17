@@ -311,8 +311,7 @@ impl Mqtt {
                 "only MQTT KeepAlive and reject_publish are supported",
             ));
         }
-        if self.security.allow_public_listener_without_tls
-            || self.security.reserved_internal_prefix != "$modorch/"
+        if self.security.reserved_internal_prefix != "$modorch/"
             || self.security.session_owner_policy != "same_principal"
         {
             return Err(invalid("unsupported mqtt.security policy"));
@@ -327,6 +326,7 @@ impl Mqtt {
         let enabled = self.core.enabled;
         let mut config = self.core.config();
         config.anonymous_access = self.security.anonymous_access;
+        config.allow_public_listener_without_tls = self.security.allow_public_listener_without_tls;
         let mut modules = vec![config.name.clone()];
         if self.auth.enabled {
             let component = self

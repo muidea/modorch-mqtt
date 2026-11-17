@@ -251,6 +251,11 @@ V-01 中已复现的独立连接 PING 被无关 Store 提交阻塞及故障夹�
 - **严格门禁**：`check-protocol-review.py --bundle validation/2026-11-16-f67-review-r3/protocol-bundle.reviewed.json --require-complete` 退出码 0，`validation_status = Passed`、`overall_status = Passed`；mqtt311 437/437、mqtt5 607/607、矩阵 18/18，两版 acceptance 均为 Passed。实现方收到结果后自行重跑，结果相同。
 - **结论**：F6（MQTT 3.1.1）/ F7（MQTT 5.0）协议验收在提交 `f9474a9` 的受控输入上通过，**F67-07、F67-08 结项**。批准边界与上文第 2 轮记录相同：限于 `acceptance-profile.json` 的 Server 范围和 `linux-x86_64`，Enhanced Authentication 只证实了拒绝行为。生产发布（178 项发布义务、SLO、跨平台、硬件掉电、远端 CI）仍为 Partial，另行评审。受控输入以后再变化时，需要重新生成交接包并复审。
 
+### 2026-11-17 显式支持非回环匿名监听开关（`allow_public_listener_without_tls`）
+
+- 按项目负责人需求新增 `MqttBrokerConfig.allow_public_listener_without_tls`（默认 `false`），允许在 `[mqtt.security]` 显式配置 `allow_public_listener_without_tls = true` 时配合 `anonymous_access = true` 在 `0.0.0.0` 等非回环地址监听；未显式开启时仍强制要求 Auth + TLS 并拒绝匿名非回环。
+- 受控输入已随本轮改动变化，已在当前工作树完成 `./scripts/check.sh` 回归验证；此前针对 `f9474a9` 的 `F67-07`/`F67-08` 严格复签不再自动覆盖本提交，需要时应基于新提交重签。
+
 此前一轮为“同号双向 QoS2 故障交叉与正 TTL 收口”。清理前记录的历史结果为：
 
 | 检查 | 历史结论 |

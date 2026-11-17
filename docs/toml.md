@@ -48,7 +48,7 @@ Provider注册、Cargo Feature、Core Provider引用和Selection仍分别处理�
 |---|---|
 | `mqtt.core` | 全部标量资源字段与 `control_subscription_ids`，名称同 `MqttBrokerConfig`；Duration使用 `handshake_timeout_ms`、`write_timeout_ms`、`connection_attempt_window_ms` 整数毫秒 |
 | 固定Core策略 | `protocols`支持 `["3.1.1"]` 或 `["3.1.1","5.0"]`（后者要求 `mqtt5` Feature）；`connection_idle_ms=0`表示遵循MQTT KeepAlive；`reliable_overflow_policy="reject_publish"` |
-| `mqtt.security` | `anonymous_access`默认false；`allow_public_listener_without_tls=false`、`reserved_internal_prefix="$modorch/"`、`session_owner_policy="same_principal"`不能更改 |
+| `mqtt.security` | `anonymous_access`默认false；`allow_public_listener_without_tls`默认false，仅显式置为`true`时允许非回环地址开放无TLS/匿名监听；`reserved_internal_prefix="$modorch/"`、`session_owner_policy="same_principal"`不能更改 |
 | `mqtt.eventhub` | 仅支持 `inbound_mode="best_effort"`、`inbound_topic_mode="original"`、`control_prefix="$modorch/mqtt/control/"`、`allow_implicit_outbound=false` |
 | `mqtt.auth` | `enabled=true`时必须给 `component`；`timeout_ms`默认5000，1..60000；具体账号/ACL在宿主Provider配置中 |
 | `mqtt.tls` | `enabled=true`时必须给非空 `certificate_chain`、`private_key`；相对路径以传入的配置目录为基准，绝对路径保持；Core setup通过受管IO加载PEM |

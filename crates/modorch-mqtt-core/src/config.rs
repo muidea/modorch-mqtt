@@ -82,6 +82,8 @@ pub struct MqttBrokerConfig {
     pub auth: Option<AuthProviderConfig>,
     /// Required explicit acknowledgement of anonymous development access.
     pub anonymous_access: bool,
+    /// Explicitly allow non-loopback listening without TLS or Auth (development/isolated LAN only).
+    pub allow_public_listener_without_tls: bool,
     /// Application-global subscription IDs for status, publish and publish/query.
     /// The host must reserve these IDs uniquely, including across broker instances.
     pub control_subscription_ids: [u64; 3],
@@ -137,6 +139,7 @@ impl Default for MqttBrokerConfig {
             name: "mqtt-broker".into(),
             listener: "127.0.0.1:1883".parse().unwrap(),
             anonymous_access: false,
+            allow_public_listener_without_tls: false,
             auth: None,
             tls: None,
             websocket: None,
@@ -251,6 +254,7 @@ impl MqttBrokerConfig {
             }
         }
         if !self.listener.ip().is_loopback()
+            && !self.allow_public_listener_without_tls
             && (self.auth.is_none() || self.tls.is_none() || self.anonymous_access)
         {
             return Err(invalid("non-loopback listeners require both Auth and TLS"));

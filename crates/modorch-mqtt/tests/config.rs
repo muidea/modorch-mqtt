@@ -150,12 +150,20 @@ fn strict_schema_rejects_unknown_unsupported_ambiguous_and_unsafe_settings() {
         );
     }
     for setting in [
-        "allow_public_listener_without_tls = true",
         "reserved_internal_prefix = '$modorch/mqtt/'",
         "session_owner_policy = 'client_id'",
     ] {
         assert!(parse(&format!("{ENABLED}{setting}\n")).is_err());
     }
+    let public_anon = parse(&format!(
+        "{}\nallow_public_listener_without_tls = true\n",
+        ENABLED.replace("127.0.0.1:0", "0.0.0.0:0")
+    ))
+    .unwrap();
+    let core = public_anon.core_config().unwrap();
+    assert!(core.anonymous_access);
+    assert!(core.allow_public_listener_without_tls);
+    assert!(core.listener.ip().is_unspecified());
     for setting in [
         "inbound_mode = 'reliable'",
         "inbound_topic_mode = 'rewritten'",

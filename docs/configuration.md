@@ -2,7 +2,7 @@
 
 本轮通过 Rust 的 `MqttBrokerConfig` 配置；支持显式 Auth/TLS/Admin/Storage 配置；完整设计中的 TOML 配置文件仍是后续目标。本库不读取进程环境或宿主配置文件。
 
-默认监听 `127.0.0.1:1883`，端口 0 可用于测试。普通 `Default` 需要配置 Auth；`loopback_development()` 显式允许匿名且只能回环监听，此模式拒绝带凭据的连接。匿名客户端处于同一信任域，ClientID 不提供身份隔离；启用 Auth 后，稳定 PrincipalKey、ClientID 使用权限与 Core owner 校验共同控制会话恢复/接管/清除。非回环监听必须 Auth + TLS；匿名与 Auth 不能同时选择。`$modorch` 命名空间始终不能通过网络发布、订阅或设置为 Will。
+默认监听 `127.0.0.1:1883`，端口 0 可用于测试。普通 `Default` 需要配置 Auth；`loopback_development()` 显式允许匿名且只能回环监听，此模式拒绝带凭据的连接。匿名客户端处于同一信任域，ClientID 不提供身份隔离；启用 Auth 后，稳定 PrincipalKey、ClientID 使用权限与 Core owner 校验共同控制会话恢复/接管/清除。非回环监听默认必须 Auth + TLS，仅在显式配置 `allow_public_listener_without_tls = true`（TOML/Rust 配置）时允许非回环匿名/无 TLS 监听；匿名与 Auth 不能同时选择。`$modorch` 命名空间始终不能通过网络发布、订阅或设置为 Will。
 
 `auth` 指定 Provider 组件 ID 和 0..60s 范围内的正超时，Core 声明 required 依赖；缺少显式选择的 Provider 启动失败。`tls` 指定证书链/私钥 PEM 路径，各限 1MiB，须启用 Cargo `tls` Feature。`admin` 只在显式配置时安装 Core 管理端点，并需来源白名单。Auth/Admin/Metrics 的装配及安全边界见 [security-and-operations.md](security-and-operations.md)。
 

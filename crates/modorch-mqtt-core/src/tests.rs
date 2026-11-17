@@ -844,6 +844,8 @@ fn configuration_rejects_unsafe_and_overflowing_limits() {
     let mut cfg = config();
     cfg.listener = "0.0.0.0:1883".parse().unwrap();
     assert!(cfg.validate().is_err());
+    cfg.allow_public_listener_without_tls = true;
+    assert!(cfg.validate().is_ok());
     let mut cfg = config();
     cfg.max_sessions = usize::MAX;
     assert!(cfg.validate().is_err());

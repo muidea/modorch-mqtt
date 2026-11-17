@@ -16,7 +16,7 @@ modorch-mqtt = { path = "../modorch-mqtt/crates/modorch-mqtt", features = ["auth
 |---|---|
 | `MqttBrokerConfig.auth` | Provider 组件 ID、正超时（≤60s）；不能与匿名模式同时选择 |
 | `MqttBrokerConfig.tls` | PEM 证书链/私钥路径，各≤1MiB；Cargo `tls` Feature 必须开启 |
-| 非回环监听 | 必须同时有 Auth、TLS，禁止匿名 |
+| 非回环监听 | 默认必须同时有 Auth、TLS，禁止匿名；除非显式设置 `allow_public_listener_without_tls = true` 确认开发/受控内网风险 |
 | `MqttBrokerConfig.admin` | Core 管理订阅 ID、可信 Admin 组件来源列表；缺省不安装端点 |
 | `AdminConfig.allowed_callers` | 可信业务 Handler 组件精确列表；默认空，全部拒绝 |
 | 所有订阅 ID | Application 全局唯一；默认 Core `[1,2,3]`，示例 Core Admin `4`、Auth `1000`、Admin `2000` |
