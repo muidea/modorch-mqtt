@@ -1574,14 +1574,15 @@ impl State {
             entry.seq = seq;
             return;
         }
-        if self.active_topics.len() >= MAX_ACTIVE_TOPICS
-            && let Some(oldest_key) = self
+        if self.active_topics.len() >= MAX_ACTIVE_TOPICS {
+            let oldest_key = self
                 .active_topics
                 .iter()
                 .min_by_key(|(_, rec)| rec.seq)
-                .map(|(k, _)| k.clone())
-        {
-            self.active_topics.remove(&oldest_key);
+                .map(|(k, _)| k.clone());
+            if let Some(oldest_key) = oldest_key {
+                self.active_topics.remove(&oldest_key);
+            }
         }
         self.active_topics.insert(
             message.topic.clone(),
